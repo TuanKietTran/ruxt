@@ -20,14 +20,13 @@
 | [MCP Automation](../specs/mcp-automation.md) | Current tools, transport, and headless rendering |
 | [Subscriptions](../specs/subscriptions-catalog.md) | Plans and subscription lifecycle |
 | [Authentication and IAM](../specs/auth-iam-security.md) | Sessions, policies, and current trust boundaries |
-| [Admin Dashboard](../specs/admin-dashboard.md) | Dedicated app, GitHub allowlist, analytics, and template publication |
+| Admin Dashboard | Separately maintained private service with GitHub allowlist, analytics, and template publication |
 
 ## Quick Start
 
 ```bash
 pnpm install
 pnpm dev        # ruxt: http://localhost:3000
-pnpm dev:admin  # dedicated admin app: http://localhost:3001
 ```
 
 The editor uses `/` for a new draft, `/?s=<id>` for a saved session, and `/?t=<id>&v=<version>` for a template. The MCP endpoint is `/mcp`.

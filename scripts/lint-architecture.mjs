@@ -33,10 +33,6 @@ requireText("packages/editor/app/components/CodePreview.vue", [
 requireText("nuxt.config.ts", [
   [/extends:\s*\["\.\/packages\/editor"\]/, "ruxt must consume the shared editor Nuxt layer"],
 ]);
-requireText("admin/nuxt.config.ts", [
-  [/extends:\s*\[repoPath\("packages\/editor"\)\]/, "admin must consume the shared editor Nuxt layer"],
-]);
-
 if (failures.length) {
   console.error(`Architecture lint failed:\n- ${failures.join("\n- ")}`);
   process.exit(1);

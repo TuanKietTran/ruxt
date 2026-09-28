@@ -4,13 +4,11 @@
   "private": true,
   "scripts": {
     "build": "nuxt build",
-    "build:admin": "pnpm --dir admin build",
     "lint": "node scripts/lint-architecture.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:smoke": "SMOKE_BASE_URL=${SMOKE_BASE_URL:-http://localhost:3000} vitest run tests/smoke",
     "dev": "nuxt dev",
-    "dev:admin": "pnpm --dir admin dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "cv:pipeline:setup": "sh scripts/setup-cv-pipeline.sh",

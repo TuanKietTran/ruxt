@@ -11,7 +11,7 @@ This spec covers:
 - Nitro plugins and routes under `server/`;
 - CQRS dispatch in `core/cqrs.ts` and registration in `infra/registry.ts`;
 - CV domain and transport types under `core/domain/cv/`;
-- the `infra` and dedicated `admin` workspace packages and top-level source ownership.
+- the `infra` workspace package, shared-package migration boundary, and top-level source ownership.
 
 ## Runtime Shape
 
@@ -23,7 +23,7 @@ Current top-level ownership is:
 - `server/`: Nitro startup, HTTP route adaptation, session helpers, CV persistence/realtime, the Python pipeline adapter/worker, and MCP;
 - `core/`: framework-free CV/profile/template/application domains, value objects, CQRS handlers, repository/service ports, and shared feature-policy exports under `core/shared/`;
 - `infra/`: scrypt, SQLite/Deno KV adapters, deployment strategy selection, and handler registration;
-- `admin/`: separately served Nuxt dashboard with independent GitHub OAuth, analytics readers, and template administration;
+- the private `ruxt-admin` repository: separately served Nuxt dashboard with independent GitHub OAuth, analytics readers, and template administration;
 - `scripts/`: standalone automation, currently headless PDF rendering.
 
 `@core` and `@infra` aliases are configured for Vite and Nitro. `nuxt.config.ts` also adds a Nitro Rollup loader for first-party `?raw` imports so Markdown and CSS seed assets can be imported by server code.

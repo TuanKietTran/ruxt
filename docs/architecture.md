@@ -78,7 +78,6 @@ ruxt/
 │       ├── iam.repo.ts
 │       └── user.repo.ts
 │
-├── admin/                      # Dedicated Nuxt admin app (GitHub OAuth, metrics, templates)
 ├── infra/                      # Infrastructure adapters
 │   ├── types.ts                # Repos aggregate interface
 │   ├── registry.ts             # Wires all handlers + repos at boot
@@ -100,7 +99,7 @@ ruxt/
 └── pnpm-workspace.yaml
 ```
 
-The `admin/` workspace is served independently (locally on port 3001), not as a route inside ruxt. It has its own GitHub-only session and numeric-id allowlist, while reading the same `analytics`, `cvPipeline`, and `cv` Nitro storage namespaces. See [the admin dashboard spec](../specs/admin-dashboard.md).
+Ruxt Admin is maintained in a separate private repository and served independently, not as a route inside Ruxt. It has its own GitHub-only session and numeric-id allowlist while reading the same `analytics`, `cvPipeline`, and `cv` Nitro storage namespaces.
 
 ---
 

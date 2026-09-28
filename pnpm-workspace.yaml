@@ -1,7 +1,6 @@
 packages:
   - "core"
   - "infra"
-  - "admin"
   - "packages/*"
 overrides:
   '@codemirror/state': 6.7.3

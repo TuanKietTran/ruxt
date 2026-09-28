@@ -33,42 +33,13 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
+            - name: Test
+              run: pnpm test
+
+            - name: Architecture lint
+              run: pnpm lint
+
             - name: Build (Deno Deploy preset)
               run: pnpm build
               env:
                   NITRO_PRESET: deno-deploy
-
-    build-admin:
-        name: Build standalone admin app
-        runs-on: ubuntu-latest
-
-        permissions:
-            contents: read
-
-        steps:
-            - uses: actions/checkout@v4
-
-            - uses: pnpm/action-setup@v4
-              with:
-                  version: 11.25.0
-
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: 22
-                  cache: pnpm
-
-            - name: Install dependencies
-              run: pnpm install --frozen-lockfile
-
-            - name: Typecheck admin
-              run: pnpm --dir admin typecheck
-
-            - name: Build admin (Node server preset)
-              run: pnpm build:admin
-
-            - name: Upload deployable admin server
-              uses: actions/upload-artifact@v4
-              with:
-                  name: ruxt-admin-node-server
-                  path: admin/.output
-                  include-hidden-files: true
