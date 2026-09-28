@@ -43,6 +43,18 @@ export type Handler<I, O> = {
 
 type AnyHandler = Handler<unknown, unknown>;
 
+export type MediatorObserver = (
+   request: { _type: string; requestName: string },
+   outcome: { durationMs: number; ok: boolean },
+) => void;
+
+let _observer: MediatorObserver | undefined;
+
+/** Install the single process-wide request timing observer; pass nothing to remove it. */
+export function setMediatorObserver(observer?: MediatorObserver): void {
+   _observer = observer;
+}
+
 class Mediator {
    private commandHandlers = new Map<string, AnyHandler>();
    private queryHandlers = new Map<string, AnyHandler>();
@@ -68,13 +80,24 @@ class Mediator {
          );
       }
 
-      const result = await handler.execute(request.payload);
+      const startedAt = performance.now();
+      let ok = false;
+      try {
+         const result = await handler.execute(request.payload);
 
-      if (!result.success) {
-         throw new Error(result.error);
+         if (!result.success) {
+            throw new Error(result.error);
+         }
+
+         ok = true;
+         return result.data as T;
+      } finally {
+         try {
+            _observer?.(request, { durationMs: performance.now() - startedAt, ok });
+         } catch {
+            // Instrumentation must never change request outcomes.
+         }
       }
-
-      return result.data as T;
    }
 
    async execute<T = unknown>(request: CqrsRequest): Promise<T> {

@@ -95,7 +95,7 @@ describe("sign-up and login workflows", () => {
 });
 
 describe("authentication redirects", () => {
-   it.each(["/", "/d", "/settings/cloud-data", "/e/cv-1?tab=style"])(
+   it.each(["/", "/d", "/settings/cloud-data", "/?s=cv-1&tab=style"])(
       "accepts same-origin path %s",
       path => expect(safeAuthRedirect(path)).toBe(path),
    );

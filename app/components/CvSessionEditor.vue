@@ -2,13 +2,11 @@
 import referenceCvCss from "~/data/reference-cv.css?raw";
 import { exportCvImages, type CvImageExportOptions, type CvImageFormat } from "~/utils/exportCvImage";
 import { exportCvBundle, type CvDocumentExportFormat } from "~/utils/exportCvDocument";
-import type { EditorStats, MarkdownFormat } from "~/composables/useCodeMirror";
+import type { EditorStats, MarkdownFormat } from "@ruxt/editor/composables/useCodeMirror";
 import type { CvDocument, CvProfileProps, CvTemplate } from "@core/domain/cv";
 
-definePageMeta({ layout: false });
-
-const route = useRoute();
-const documentId = String(route.params.id);
+const props = defineProps<{ documentId: string }>();
+const documentId = props.documentId;
 type SourceTab = "markdown" | "css";
 const activeTab = ref<SourceTab>("markdown");
 const showIndicators = ref(true);
@@ -19,7 +17,7 @@ const { resolvedId, markdown, css, revision, saveState, sourceId, applyDocument,
     css: referenceCvCss,
 });
 if (resolvedId.value !== documentId) {
-    await navigateTo(`/e/${encodeURIComponent(resolvedId.value)}`, { replace: true });
+    await navigateTo({ path: "/", query: { s: resolvedId.value } }, { replace: true });
 }
 const documentTitle = computed(
     () => markdown.value.match(/^#\s+(.+)$/m)?.[1]?.replace(/\s*\{[^{}]+\}\s*$/, "").trim() || documentId,

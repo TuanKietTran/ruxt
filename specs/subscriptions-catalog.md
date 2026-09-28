@@ -10,7 +10,7 @@ This spec covers:
 - plan/subscription repository ports in `core/repos/`;
 - related handlers under `core/handlers/` and registration in `infra/registry.ts`;
 - API routes under `server/routes/api/plans/` and `server/routes/api/subscriptions/`;
-- retained browser surfaces `app/pages/d/index.vue`, `app/pages/d/providers.vue`, and `app/types/api.ts`; the legacy `/p` plan-catalog route is retired.
+- retained browser surfaces `app/pages/d/index.vue`, `app/pages/d/providers.vue`, and `app/types/api.ts`; the plan-catalog page formerly at `/p` is retired and that path is now owned by the local profile editor.
 
 Authentication and authorization boundaries are specified in [auth-iam-security.md](auth-iam-security.md); backend storage is specified in [persistence-deployment.md](persistence-deployment.md).
 
@@ -66,7 +66,7 @@ Explicit timestamps must be ISO-8601 with `Z` or an offset. Handler/domain failu
 
 `/d` loads all plans and subscriptions for query `userId`, defaulting to `demo`. It computes active/trial counts, nominal monthly spend per currency, earliest period end, search/status filtering, and plan lookup. It can create a subscription, create a user plan and then subscribe, cancel, and hard-delete after typing the plan name.
 
-The legacy `/p` plan-catalog route has been removed because it is not part of the CV product. Catalog and subscription domain code, handlers, repositories, and APIs remain available in core/server. `/d/providers` groups all plans by provider. `app/types/api.ts` mirrors serialized domain output for the retained dashboard pages.
+The legacy plan-catalog page formerly at `/p` has been removed because it is not part of the CV product; `/p` now belongs to the local profile editor. Catalog and subscription domain code, handlers, repositories, and APIs remain available in core/server. `/d/providers` groups all plans by provider. `app/types/api.ts` mirrors serialized domain output for the retained dashboard pages.
 
 ## Current Gaps
 

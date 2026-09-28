@@ -34,8 +34,9 @@ ruxt/
 │   ├── layouts/                # Nuxt layouts
 │   ├── middleware/             # Client-side route guards
 │   ├── pages/                  # File-based routing
-│   │   ├── index.vue           # Master CV editor
-│   │   ├── e/[id].vue          # Named CV editor
+│   │   ├── index.vue           # Query-driven draft/session/template editor
+│   ├── components/
+│   │   ├── CvSessionEditor.vue # Saved-session editor
 │   │   ├── login.vue           # Auth page
 │   │   └── d/index.vue         # Subscription dashboard
 │   ├── plugins/                # Vue plugins
@@ -77,6 +78,7 @@ ruxt/
 │       ├── iam.repo.ts
 │       └── user.repo.ts
 │
+├── admin/                      # Dedicated Nuxt admin app (GitHub OAuth, metrics, templates)
 ├── infra/                      # Infrastructure adapters
 │   ├── types.ts                # Repos aggregate interface
 │   ├── registry.ts             # Wires all handlers + repos at boot
@@ -98,13 +100,15 @@ ruxt/
 └── pnpm-workspace.yaml
 ```
 
+The `admin/` workspace is served independently (locally on port 3001), not as a route inside ruxt. It has its own GitHub-only session and numeric-id allowlist, while reading the same `analytics`, `cvPipeline`, and `cv` Nitro storage namespaces. See [the admin dashboard spec](../specs/admin-dashboard.md).
+
 ---
 
 ## Core Concepts
 
 ### CV editor and documents
 
-`/` edits the `master` CV and `/e/:id` edits a named document. Pages bind CodeMirror to `useCvDocument()`, which debounces complete Markdown/CSS replacements and sends the current revision to `PUT /api/cvs/:id`. `server/adapters/cv/document-store.ts` validates, serializes writes per document, persists through Nitro storage, increments revisions, and publishes process-local events consumed by `/api/cvs/:id/events`.
+`/` opens a new draft, `/?s=<id>` edits a saved session, and `/?t=<id>&v=<version>` previews an allowed template. The session editor binds CodeMirror to `useCvDocument()`, which debounces complete Markdown/CSS replacements and sends the current revision to `PUT /api/cvs/:id`. `server/adapters/cv/document-store.ts` validates, serializes writes per document, persists through Nitro storage, increments revisions, and publishes process-local events consumed by `/api/cvs/:id/events`.
 
 Imported facts form a versioned `CvProfile` snapshot. A `CvApplication` composes that snapshot with one immutable `CvTemplate` version. No standalone profile-saving API or browser profile store exists.
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { toRef } from "vue";
-import type { CodeMirrorLanguage, EditorStats } from "~/composables/useCodeMirror";
+import { useCodeMirror } from "../composables/useCodeMirror";
+import type { CodeMirrorLanguage, EditorStats } from "../composables/useCodeMirror";
 
 const props = withDefaults(
     defineProps<{

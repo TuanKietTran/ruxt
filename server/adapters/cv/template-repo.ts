@@ -27,8 +27,9 @@ async function ensurePersistedTemplates() {
          if (!await storage.hasItem(key)) await storage.setItem(key, template.toJSON());
       }));
 
-      // Existing versions win semantically, but migrate the old rendering
-      // contract in place so their CSS no longer targets app-owned classes.
+      // Existing versions win semantically, except for narrow safety migrations:
+      // rendering hooks move off app-owned classes and the internal pipeline
+      // template is removed from the public catalog.
       await Promise.all((await storage.getKeys("templates:")).map(async (key) => {
          const template = await storage.getItem<CvTemplateProps>(key);
          if (!template) return;
@@ -36,9 +37,13 @@ async function ensurePersistedTemplates() {
             markdown: template.markdownSkeleton,
             css: template.css,
          });
-         if (migrated.changed) {
+         const tags = template.id === "pipeline-default"
+            ? template.tags.filter(tag => tag !== "public")
+            : template.tags;
+         if (migrated.changed || tags.length !== template.tags.length) {
             await storage.setItem(key, {
                ...template,
+               tags,
                markdownSkeleton: migrated.markdown,
                css: migrated.css,
             });

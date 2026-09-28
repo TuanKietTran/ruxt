@@ -3,7 +3,7 @@ import { computed } from "vue";
 import postcss from "postcss";
 import prefixSelector from "postcss-prefix-selector";
 import "github-markdown-css/github-markdown.css";
-import { renderCvMarkdownToHtml, splitCvSheets } from "~/utils/cvMarkdown";
+import { renderCvMarkdownToHtml, splitCvSheets } from "../utils/cvMarkdown";
 
 const props = withDefaults(defineProps<{
     doc: string;

@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import referenceCvCss from "~/data/reference-cv.css?raw";
 import { exportCvImages, type CvImageExportOptions, type CvImageFormat } from "~/utils/exportCvImage";
-import type { EditorStats, MarkdownFormat } from "~/composables/useCodeMirror";
+import type { EditorStats, MarkdownFormat } from "@ruxt/editor/composables/useCodeMirror";
 import type { CvDocument } from "@core/domain/cv";
 
 definePageMeta({ layout: false });
+
+const route = useRoute();
+const queryValue = (value: unknown) => typeof value === "string" && value ? value : undefined;
+const sessionId = computed(() => queryValue(route.query.t) ? undefined : queryValue(route.query.s));
 
 type SourceTab = "markdown" | "css";
 type SaveState = "saved" | "saving" | "conflict" | "offline";
@@ -67,7 +71,7 @@ const registerDraft = () => {
                 revision.value = created.revision;
                 saveState.value = "saved";
                 await refreshNuxtData("editor-document-list");
-                await navigateTo(`/e/${encodeURIComponent(id)}`);
+                await navigateTo({ path: "/", query: { s: id } });
             } catch (error: any) {
                 saveState.value = error?.statusCode === 409 ? "conflict" : "offline";
                 registrationPromise = undefined;
@@ -101,7 +105,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+    <CvSessionEditor v-if="sessionId" :key="sessionId" :document-id="sessionId" />
     <NuxtLayout
+        v-else
         name="editor"
         :title="documentTitle"
         app-label="CV"

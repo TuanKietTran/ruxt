@@ -109,7 +109,7 @@ const languageExtensions = (language: CodeMirrorLanguage): Extension =>
 export function useCodeMirror<T extends HTMLElement = HTMLDivElement>(
     options: UseCodeMirrorOptions,
 ): UseCodeMirrorResult<T> {
-    const container = shallowRef<T | null>(null);
+    const container = shallowRef<T | null>(null) as ShallowRef<T | null>;
     const view = shallowRef<EditorView>();
     const reportStats = (state: EditorState) => {
         if (!options.onStatsChange) return;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useTheme, type ThemeId } from "~/composables/useTheme";
-import type { EditorStats } from "~/composables/useCodeMirror";
+import type { EditorStats } from "@ruxt/editor/composables/useCodeMirror";
 import type { CvDocumentSummary, CvTemplate } from "@core/domain/cv";
 
 const props = withDefaults(
@@ -97,11 +97,15 @@ const toggleIndicators = () => {
     if (selectedTemplate.value) showTemplateIndicators.value = !showTemplateIndicators.value;
     else emit("toggleIndicators");
 };
+const templateRoute = (template: Pick<CvTemplate, "id" | "version">) => ({
+    path: "/",
+    query: { t: template.id, v: String(template.version) },
+});
 const viewTemplate = async (template: CvTemplate) => {
     selectedTemplate.value = template;
     templateSourceTab.value = "markdown";
     operationError.value = "";
-    await navigateTo(`/t/${encodeURIComponent(template.id)}?v=${template.version}`);
+    await navigateTo(templateRoute(template));
 };
 const cloneTemplateToLocal = async () => {
     if (!selectedTemplate.value || isCloningTemplate.value) return;
@@ -115,7 +119,7 @@ const cloneTemplateToLocal = async () => {
             body: { version: source.version, newId: `${base}-local-${crypto.randomUUID().slice(0, 8)}` },
         });
         await reloadCvTemplates();
-        await navigateTo(`/t/${encodeURIComponent(selectedTemplate.value.id)}?v=${selectedTemplate.value.version}`);
+        await navigateTo(templateRoute(selectedTemplate.value));
     } catch (error: any) {
         operationError.value = error?.data?.statusMessage ?? error?.message ?? "Template clone failed.";
     } finally {
@@ -127,7 +131,9 @@ const documentLabel = (document: CvDocumentSummary | string) => {
     const id = typeof document === "string" ? document : document.id;
     return id === "master" ? "Current CV" : id.replaceAll("-", " ").replace(/\b\w/g, character => character.toUpperCase());
 };
-const documentPath = (id: string) => `/e/${encodeURIComponent(id)}`;
+const documentPath = (id: string) => ({ path: "/", query: { s: id } });
+const routeQueryValue = (value: unknown) => typeof value === "string" && value ? value : undefined;
+const isActiveDocument = (id: string) => !routeQueryValue(route.query.t) && routeQueryValue(route.query.s) === id;
 const createSession = async () => {
     operationError.value = "";
     selectedTemplate.value = null;
@@ -183,16 +189,16 @@ const deleteSelectedDocument = async () => {
     if (!window.confirm(`Delete ${documentLabel(selected)}? This cannot be undone.`)) return;
     await $fetch(`/api/cvs/${encodeURIComponent(selected.id)}`, { method: "DELETE" });
     await reloadCvDocuments();
-    if (route.path === documentPath(selected.id)) await navigateTo("/");
+    if (isActiveDocument(selected.id)) await navigateTo("/");
 };
 watch(
-    [cvTemplates, () => route.path, () => route.query.v],
-    ([templates, path, version]) => {
-        if (!path.startsWith("/t/")) {
+    [cvTemplates, () => route.query.t, () => route.query.v],
+    ([templates, templateQuery, version]) => {
+        const id = routeQueryValue(templateQuery);
+        if (!id) {
             selectedTemplate.value = null;
             return;
         }
-        const id = decodeURIComponent(path.slice(3));
         const requestedVersion = Number(version);
         selectedTemplate.value = templates.find(template =>
             template.id === id && (!Number.isInteger(requestedVersion) || template.version === requestedVersion),
@@ -207,9 +213,9 @@ const closeTemplate = async () => {
 };
 
 const activeSessionTitle = computed(() => {
-    if (!route.path.startsWith("/e/")) return undefined;
-    const id = decodeURIComponent(route.path.slice(3));
-    return sessions.value.find(document => document.id === id)?.title;
+    if (routeQueryValue(route.query.t)) return undefined;
+    const id = routeQueryValue(route.query.s);
+    return id ? sessions.value.find(document => document.id === id)?.title : undefined;
 });
 const editorTitle = computed(
     () => selectedTemplate.value?.name
@@ -545,7 +551,7 @@ const handleLogout = async () => {
                         v-for="document in sessions"
                         :key="document.id"
                         class="document-tree__item"
-                        :class="{ 'document-tree__item--active': route.path === documentPath(document.id) }"
+                        :class="{ 'document-tree__item--active': isActiveDocument(document.id) }"
                         :to="documentPath(document.id)"
                         @contextmenu.prevent="openDocumentMenu($event, document)"
                     >

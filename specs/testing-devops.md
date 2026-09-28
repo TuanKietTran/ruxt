@@ -63,7 +63,7 @@ Handler suites construct handlers directly with fake repositories rather than bo
 
 Error-message assertions are deliberate: `server/utils/api-errors.ts` maps domain messages to HTTP status by text, so the suites pin the exact wording that produces 400/404/409/413.
 
-`tests/smoke/http.test.ts` is opt-in and self-skipping. Without `SMOKE_BASE_URL` the whole suite is skipped so `pnpm test` stays hermetic; with it, the suite fails fast if no server answers `/api/health`. It covers health, CV capabilities in either available or degraded form, the unauthenticated `/api/public/templates` catalog, the 401 on unauthenticated `POST /api/cv-templates`, auth rejection paths, anonymous session inspection, MCP `initialize` over Streamable HTTP, and server-rendered `/` and `/profiles`.
+`tests/smoke/http.test.ts` is opt-in and self-skipping. Without `SMOKE_BASE_URL` the whole suite is skipped so `pnpm test` stays hermetic; with it, the suite fails fast if no server answers `/api/health`. It covers health, CV capabilities in either available or degraded form, the unauthenticated `/api/public/templates` catalog, the 401 on unauthenticated `POST /api/cv-templates`, auth rejection paths, anonymous session inspection, MCP `initialize` over Streamable HTTP, and server-rendered `/` and `/p`.
 
 ## Artifacts And Sensitive Data
 

@@ -15,7 +15,7 @@ const busy = ref(false);
 const error = ref("");
 const capabilities = ref<CvPipelineCapabilities | null>(null);
 const templates = ref<CvTemplate[]>([]);
-const templateKey = ref("pipeline-default:1");
+const templateKey = ref("");
 const job = ref<CvImportJobProps | null>(null);
 const preview = ref<CvImportPreview | null>(null);
 let pollTimer: ReturnType<typeof setTimeout> | undefined;
@@ -31,7 +31,7 @@ const loadSetup = async () => {
         ]);
         capabilities.value = caps;
         templates.value = catalog.templates;
-        const preferred = catalog.templates.find(template => template.id === "pipeline-default") ?? catalog.templates[0];
+        const preferred = catalog.templates[0];
         if (preferred) templateKey.value = `${preferred.id}:${preferred.version}`;
         if (!caps.available) error.value = caps.degradedReason ?? "CV extraction is unavailable.";
     } catch (reason) { error.value = message(reason); }
@@ -59,7 +59,7 @@ const poll = async () => {
 };
 
 const triggerPipeline = async () => {
-    if (!file.value || busy.value) return;
+    if (!file.value || !templateKey.value || busy.value) return;
     busy.value = true;
     error.value = "";
     try {
@@ -129,7 +129,7 @@ onBeforeUnmount(() => { if (pollTimer) clearTimeout(pollTimer); });
                     </button>
                     <input ref="input" hidden type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp" @change="selectFile(($event.target as HTMLInputElement).files?.[0])">
                     <label>Structure template<select v-model="templateKey" :disabled="Boolean(job)"><option v-for="template in templates" :key="`${template.id}:${template.version}`" :value="`${template.id}:${template.version}`">{{ template.name }} · v{{ template.version }}</option></select></label>
-                    <button class="primary" type="button" :disabled="!file || busy || !capabilities?.available || Boolean(job)" @click="triggerPipeline">{{ busy ? "Uploading…" : "Import and run pipeline" }}</button>
+                    <button class="primary" type="button" :disabled="!file || !templateKey || busy || !capabilities?.available || Boolean(job)" @click="triggerPipeline">{{ busy ? "Uploading…" : "Import and run pipeline" }}</button>
                 </div>
                 <aside>
                     <div v-if="!job" class="empty">Select one blob to start the CV pipeline.</div>

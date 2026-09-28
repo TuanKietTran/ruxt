@@ -1,6 +1,6 @@
 import { extractCvProfile } from "@core/domain/cv";
 import type { CvProfileProps } from "@core/domain/cv";
-import { renderCvMarkdownToHtml } from "./cvMarkdown";
+import { renderCvMarkdownToHtml } from "@ruxt/editor/utils/cvMarkdown";
 import { safeFilename, downloadBlob } from "./exportCvImage";
 
 export type CvDocumentExportFormat = "md" | "html" | "jsonresume" | "yaml" | "docx";

@@ -6,6 +6,7 @@ const infraPath = fileURLToPath(new URL("./infra", import.meta.url));
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+   extends: ["./packages/editor"],
    compatibilityDate: "2025-07-15",
    modules: ["@clerk/nuxt"],
    clerk: {
@@ -84,6 +85,11 @@ export default defineNuxtConfig({
          cvPipeline: {
             driver: "fs",
             base: process.env.CV_PIPELINE_DATA_DIR ?? "./.data/cv-pipeline",
+         },
+         // Hourly route/CQRS/user/task aggregates, read by the admin app.
+         analytics: {
+            driver: "fs",
+            base: process.env.ANALYTICS_DATA_DIR ?? "./.data/analytics",
          },
       },
       esbuild: {

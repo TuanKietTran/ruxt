@@ -93,7 +93,7 @@ Server history should retain actor/source (`browser`, `mcp`, `import`, `tailor`,
 
 Templates should be immutable by version. Applying a template records template id/version in document metadata.
 
-The `GET /api/public/templates` catalog requires no session and returns templates whose persisted data contains the `public` tag. The full `GET /api/cv-templates` catalog and `POST /api/cv-templates/:id/clone` remain authenticated. The current template catalog is seeded from versioned JSON blobs in `server/data/cv-templates/` and copied lazily into the configured `cv` Nitro storage under `templates:*` keys. Existing persisted versions win. As a narrow, idempotent soft migration, a persisted version whose CSS still targets the old app-owned `.cv-sheet` hook or intermediate `.cv-document` contract is updated in place so each Markdown page uses `:::resume`, its first heading uses `{.cv-name}`, and its stylesheet targets those explicit indicators; all other template content remains authoritative. The former `documents:template-harvard` value is retained for rollback. Template discovery/visibility labels are persisted directly as each blob's `tags` array; current server templates carry `"public"` and no handler infers that tag.
+The `GET /api/public/templates` catalog requires no session and returns templates whose persisted data contains the `public` tag. The full `GET /api/cv-templates` catalog and `POST /api/cv-templates/:id/clone` remain authenticated. The current template catalog is seeded from versioned JSON blobs in `server/data/cv-templates/` and copied lazily into the configured `cv` Nitro storage under `templates:*` keys. Existing persisted versions win. Narrow, idempotent soft migrations update a persisted version whose CSS still targets the old app-owned `.cv-sheet` hook or intermediate `.cv-document` contract so each Markdown page uses `:::resume`, its first heading uses `{.cv-name}`, and its stylesheet targets those explicit indicators; they also remove the former `public` tag from the internal `pipeline-default` template. The former `documents:template-harvard` value is retained for rollback. Template discovery/visibility labels are persisted directly as each blob's `tags` array: Harvard is public, while the pipeline default remains available internally and in the authenticated catalog.
 
 ## 4. Import And Extraction
 
@@ -257,7 +257,7 @@ Profiles stay unpersisted on the server. Callers send the profile payload, for e
 
 On failure, completed steps are compensated in reverse. A `SagaError` keeps the failed step's message, so HTTP status mapping is unchanged, and lists `compensated` steps and `compensationFailures`. If a newer edit lands between the write and its compensation, the compensation's revision check fails. The newer edit wins, and the failure is reported rather than overwriting it.
 
-The CV editor (`/e/:id`) has a `Current layout`/template picker and a `Switch profile…` picker next to the source tabs. Choosing a local profile calls `PUT /api/cvs/:id/profile` with the editor's revision and `sourceId`. The editor then adopts the returned document without re-saving it. Switching is refused while a local edit is unsaved.
+The CV editor (`/?s=<id>`) has a `Current layout`/template picker and a `Switch profile…` picker next to the source tabs. Choosing a local profile calls `PUT /api/cvs/:id/profile` with the editor's revision and `sourceId`. The editor then adopts the returned document without re-saving it. Switching is refused while a local edit is unsaved.
 
 ## Current Gaps
 

@@ -181,7 +181,7 @@ smoke("HTTP smoke", () => {
    });
 
    it("serves the unauthenticated local profile editor", async () => {
-      expect((await call("/profiles")).status).toBe(200);
+      expect((await call("/p")).status).toBe(200);
    });
 
 });

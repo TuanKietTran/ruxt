@@ -26,8 +26,15 @@ requireText("app/components/CvImportDialog.vue", [
   [/5 \* 1024 \* 1024/, "browser CV blobs must retain the 5 MB client ceiling"],
 ]);
 
-requireText("app/components/CodePreview.vue", [
+requireText("packages/editor/app/components/CodePreview.vue", [
   [/prefix:\s*"\.cv-preview-scope"/, "document CSS must remain scoped to prevent template style leaks"],
+]);
+
+requireText("nuxt.config.ts", [
+  [/extends:\s*\["\.\/packages\/editor"\]/, "ruxt must consume the shared editor Nuxt layer"],
+]);
+requireText("admin/nuxt.config.ts", [
+  [/extends:\s*\[repoPath\("packages\/editor"\)\]/, "admin must consume the shared editor Nuxt layer"],
 ]);
 
 if (failures.length) {

@@ -11,7 +11,7 @@ This spec covers:
 - Nitro plugins and routes under `server/`;
 - CQRS dispatch in `core/cqrs.ts` and registration in `infra/registry.ts`;
 - CV domain and transport types under `core/domain/cv/`;
-- the `infra` workspace package and top-level source ownership.
+- the `infra` and dedicated `admin` workspace packages and top-level source ownership.
 
 ## Runtime Shape
 
@@ -23,6 +23,7 @@ Current top-level ownership is:
 - `server/`: Nitro startup, HTTP route adaptation, session helpers, CV persistence/realtime, the Python pipeline adapter/worker, and MCP;
 - `core/`: framework-free CV/profile/template/application domains, value objects, CQRS handlers, repository/service ports, and shared feature-policy exports under `core/shared/`;
 - `infra/`: scrypt, SQLite/Deno KV adapters, deployment strategy selection, and handler registration;
+- `admin/`: separately served Nuxt dashboard with independent GitHub OAuth, analytics readers, and template administration;
 - `scripts/`: standalone automation, currently headless PDF rendering.
 
 `@core` and `@infra` aliases are configured for Vite and Nitro. `nuxt.config.ts` also adds a Nitro Rollup loader for first-party `?raw` imports so Markdown and CSS seed assets can be imported by server code.
@@ -59,25 +60,25 @@ Handler modules own request input/output shapes, a handler factory, a command/qu
 
 ## Shared Editor Layout Rule
 
-First-party CV-related editor surfaces must reuse `app/layouts/editor.vue`. Standard CV and template pages use its source/preview regions. Other tools such as `/profiles` supply the named `workspace` slot and replace document navigation through the `sidebar` slot, so tool-specific navigation replaces rather than duplicates the Sessions/Templates sidebar while the header, activity bar, theme, sizing, and status treatment remain consistent. Do not create a parallel full-page product shell for an editor tool without an explicit spec change.
+First-party CV-related editor surfaces must reuse `app/layouts/editor.vue`. Standard CV and template pages use its source/preview regions. Other tools such as `/p` supply the named `workspace` slot and replace document navigation through the `sidebar` slot, so tool-specific navigation replaces rather than duplicates the Sessions/Templates sidebar while the header, activity bar, theme, sizing, and status treatment remain consistent. Do not create a parallel full-page product shell for an editor tool without an explicit spec change.
 
 `scripts/lint-architecture.mjs` enforces the current profile-layout, public/local profile, shared core-type, and preview style-isolation boundaries through `pnpm lint`.
 
 ## Route Surfaces
 
-Current browser routes include:
+Current browser routes include (the dedicated admin workspace deliberately adds no `/admin` route here):
 
 - `/`: the master CV editor, rendered without the default layout;
-- `/e/:id`: named CV editor, also without the default layout;
+- `/?s=<id>`: named CV session editor, also without the default layout;
 - `/about`: construction/marketing page;
 - `/login`: deep-link/redirect bridge to the global Clerk-backed sign-in and account-creation dialog;
-- `/profiles`: browser-local profile editor;
+- `/p`: browser-local profile editor;
 - `/settings/cloud-data`: authenticated, independent cloud-session/template consent controls;
-- `/t/:id`: read-only template source and preview;
+- `/?t=<id>&v=<version>`: read-only template source and preview; anonymous selection is restricted to the public catalog;
 - `/d`: subscription dashboard;
 - `/d/providers`: provider-grouped plan inventory;
 
-The unrelated legacy `/p` browser plan-catalog route is retired; its catalog domain and API remain in place.
+The legacy browser plan-catalog route formerly at `/p` is retired; that path now serves the browser-local profile editor, while the catalog domain and API remain in place.
 
 Current API route families are `/api/health`, `/api/auth/*`, `/api/cloud-data/*`, `/api/public/*`, `/api/cvs/*`, `/api/cv-imports/*`, `/api/cv-applications/*`, `/api/cv-artifacts/*`, `/api/cv-templates/*`, `/api/cv-capabilities`, `/api/plans/*`, `/api/subscriptions/*`, and `/api/iam/*`. `/mcp` is a protocol endpoint handled by the MCP SDK over Streamable HTTP rather than a JSON REST route. Their data and security contracts belong to the corresponding subsystem specs.
 
@@ -95,7 +96,7 @@ From this contract onward, every newly introduced HTTP API that permits unauthen
 
 `nuxt.config.ts` is the only alias authority at runtime. `vitest.config.ts` re-declares `@core` and `@infra` for the test runner because Vitest does not read Nuxt configuration; the two must be kept in sync when an alias changes.
 
-The mediator, deployment strategy registry, SQLite connection, Deno KV connection, CV listener sets, and per-document write queues are process-local singletons. Clerk owns broker sessions; normalized browser auth and theme state use Nuxt `useState`; theme preference is persisted in `localStorage`. Canonical imported CV profiles exist as versioned snapshots inside CV applications. The separate `/profiles` convenience editor stores lightweight profile drafts only in browser `localStorage`; it has no server repository or canonical-application status. CV documents and subscription data use separate persistence systems.
+The mediator, deployment strategy registry, SQLite connection, Deno KV connection, CV listener sets, per-document write queues, and pending analytics accumulator are process-local singletons. Clerk owns broker sessions; normalized browser auth and theme state use Nuxt `useState`; theme preference is persisted in `localStorage`. Canonical imported CV profiles exist as versioned snapshots inside CV applications. The separate `/p` convenience editor stores lightweight profile drafts only in browser `localStorage`; it has no server repository or canonical-application status. CV documents and subscription data use separate persistence systems.
 
 ## Current Gaps
 

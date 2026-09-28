@@ -40,7 +40,7 @@ describe("feature flag strategy", () => {
       })).toBe(false);
       expect(isRouteEnabled([authenticatedFeature], {
          hostname: "branch.deno.net",
-         pathname: "/profiles",
+         pathname: "/p",
       })).toBe(true);
       expect(isRouteEnabled([authenticatedFeature], {
          hostname: "cv.example.com",

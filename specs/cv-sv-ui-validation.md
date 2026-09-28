@@ -82,7 +82,7 @@ The dedicated check column uses `[x]` only for behavior that was exercised and f
 | Save state | [x] | **Working** | After editing, the state progressed back to `saved`. |
 | Revision | [x] | **Working** | The displayed revision increased after persisted edits. |
 | Page count | [x] | **Working** | Matched the preview toolbar's `1 page`. |
-| Cursor position (`Ln 1, Col 1`) | [x] | **Working** | `useCodeMirror` reports line/column on every `docChanged` or `selectionSet` update through `onStatsChange`; the layout renders it. Verified live on `/e/:id`: click moved it to `Ln 4, Col 19`, typing to `Ln 4, Col 30`, two ArrowLeft presses to `Ln 4, Col 28`, and Enter to `Ln 5, Col 2` on both dev and the production build. |
+| Cursor position (`Ln 1, Col 1`) | [x] | **Working** | `useCodeMirror` reports line/column on every `docChanged` or `selectionSet` update through `onStatsChange`; the layout renders it. Verified live on `/?s=<id>`: click moved it to `Ln 4, Col 19`, typing to `Ln 4, Col 30`, two ArrowLeft presses to `Ln 4, Col 28`, and Enter to `Ln 5, Col 2` on both dev and the production build. |
 | Word count (`0 words`) | [x] | **Working** | The same stats channel counts whitespace-delimited tokens in the active document and singularizes at one word. Verified live: `8 words` on a fresh draft, `11 words` after typing, and `271 words` after switching to the `style.css` tab. |
 | A4 indicator | [ ] | **Static but accurate for this template** | It is hard-coded to `A4`; no alternate page-size UI exists. |
 | Context label | [ ] | **Working as a derived label** | It displayed `app:cv` for the fallback title and derives from the editor title. It is informational, not interactive. |

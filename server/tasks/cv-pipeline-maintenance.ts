@@ -7,7 +7,14 @@ export default defineTask({
       description: "Run queued CV extraction jobs",
    },
    async run() {
-      const processed = await runQueuedCvImports(2);
-      return { result: { processed } };
+      const startedAt = performance.now();
+      let ok = false;
+      try {
+         const processed = await runQueuedCvImports(2);
+         ok = true;
+         return { result: { processed } };
+      } finally {
+         recordMetric("tasks", "cv-pipeline-maintenance", { durationMs: performance.now() - startedAt, ok });
+      }
    },
 });
