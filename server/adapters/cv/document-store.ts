@@ -86,6 +86,10 @@ function seedDocument(id: string): CvDocument {
 export async function getCvDocument(id: string): Promise<CvDocument> {
     const existing = await readDocument(id);
     if (existing) return existing;
+    // Only the default CV is seeded. Seeding a session id on a read miss (for
+    // example, on an instance whose storage has not seen it) would persist a
+    // placeholder over the session and the editor would show it as a reset.
+    if (id !== "master") throw createError({ statusCode: 404, statusMessage: "CV document not found" });
 
     const seeded = seedDocument(id);
     await useStorage("cv").setItem(keyFor(id), seeded.toJSON());
