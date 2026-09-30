@@ -1,51 +1,28 @@
 <script setup lang="ts">
 import { toRaw } from "vue";
-import type { CvContactKind, CvProfileProps } from "@core/domain/cv";
+import type { CvContactKind, CvDocumentSummary, CvProfileProps, CvTemplate } from "@core/domain/cv";
+import type { ApplyCvProfileOutput } from "@core/handlers/apply-cv-profile";
+import { normalizeCvProfile } from "@core/domain/cv/compose";
+import { type LocalProfile, newLocalProfileId, readLocalProfiles, writeLocalProfiles } from "~/utils/localProfiles";
 import { downloadBlob, safeFilename } from "~/utils/exportCvImage";
 import {
     MIN_PASSPHRASE_LENGTH, PROFILE_FILE_EXTENSION, ProfileTransferError,
     decryptProfiles, encryptProfiles, envelopeToFile, envelopeToToken,
 } from "~/utils/profileTransfer";
 
-type LocalProfile = CvProfileProps & { id: string; createdAt: number; updatedAt: number };
 type LocalProfileInput = CvProfileProps;
 
 definePageMeta({ layout: false, public: true, path: "/p" });
 
-const STORAGE_KEY = "cv-sv:local-profiles:v1";
 const profiles = ref<LocalProfile[]>([]);
 const editingId = ref<string | null>(null);
 const error = ref("");
-const emptyProfile = (): LocalProfileInput => ({
-    version: 1,
-    identity: { fullName: "", headline: "", summary: "", location: "" },
-    contacts: [], experiences: [], skills: [], certifications: [], education: [], projects: [], languages: [],
-});
+const emptyProfile = (): LocalProfileInput => normalizeCvProfile({});
 const draft = ref<LocalProfileInput>(emptyProfile());
-const uid = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
-const readProfiles = () => {
-    try {
-        const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as Partial<LocalProfile>[];
-        profiles.value = stored.map((profile: any) => ({
-            ...emptyProfile(),
-            ...profile,
-            version: profile.version ?? 1,
-            identity: profile.identity ?? {
-                fullName: profile.fullName ?? "", headline: profile.headline ?? "",
-                summary: profile.summary ?? "", location: profile.location ?? "",
-            },
-            id: profile.id ?? uid("profile"),
-            createdAt: profile.createdAt ?? Date.now(),
-            updatedAt: profile.updatedAt ?? Date.now(),
-            contacts: profile.contacts ?? [], experiences: profile.experiences ?? [], skills: profile.skills ?? [],
-            certifications: profile.certifications ?? [], education: profile.education ?? [], projects: profile.projects ?? [],
-            languages: profile.languages ?? [],
-        } as LocalProfile)).sort((a, b) => b.updatedAt - a.updatedAt);
-    } catch { profiles.value = []; }
-};
+const readProfiles = () => { profiles.value = readLocalProfiles(); };
 const persist = (items: LocalProfile[]) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    writeLocalProfiles(items);
     readProfiles();
 };
 
@@ -70,7 +47,7 @@ const save = () => {
         const index = items.findIndex(item => item.id === editingId.value);
         if (index >= 0) items[index] = { ...items[index], ...structuredClone(toRaw(draft.value)), updatedAt: now };
     } else {
-        items.push({ ...structuredClone(toRaw(draft.value)), id: uid("profile"), createdAt: now, updatedAt: now });
+        items.push({ ...structuredClone(toRaw(draft.value)), id: newLocalProfileId(), createdAt: now, updatedAt: now });
     }
     persist(items);
     editingId.value = null;
@@ -128,7 +105,7 @@ const runTransfer = async () => {
             const imported = await decryptProfiles(transfer.input, transfer.passphrase);
             if (!imported.length) throw new ProfileTransferError("The export contains no profiles.", "format");
             const now = Date.now();
-            persist([...profiles.value, ...imported.map((profile, index) => ({ ...profile, id: uid("profile"), createdAt: now, updatedAt: now + index }))]);
+            persist([...profiles.value, ...imported.map((profile, index) => ({ ...profile, id: newLocalProfileId(), createdAt: now, updatedAt: now + index }))]);
             transfer.busy = false;
             transfer.mode = null;
             return;
@@ -149,6 +126,58 @@ const runTransfer = async () => {
             : transfer.mode === "copy" ? "Clipboard access was denied." : "Transfer failed.";
     } finally {
         transfer.busy = false;
+    }
+};
+
+type ApplyStatus = { ok: boolean; message: string };
+const apply = reactive({
+    open: false,
+    profile: null as LocalProfile | null,
+    selected: [] as string[],
+    layout: "",
+    busy: false,
+    error: "",
+    results: {} as Record<string, ApplyStatus>,
+});
+const { data: sessionIndex } = useNuxtData<{ documents: CvDocumentSummary[] }>("editor-document-list");
+const { data: templateIndex } = useNuxtData<{ templates: CvTemplate[] }>("editor-template-list");
+const applySessions = computed(() => sessionIndex.value?.documents ?? []);
+const applyTemplates = computed(() => templateIndex.value?.templates ?? []);
+const sessionLabel = (session: CvDocumentSummary) => session.title?.trim() || session.id;
+const openApply = async (profile: LocalProfile) => {
+    Object.assign(apply, { open: true, profile, selected: [], layout: "", busy: false, error: "", results: {} });
+    await refreshNuxtData("editor-document-list");
+};
+const closeApply = () => { if (!apply.busy) apply.open = false; };
+const toggleAllSessions = () => {
+    apply.selected = apply.selected.length === applySessions.value.length ? [] : applySessions.value.map(session => session.id);
+};
+const runApply = async () => {
+    if (!apply.profile) return;
+    if (!apply.selected.length) { apply.error = "Choose at least one session."; return; }
+    if (!confirm(`Replace the personal content of ${apply.selected.length} session(s) with ${apply.profile.identity.fullName}'s profile?`)) return;
+    const [templateId, templateVersion] = apply.layout.split("@");
+    apply.busy = true;
+    apply.error = "";
+    apply.results = {};
+    try {
+        const output = await $fetch<ApplyCvProfileOutput>("/api/cv-profiles/apply", {
+            method: "POST",
+            body: {
+                profile: toProfileProps(apply.profile),
+                profileId: apply.profile.id,
+                documentIds: apply.selected,
+                template: templateId ? { id: templateId, version: Number(templateVersion) } : undefined,
+            },
+        });
+        apply.results = Object.fromEntries(output.results.map(result => [result.documentId, result.ok
+            ? { ok: true, message: "Applied" }
+            : { ok: false, message: result.error }]));
+        await refreshNuxtData("editor-document-list");
+    } catch (cause: any) {
+        apply.error = cause?.data?.statusMessage ?? cause?.message ?? "Apply failed.";
+    } finally {
+        apply.busy = false;
     }
 };
 </script>
@@ -249,6 +278,7 @@ const runTransfer = async () => {
                         <template v-if="editingId">
                             <button type="button" title="Copy this saved profile to the clipboard, encrypted" @click="openTransfer('copy', profiles.filter(item => item.id === editingId))">Copy encrypted</button>
                             <button type="button" title="Download this saved profile as an encrypted file" @click="openTransfer('export', profiles.filter(item => item.id === editingId))">Export</button>
+                            <button type="button" title="Re-render CV sessions with this saved profile" @click="openApply(profiles.find(item => item.id === editingId)!)">Apply to sessions…</button>
                             <span class="profile-footer-spacer" />
                         </template>
                         <button type="button" @click="editingId = null">Cancel</button><button class="profile-save" type="button" @click="save">Save profile</button></footer>
@@ -276,6 +306,34 @@ const runTransfer = async () => {
                         <button class="profile-save" type="submit" :disabled="transfer.busy">
                             {{ transfer.busy ? "Working…" : transfer.mode === "import" ? "Decrypt & import" : transfer.mode === "copy" ? "Encrypt & copy" : "Encrypt & download" }}
                         </button>
+                    </footer>
+                </form>
+            </div>
+            <div v-if="apply.open" class="transfer-backdrop" @click.self="closeApply" @keydown.esc="closeApply">
+                <form class="transfer-dialog apply-dialog" role="dialog" aria-modal="true" aria-labelledby="apply-title" @submit.prevent="runApply">
+                    <h2 id="apply-title">Apply {{ apply.profile?.identity.fullName }} to sessions</h2>
+                    <p class="transfer-hint">Each selected session keeps its layout (or switches to the chosen template) and gets this profile's personal content. Sessions are updated independently.</p>
+                    <label>Layout
+                        <select v-model="apply.layout" :disabled="apply.busy">
+                            <option value="">Keep each session's layout</option>
+                            <option v-for="template in applyTemplates" :key="`${template.id}@${template.version}`" :value="`${template.id}@${template.version}`">{{ template.name }} v{{ template.version }}</option>
+                        </select>
+                    </label>
+                    <div class="apply-sessions">
+                        <button type="button" class="apply-select-all" :disabled="apply.busy || !applySessions.length" @click="toggleAllSessions">
+                            {{ apply.selected.length === applySessions.length && applySessions.length ? "Clear selection" : "Select all" }}
+                        </button>
+                        <p v-if="!applySessions.length" class="transfer-hint">No sessions yet.</p>
+                        <label v-for="session in applySessions" :key="session.id" class="apply-session">
+                            <input v-model="apply.selected" type="checkbox" :value="session.id" :disabled="apply.busy">
+                            <span>{{ sessionLabel(session) }}</span>
+                            <small v-if="apply.results[session.id]" :class="apply.results[session.id]!.ok ? 'transfer-status' : 'profile-error'">{{ apply.results[session.id]!.message }}</small>
+                        </label>
+                    </div>
+                    <p v-if="apply.error" class="profile-error" role="alert">{{ apply.error }}</p>
+                    <footer>
+                        <button type="button" :disabled="apply.busy" @click="closeApply">{{ Object.keys(apply.results).length ? "Done" : "Cancel" }}</button>
+                        <button class="profile-save" type="submit" :disabled="apply.busy || !apply.selected.length">{{ apply.busy ? "Applying…" : `Apply to ${apply.selected.length || ""} session${apply.selected.length === 1 ? "" : "s"}` }}</button>
                     </footer>
                 </form>
             </div>
@@ -328,6 +386,12 @@ const runTransfer = async () => {
 .transfer-dialog footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .transfer-dialog footer .profile-save { border-color: var(--accent, #89b4fa); background: var(--accent, #89b4fa); color: #111; }
 .profile-error { color: var(--danger, #f38ba8); }
+.apply-dialog { width: min(520px, 100%); }
+.apply-dialog select { min-width: 0; padding: 8px; border: 1px solid var(--border, #333); border-radius: 3px; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; }
+.apply-sessions { display: grid; gap: 2px; max-height: 280px; margin-bottom: 12px; overflow: auto; }
+.apply-select-all { justify-self: start; margin-bottom: 6px; border: 1px solid var(--border, #333); border-radius: 3px; padding: 4px 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.transfer-dialog .apply-session { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; margin: 0; padding: 4px 2px; color: var(--fg-text, #ddd); font-size: 12px; }
+.apply-session span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-form footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 .profile-form footer .profile-save { border-color: var(--accent, #89b4fa); background: var(--accent, #89b4fa); color: #111; }
 @media (max-width: 760px) { .profile-grid, .contact-row, .education-row, .experience-row, .project-row, .compact-row { grid-template-columns: 1fr; } }

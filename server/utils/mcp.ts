@@ -6,6 +6,8 @@ import { getCvDocumentQuery } from "@core/handlers/get-cv-document";
 import { saveCvSourceCommand } from "@core/handlers/save-cv-source";
 import { patchCvSourceCommand } from "@core/handlers/patch-cv-source";
 import { switchCvProfileCommand } from "@core/handlers/switch-cv-profile";
+import { detectCvProfileQuery } from "@core/handlers/detect-cv-profile";
+import { applyCvProfileCommand, MAX_CV_PROFILE_APPLY_TARGETS } from "@core/handlers/apply-cv-profile";
 
 const textResult = (value: unknown) => ({
     content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
@@ -78,6 +80,29 @@ export function createCvMcpServer(): McpServer {
             profile,
             template: templateId ? { id: templateId, version: templateVersion } : undefined,
             expectedRevision,
+            publicOnly: true,
+            sourceId: "mcp",
+        })),
+    ));
+
+    server.registerTool("detect_cv_profile", {
+        description: "Extract the profile (identity, contacts, experience, education, projects, skills, certifications, languages) from a CV and report where each value appears in its Markdown.",
+        inputSchema: { id: z.string().default("master") },
+    }, async ({ id }) => textResult(await mediator.send(detectCvProfileQuery({ documentId: id }))));
+
+    server.registerTool("apply_cv_profile", {
+        description: "Re-render several CVs with one profile, keeping each CV's layout or switching all of them to a public template. Each CV succeeds or fails independently.",
+        inputSchema: {
+            ids: z.array(z.string()).min(1).max(MAX_CV_PROFILE_APPLY_TARGETS),
+            profile: z.record(z.string(), z.unknown()),
+            templateId: z.string().optional(),
+            templateVersion: z.number().int().positive().optional(),
+        },
+    }, async ({ ids, profile, templateId, templateVersion }) => textResult(
+        await mediator.send(applyCvProfileCommand({
+            documentIds: ids,
+            profile,
+            template: templateId ? { id: templateId, version: templateVersion } : undefined,
             publicOnly: true,
             sourceId: "mcp",
         })),
