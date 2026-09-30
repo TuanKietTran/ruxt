@@ -26,6 +26,7 @@ pnpm dev                # http://localhost:3000
 - **Realtime CV documents** — filesystem-backed Nitro storage, optimistic revisions, debounced autosave, and SSE updates
 - **CV import** — authenticated PDF/image extraction into versioned profile snapshots composed with immutable templates
 - **Local profiles** — browser-only profile editor with passphrase-encrypted (AES-256-GCM) import, export and copy-to-clipboard
+- **Profile detection** — highlight the profile information inside a CV session, save it to a new or existing local profile, and apply one profile to any number of sessions
 - **CV export and automation** — browser PDF, 2× PNG/JPEG output, and Streamable HTTP MCP tools
 - **Subscription lifecycle** — trialing, active, paused, past-due, cancelled, expired with enforced state machine transitions
 - **Plan catalog** — price (minor-unit currency), billing cycle (weekly → yearly), optional trial period, feature list
@@ -86,6 +87,7 @@ ruxt/
 | IAM | `POST /api/iam/check-access`, `GET/PUT/DELETE /api/iam/subjects/:userId` |
 | CV documents | `GET /api/cvs`, `GET/PUT /api/cvs/:id`, `GET /api/cvs/:id/events` |
 | CV profile switch | `POST /api/cvs/:id/profile/preview`, `PUT /api/cvs/:id/profile` |
+| CV profile detection | `GET /api/cvs/:id/profile/detect`, `POST /api/cv-profiles/apply` |
 | Automation | `POST /mcp` (MCP Streamable HTTP) |
 
 ## CV editor API and MCP
@@ -104,7 +106,7 @@ pnpm dev
 # Connect an MCP Streamable HTTP client to http://localhost:3000/mcp
 ```
 
-The stateless Streamable HTTP endpoint exposes `list_cvs`, `open_cv`, `save_cv`, and `patch_cv`.
+The stateless Streamable HTTP endpoint exposes `list_cvs`, `open_cv`, `save_cv`, `patch_cv`, `switch_cv_profile`, `detect_cv_profile`, and `apply_cv_profile`.
 
 The editor can export PDF through the browser print pipeline, or render every CV sheet as a 2× PNG/JPEG image from the header actions.
 

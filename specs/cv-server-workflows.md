@@ -227,7 +227,22 @@ Nitro adapters own HTTP bodies, streams, status codes, authentication extraction
 
 `toCvTemplateSkeleton` preserves structure byte-for-byte where it carries presentation — directives, page breaks, `##` section headings, table alignment rows, list markers, and heading attribute blocks such as `{.cv-name}` — while replacing personal text with placeholders drawn from the same vocabulary as `app/data/reference-cv.md`. The line count of the skeleton equals the line count of the source. It is idempotent: applying it to its own output is a no-op, which lets the editor re-derive a skeleton from an already-generalized session. Fenced code is passed through untouched.
 
+Tables may have more than two columns: the first cell is the entry name, the first date-like cell after it gives the dates, the last other cell of the name row gives the location, and remaining cells of the second row become education details (for example `GPA: 3.6`). Alignment rows with a single dash (`:-:`) are separators. An experience table whose only row starts with an italic cell (`| *Senior Engineer* | Jan 2025 – Present |`) is another role at the previous company and inherits its company and location. Skill lines may label a group with a bold label and spacing instead of a colon (`**Languages** &nbsp; Go, Rust`), and `&nbsp;` and basic HTML entities are decoded in extracted text.
+
 `splitCvApplication` returns both halves together. It is the intended input to `SaveCvTemplate`, which persists only the skeleton and CSS; profile facts stay in the `CvApplication` snapshot and are never written into a template.
+
+## Detecting Profile Information In A Session
+
+`core/domain/cv/detect.ts` maps extraction back onto the source. `detectCvProfile(markdown)` returns the extracted profile and one `CvDetectedField` per leaf value (dotted `path` into `CvProfileProps`, `section`, `entry`, `key`, `value`, and UTF-16 `ranges` with the first range's 1-based `line`). Each value is searched only in sections of the matching kind. List entries are confined to their own block, from the table or heading that holds the entry's anchor (title, school, or project name) up to the next entry's block, so a value never matches inside a neighbouring entry. A value inherited from an enclosing table, such as the company of a sub-role, shares that earlier occurrence. Raw matches respect word boundaries and grow to the whole Markdown link or autolink that contains them. Values rewritten by Markdown (inline emphasis inside a bullet, multi-line descriptions) fall back to matching whole lines or table cells by plain text. A value that cannot be located keeps an empty `ranges` list rather than failing.
+
+`mergeCvProfileSections(base, detected, sections)` overwrites only the chosen sections of a saved profile.
+
+| Workflow | Core request | HTTP / MCP | Behavior |
+|---|---|---|---|
+| Detect | `DetectCvProfile` query | `GET /api/cvs/:id/profile/detect`, MCP `detect_cv_profile` | Returns `{ documentId, revision, profile, fields }`. Writes nothing. |
+| Apply to sessions | `ApplyCvProfile` command | `POST /api/cv-profiles/apply`, MCP `apply_cv_profile` | Body: `profile`, `documentIds` (1–50, deduplicated), optional `profileId`, `template`, `sourceId`. Validates the profile once, then runs one `SwitchCvProfile` saga per session, in order. Returns `{ results, applied, failed }`; one session's failure is reported for that session and never rolls back the others. |
+
+In the CV editor, **Detect profile** next to the source tabs highlights every located value in `content.md`, color-coded by section, and opens a panel under the source listing the values by section. Clicking a value selects and scrolls to it. Section checkboxes choose what **Save to profiles** writes: a new local profile (which needs the identity section with a name) or an update of an existing one through `mergeCvProfileSections`. Detection re-runs 250 ms after edits. On `/p`, a saved profile's **Apply to sessions…** dialog lists the sessions, optionally switches all of them to a template, calls `POST /api/cv-profiles/apply`, and shows each session's outcome.
 
 ## Switching Profiles On A Session
 
