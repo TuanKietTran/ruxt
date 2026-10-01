@@ -26,12 +26,13 @@ requireText("app/components/CvImportDialog.vue", [
   [/5 \* 1024 \* 1024/, "browser CV blobs must retain the 5 MB client ceiling"],
 ]);
 
-requireText("packages/editor/app/components/CodePreview.vue", [
-  [/prefix:\s*"\.cv-preview-scope"/, "document CSS must remain scoped to prevent template style leaks"],
+requireText("nuxt.config.ts", [
+  [/extends:\s*\["@ruxt\/editor"\]/, "ruxt must consume the published @ruxt/editor Nuxt layer"],
 ]);
 
-requireText("nuxt.config.ts", [
-  [/extends:\s*\["\.\/packages\/editor"\]/, "ruxt must consume the shared editor Nuxt layer"],
+requireText("package.json", [
+  [/"@ruxt\/editor":\s*"\d+\.\d+\.\d+"/, "@ruxt/editor must be a pinned registry release, not a workspace or path reference"],
+  [/"@ruxt\/core":\s*"\d+\.\d+\.\d+"/, "@ruxt/core must be a pinned registry release, not a workspace or path reference"],
 ]);
 if (failures.length) {
   console.error(`Architecture lint failed:\n- ${failures.join("\n- ")}`);
