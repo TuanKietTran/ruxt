@@ -49,17 +49,11 @@ Server imports require Python plus `pdfplumber`, `pytesseract`, and Pillow; `pnp
 
 `vitest` (dev dependency, Node environment) is the runner. `vitest.config.ts` re-declares the `@core` and `@infra` aliases that `nuxt.config.ts` owns, because Vitest does not read Nuxt configuration, and it includes only `tests/**/*.test.ts`.
 
-Suites are layered by what they can assert without a server:
+Framework-free `@ruxt/core` suites (mediator, CV split/detect/switch, documents, templates, consent, domain foundations, IAM policy, feature flags, analytics) and their fakes live in `ruxt-core/tests`, beside the code they cover; that repository's Packages workflow runs them. Ruxt keeps only suites that exercise app or server code, optionally together with core handlers:
 
-- `tests/core/cqrs.test.ts`: mediator command/query routing, the unknown-request error, thrown-error-to-failed-result conversion, and rejection unwrapping at `send()`.
-- `tests/core/cv-split.test.ts`: `core/domain/cv/split.ts` inline-Markdown reduction, contact classification, profile extraction for both the Harvard table layout and the pipeline `###`/italic-metadata layout, and skeleton generation including idempotency and fenced-code preservation. The Harvard cases read `app/data/reference-cv.md`, which is checked-in placeholder content and not user data.
-- `tests/core/save-cv-template.test.ts`: `SaveCvTemplate` save-as-new and override paths, name trimming/cap, size ceilings, override refusal for built-in or `public` templates, plus `CloneCvTemplate` id validation and version pinning.
-- `tests/core/cv-documents.test.ts`: `CvDocument` invariants, `assertExpectedRevision`/`CvRevisionConflict`, and the create/save/patch handlers against an in-memory `CvDocumentPort` that mirrors the store's revision and conflict contract.
-- `tests/core/domain-foundations.test.ts`: email, instant/duration/social-date, money, billing cycle, subscription status transitions and terminal states, subscription lifecycle, plan normalization, and card masking/Luhn rejection.
-- `tests/core/iam-policy.test.ts`: attribute validation and the deny-overrides combinator, including default-deny, owner scope, service-account read-only override, and same-org read-only access.
-- `tests/core/feature-flags.test.ts`: wildcard-host boundaries, exact/prefix route ownership, authenticated-route suppression on shared Deno hosts, public-route availability, and deployment host-list overrides.
-
-Handler suites construct handlers directly with fake repositories rather than booting Nitro, so the singleton mediator and infra bootstrap are not required. `tests/helpers/fakes.ts` owns those fakes; the mediator helper calls `mountVendor()` once because the mediator is a process singleton.
+- `tests/core/auth-workflows.test.ts`, `tests/core/auth-principal.test.ts`, `tests/core/data-ownership.test.ts`: account workflows, principal resolution, and owner isolation.
+- `tests/core/cv-session-backup.test.ts`, `tests/core/export-document.test.ts`, `tests/core/profile-transfer.test.ts`: browser-side CV composables and utilities.
+- `tests/smoke/*`: opt-in HTTP and browser suites against a running server.
 
 Error-message assertions are deliberate: `server/utils/api-errors.ts` maps domain messages to HTTP status by text, so the suites pin the exact wording that produces 400/404/409/413.
 
