@@ -7,8 +7,11 @@ const require = createRequire(import.meta.url);
 const corePath = dirname(require.resolve("@ruxt/core/package.json"));
 const infraPath = fileURLToPath(new URL("./infra", import.meta.url));
 const chunkedDenoKvDriver = fileURLToPath(new URL("./server/storage/chunked-deno-kv.ts", import.meta.url));
-const denoDeploy = process.env.NITRO_PRESET === "deno-deploy";
-const durableStorage = (base: string, directory: string) => denoDeploy
+// Deno's native Nuxt builder uses the lightweight `deno-server` preset. The
+// explicit build flag still selects Deno KV without forcing Nitro's much larger
+// `deno-deploy` bundle, which exceeds Deno's standard build-memory limit.
+const denoStorage = process.env.RUXT_DENO_STORAGE === "1" || process.env.NITRO_PRESET === "deno-deploy";
+const durableStorage = (base: string, directory: string) => denoStorage
    ? { driver: chunkedDenoKvDriver, base }
    : { driver: "fs", base: process.env[directory] ?? `./.data/${base}` };
 

@@ -3,7 +3,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "NITRO_PRESET=deno-deploy nuxt build",
+    "build": "RUXT_DENO_STORAGE=1 nuxt build",
     "lint": "node scripts/lint-architecture.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
