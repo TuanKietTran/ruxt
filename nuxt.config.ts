@@ -1,12 +1,15 @@
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const corePath = fileURLToPath(new URL("./core", import.meta.url));
+const require = createRequire(import.meta.url);
+const corePath = dirname(require.resolve("@ruxt/core/package.json"));
 const infraPath = fileURLToPath(new URL("./infra", import.meta.url));
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-   extends: ["./packages/editor"],
+   extends: ["@ruxt/editor"],
    compatibilityDate: "2025-07-15",
    modules: ["@clerk/nuxt"],
    clerk: {
