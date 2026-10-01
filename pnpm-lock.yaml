@@ -48,11 +48,11 @@ importers:
         specifier: ^1.30.0
         version: 1.30.0(supports-color@10.2.2)(zod@4.5.4)
       '@ruxt/core':
-        specifier: 0.1.0
-        version: 0.1.0
+        specifier: 0.1.1
+        version: 0.1.1
       '@ruxt/editor':
-        specifier: 0.1.0
-        version: 0.1.0(026358aa348ed970e717cd1a6d19b2bc)
+        specifier: 0.1.1
+        version: 0.1.1(026358aa348ed970e717cd1a6d19b2bc)
       docx:
         specifier: ^9.1.1
         version: 9.7.1
@@ -1484,12 +1484,12 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@ruxt/core@0.1.0':
-    resolution: {integrity: sha512-WMMJlVCeW5i4tISHduk4H3Xw+xV0wvW1JH+YLgTckFlVP0sni3LJJozS/Jo7ZpxlDl8NLbqKCvPlmbzLGxGfKQ==}
+  '@ruxt/core@0.1.1':
+    resolution: {integrity: sha512-dCLrM04E9nBYcWtyv6+BX2YNAzncZ709fkSS/c+2xWDrthE0iXokqov2nT/nPW8+h40VkANJlmRIBGS9cZMMaw==}
     engines: {node: '>=22'}
 
-  '@ruxt/editor@0.1.0':
-    resolution: {integrity: sha512-3wsYwPBbIsIJ8nnYX6hdInW8KObDIdnAbbIt6a8/BdK80XGJnYv3vaDJ6fYBOGI8G4DoWpi/Cl7VLESul0ouaA==}
+  '@ruxt/editor@0.1.1':
+    resolution: {integrity: sha512-1H2Zg0EZDL13l/KpKULuAdTXovv6jORsDGygAycsZI3XNBEWbuOioHyqGvWsw4XPU1/2b8H9yCVsvha7MP0sJA==}
     peerDependencies:
       '@codemirror/commands': ^6.11.0
       '@codemirror/lang-css': ^6.3.1
@@ -6074,9 +6074,9 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.60.1':
     optional: true
 
-  '@ruxt/core@0.1.0': {}
+  '@ruxt/core@0.1.1': {}
 
-  '@ruxt/editor@0.1.0(026358aa348ed970e717cd1a6d19b2bc)':
+  '@ruxt/editor@0.1.1(026358aa348ed970e717cd1a6d19b2bc)':
     dependencies:
       '@codemirror/commands': 6.11.0
       '@codemirror/lang-css': 6.3.1

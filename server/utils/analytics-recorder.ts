@@ -1,5 +1,6 @@
-import { MetricsRecorder, mergeBuckets, metricStorageKey } from "@core/analytics/metrics";
-import type { MetricBucket, MetricKind, MetricSample } from "@core/analytics/metrics";
+import { MetricsRecorder, mergeBuckets } from "@ruxt/core/domain/analytics";
+import type { MetricBucket, MetricKind, MetricSample } from "@ruxt/core/domain/analytics";
+import { metricStorageKey } from "@ruxt/core/repos/metric.repo";
 
 const recorder = new MetricsRecorder();
 let flushing: Promise<void> = Promise.resolve();

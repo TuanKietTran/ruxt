@@ -7,5 +7,5 @@ allowBuilds:
   better-sqlite3: true
   esbuild: true
 minimumReleaseAgeExclude:
-  - '@ruxt/core@0.1.0'
-  - '@ruxt/editor@0.1.0'
+  - '@ruxt/core@0.1.1'
+  - '@ruxt/editor@0.1.1'

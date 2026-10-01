@@ -1,6 +1,6 @@
 import type { H3Event } from "h3";
 import { setMediatorObserver } from "@core/cqrs";
-import { normalizeRoutePath } from "@core/analytics/metrics";
+import { normalizeRoutePath } from "@ruxt/core/domain/analytics";
 
 const FLUSH_INTERVAL_MS = 30_000;
 const isAsset = (path: string) => path.startsWith("/_") || /\.[a-z0-9]{1,8}$/i.test(path);

@@ -6,6 +6,11 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const corePath = dirname(require.resolve("@ruxt/core/package.json"));
 const infraPath = fileURLToPath(new URL("./infra", import.meta.url));
+const chunkedDenoKvDriver = fileURLToPath(new URL("./server/storage/chunked-deno-kv.ts", import.meta.url));
+const denoDeploy = process.env.NITRO_PRESET === "deno-deploy";
+const durableStorage = (base: string, directory: string) => denoDeploy
+   ? { driver: chunkedDenoKvDriver, base }
+   : { driver: "fs", base: process.env[directory] ?? `./.data/${base}` };
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -69,6 +74,9 @@ export default defineNuxtConfig({
    },
 
    nitro: {
+      externals: {
+         inline: [corePath],
+      },
       experimental: {
          tasks: true,
       },
@@ -81,23 +89,17 @@ export default defineNuxtConfig({
       }],
       storage: {
          // Canonical CV documents shared by the browser API and agent adapters.
-         cv: {
-            driver: "fs",
-            base: process.env.CV_DATA_DIR ?? "./.data/cv",
-         },
-         cvPipeline: {
-            driver: "fs",
-            base: process.env.CV_PIPELINE_DATA_DIR ?? "./.data/cv-pipeline",
-         },
+         cv: durableStorage("cv", "CV_DATA_DIR"),
+         cvPipeline: durableStorage("cv-pipeline", "CV_PIPELINE_DATA_DIR"),
          // Hourly route/CQRS/user/task aggregates, read by the admin app.
-         analytics: {
-            driver: "fs",
-            base: process.env.ANALYTICS_DATA_DIR ?? "./.data/analytics",
-         },
+         analytics: durableStorage("analytics", "ANALYTICS_DATA_DIR"),
       },
       esbuild: {
          options: {
             target: "es2022",
+            // @ruxt/core intentionally publishes framework-free TypeScript source.
+            // Keep other dependencies excluded while allowing Nitro to transpile it.
+            exclude: /node_modules\/(?!\.pnpm\/@ruxt\+core@|@ruxt\/core)/,
          },
       },
       rollupConfig: {
