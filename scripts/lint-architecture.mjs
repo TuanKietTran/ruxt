@@ -18,7 +18,38 @@ requireText("app/pages/profiles.vue", [
   [/<NuxtLayout\s+name="editor"/, "product editors must reuse the editor layout"],
   [/<template\s+#workspace>/, "non-CV editor surfaces must use the editor layout workspace slot"],
   [/<template\s+#sidebar>/, "tool-specific navigation must replace, not duplicate, the editor sidebar"],
+  [/definePageMeta\(\{[^}]*editorContext:\s*"profiles"/s, "profile editor must select its registered editor context"],
 ]);
+
+// Icons: Iconify codes (from Icônes) for one local collection, rendered only through <AppIcon>.
+{
+  const manifest = JSON.parse(readFileSync("package.json", "utf8"));
+  const dependencies = Object.keys({ ...manifest.dependencies, ...manifest.devDependencies });
+  const iconPackages = dependencies.filter(name => /icon|lucide|heroicons|phosphor|tabler|fontawesome|feather/i.test(name)).sort();
+  if (iconPackages.join() !== "@iconify-json/lucide,@nuxt/icon") {
+    failures.push(`package.json: icons come from @nuxt/icon with the single @iconify-json/lucide collection (found: ${iconPackages.join(", ") || "none"})`);
+  }
+  const allowed = new Set([...readFileSync("app/utils/icons.ts", "utf8").matchAll(/"(lucide:[a-z0-9-]+)"/g)].map(match => match[1]));
+  const { execSync } = await import("node:child_process");
+  const sources = execSync("git ls-files app packages", { encoding: "utf8" }).split("\n").filter(file => /\.(vue|ts)$/.test(file));
+  for (const file of sources) {
+    const source = readFileSync(file, "utf8");
+    if (file !== "app/components/AppIcon.vue" && /<Icon[\s>]/.test(source)) failures.push(`${file}: render icons with <AppIcon>, not <Icon>`);
+    for (const [, code] of source.matchAll(/["'`]((?:[a-z0-9-]+):[a-z0-9-]+)["'`]/g)) {
+      if (/^(?:lucide|mdi|ph|tabler|carbon|heroicons|ri|bi|fa6?-[a-z]+|material-symbols|ic):/.test(code) && !allowed.has(code)) {
+        failures.push(`${file}: icon ${code} is not listed in app/utils/icons.ts`);
+      }
+    }
+  }
+}
+
+// The editor layout renders from the registered editor context, never from hard-coded route paths.
+{
+  const layout = readFileSync("app/layouts/editor.vue", "utf8");
+  if (/isProfileRoute|route\.path\s*[!=]==\s*["']\/p["']|startsWith\(["']\/p/.test(layout)) {
+    failures.push("app/layouts/editor.vue: branch on the registered editor context (app/utils/editorContexts.ts), not on route paths");
+  }
+}
 
 requireText("app/components/CvImportDialog.vue", [
   [/["']\/api\/cv-imports["']/, "blob import must dispatch through the CV import API"],

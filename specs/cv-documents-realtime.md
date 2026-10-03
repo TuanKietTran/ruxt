@@ -71,9 +71,25 @@ On the client:
 - each save snapshots both complete source fields and sends the tab's random UUID `sourceId`;
 - `expectedRevision` is omitted when local revision is zero;
 - success updates revision and returns to `saved` only when no newer local edits exist;
-- HTTP 409 becomes `conflict`; other failures become `offline`.
+- HTTP 409 becomes `conflict`; other failures become `offline`;
+- an `offline` save retries with backoff (2 s, 5 s, 10 s, then every 30 s), and immediately on the browser `online` event or when the tab becomes visible, until the server acknowledges the edit;
+- a save that finds the session missing (404) re-creates it with `POST /api/cvs`; if that create loses a race (409) the snapshot is saved over the copy that won.
 
 On mount, the composable creates an `EventSource`. Remote documents apply only when there are no unsaved local changes and their revision is newer. Updates bearing this tab's `sourceId` are ignored; events from MCP or another browser are eligible. EventSource open restores `saved` only when clean, while an EventSource error changes a currently saved document to `offline`.
+
+## Session Continuity Across Deployments
+
+Server storage is not the only copy of a session. `app/utils/cvSessionBackup.ts` (browser storage only; the restore, recovery, and listing rules are `@ruxt/core`'s `domain/cv/session-backup`) keeps, per browser origin, the latest source of every session the browser opened or edited under `cv-sv:session-backup:<id>` (Markdown, CSS, the server revision it is based on, whether an edit is unacknowledged, title, and local change time). A deployment whose storage misses sessions (a new or different KV database, a lost filesystem, a write that failed during a rollout) therefore cannot lose them:
+
+- opening a session restores the backup when the server copy is missing, older, or lacks an unacknowledged edit, and saves it back explicitly (it may equal the page fallback, which the change watcher would ignore);
+- the editor layout lists server sessions plus backed-up route-id sessions the server did not return (shown as `local`), so they stay reachable even while the server is down or empty;
+- after the session list loads, the layout re-creates every such session on the server from its backup (`POST /api/cvs` with the same id), except the open one, which its editor restores; a 409 means another tab already did;
+- the unregistered `/` draft is kept under `cv-sv:new-session-draft` from the first keystroke until its session is created, restored on reload, and registration retries with backoff and on `online`;
+- the layout still reads the pre-registry `cv-sv:last-cv-route` and `cv-sv:last-profile-route` session-storage keys, so an open tab returns to its session after a deploy.
+
+Deleting a session in this browser removes its backup, so it is not re-created. A session deleted from another browser is re-created by any browser that still holds a backup of it; continuity wins over cross-device deletion until sessions have owners. Backups are per origin, so preview and production deployments on different hostnames never exchange sessions.
+
+`pnpm test:session-continuity` (after `NITRO_PRESET=node-server nuxi build`) drives a real browser profile on one origin across simulated deployments with separate empty storage, a server stopped mid-edit, and a server that is down while a new draft is typed, and checks every session and edit survives, the legacy last-route key, and that deletion is not undone.
 
 ## Current Gaps
 

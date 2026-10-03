@@ -54,6 +54,7 @@ const handleLogout = async () => {
                             {{ t.label }}
                         </option>
                     </select>
+                    <NuxtLink to="/settings" class="btn btn-ghost btn-sm">Settings</NuxtLink>
                     <template v-if="authenticated">
                         <template v-if="user">
                             <NuxtLink to="/settings/cloud-data" class="btn btn-ghost btn-sm">Cloud data</NuxtLink>

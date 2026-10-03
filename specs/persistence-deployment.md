@@ -32,6 +32,8 @@ Repository saves use upsert-by-primary-key. Subscription/user/IAM lookups are di
 
 Cloud consent uses `cloud_consent_states`, keyed by owner/category, plus append-only `cloud_consent_events` indexed by owner/change time. A transaction updates one category projection and appends its audit event together, so session and template choices remain independent.
 
+User preferences use `user_preferences`, one row per owner holding the normalized preferences JSON and `updated_at`; `PUT /api/preferences` merges a validated partial update into it.
+
 ## Deno KV
 
 `infra/kv.ts` lazily opens one `@deno/kv` connection. Primary/index key families are:
@@ -41,6 +43,7 @@ Cloud consent uses `cloud_consent_states`, keyed by owner/category, plus append-
 - `['user', id]` and `['user_email', email]`;
 - `['iam_subject', userId]`;
 - `['cloud_consent', ownerId, category]` and `['cloud_consent_event', ownerId, changedAt, eventId]`.
+- `['user_preferences', ownerId]` for the owner's editor preferences.
 
 Subscription, plan, user, and cloud-consent writes use atomic operations for primary/index or projection/event updates. List methods walk indexes and fetch each primary record. Deletes remove known indexes.
 

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ICONS } from "./app/utils/icons";
 
 const require = createRequire(import.meta.url);
 const corePath = dirname(require.resolve("@ruxt/core/package.json"));
@@ -19,7 +20,14 @@ const durableStorage = (base: string, directory: string) => denoStorage
 export default defineNuxtConfig({
    extends: ["@ruxt/editor"],
    compatibilityDate: "2025-07-15",
-   modules: ["@clerk/nuxt"],
+   modules: ["@clerk/nuxt", "@nuxt/icon"],
+   icon: {
+      // Every icon in app/utils/icons.ts (lint-enforced) is inlined into the client bundle from the
+      // local Lucide collection, so no server icon endpoint or Iconify API request is ever needed.
+      serverBundle: false,
+      clientBundle: { icons: [...ICONS], scan: false },
+      fallbackToApi: false,
+   },
    clerk: {
       signInUrl: "/login",
       signUpUrl: "/login?mode=signup",
