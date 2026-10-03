@@ -777,10 +777,12 @@ const handleLogout = async () => {
             <div class="editor-statusbar__left">
                 <span class="save-state" :class="`save-state--${saveState}`">{{ saveState }}</span>
                 <span v-if="revision">rev {{ revision }}</span>
-                <span>Ln {{ statusStats.line }}, Col {{ statusStats.column }}</span>
-                <span>{{ statusStats.words }} {{ statusStats.words === 1 ? 'word' : 'words' }}</span>
-                <span>{{ pageCount }} {{ pageCount === 1 ? 'page' : 'pages' }}</span>
-                <span>A4</span>
+                <template v-if="!isProfileRoute(route.path)">
+                    <span>Ln {{ statusStats.line }}, Col {{ statusStats.column }}</span>
+                    <span>{{ statusStats.words }} {{ statusStats.words === 1 ? 'word' : 'words' }}</span>
+                    <span>{{ pageCount }} {{ pageCount === 1 ? 'page' : 'pages' }}</span>
+                    <span>A4</span>
+                </template>
             </div>
             <span class="editor-statusbar__context">app:{{ editorTitle.toLowerCase().replaceAll(" ", "-") }}</span>
         </footer>
