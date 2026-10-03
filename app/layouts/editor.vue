@@ -204,6 +204,8 @@ watch(
         selectedTemplate.value = templates.find(template =>
             template.id === id && (!Number.isInteger(requestedVersion) || template.version === requestedVersion),
         ) ?? null;
+        // Links to templates outside the catalog (removed, or internal like pipeline-default) fall back home.
+        if (!selectedTemplate.value && templateIndex.value && import.meta.client) navigateTo("/", { replace: true });
     },
     { immediate: true },
 );

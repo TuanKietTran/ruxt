@@ -40,6 +40,8 @@ smoke("HTTP smoke", () => {
       const { status, body } = await call("/api/public/templates");
       expect(status).toBe(200);
       expect(Array.isArray(body) || Array.isArray((body as { templates?: unknown[] }).templates)).toBe(true);
+      const ids = ((body as { templates?: { id: string }[] }).templates ?? []).map(template => template.id);
+      expect(ids).not.toContain("pipeline-default");
    });
 
    it("requires a session to save a CV template", async () => {
