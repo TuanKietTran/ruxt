@@ -3,14 +3,8 @@ import { computed } from "vue";
 import { useTheme, type ThemeId } from "~/composables/useTheme";
 import type { EditorStats } from "@ruxt/editor/composables/useCodeMirror";
 import type { CvDocumentSummary, CvTemplate } from "@core/domain/cv";
-import {
-    clearCvSessionBackup,
-    cvSessionsToRecover,
-    listCvSessionBackups,
-    mergeCvSessions,
-    writeCvSessionBackup,
-    type CvSessionBackupEntry,
-} from "~/utils/cvSessionBackup";
+import { cvSessionsToRecover, mergeCvSessions, type CvSessionBackupEntry } from "@core/domain/cv";
+import { clearCvSessionBackup, listCvSessionBackups, writeCvSessionBackup } from "~/utils/cvSessionBackup";
 import { hasEditorFeature, listEditorContexts, resolveEditorContext, type EditorContext, type EditorFeature } from "~/utils/editorContexts";
 
 const props = withDefaults(

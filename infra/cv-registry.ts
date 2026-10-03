@@ -24,7 +24,7 @@ import type { CvDocumentPort } from "@core/repos/cv-document.repo";
 import type { CvApplicationRepository } from "@core/repos/cv-application.repo";
 import type { CvArtifactRepository, CvImportRepository } from "@core/repos/cv-import.repo";
 import type { CvTemplateRepository } from "@core/repos/cv-template.repo";
-import type { CvExtractor } from "@core/ports/cv-extractor";
+import type { CvExtractor } from "@core/handlers/extract-cv";
 
 export interface CvDependencies {
    documents: CvDocumentPort;

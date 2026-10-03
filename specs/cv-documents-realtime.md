@@ -79,7 +79,7 @@ On mount, the composable creates an `EventSource`. Remote documents apply only w
 
 ## Session Continuity Across Deployments
 
-Server storage is not the only copy of a session. `app/utils/cvSessionBackup.ts` keeps, per browser origin, the latest source of every session the browser opened or edited under `cv-sv:session-backup:<id>` (Markdown, CSS, the server revision it is based on, whether an edit is unacknowledged, title, and local change time). A deployment whose storage misses sessions (a new or different KV database, a lost filesystem, a write that failed during a rollout) therefore cannot lose them:
+Server storage is not the only copy of a session. `app/utils/cvSessionBackup.ts` (browser storage only; the restore, recovery, and listing rules are `@ruxt/core`'s `domain/cv/session-backup`) keeps, per browser origin, the latest source of every session the browser opened or edited under `cv-sv:session-backup:<id>` (Markdown, CSS, the server revision it is based on, whether an edit is unacknowledged, title, and local change time). A deployment whose storage misses sessions (a new or different KV database, a lost filesystem, a write that failed during a rollout) therefore cannot lose them:
 
 - opening a session restores the backup when the server copy is missing, older, or lacks an unacknowledged edit, and saves it back explicitly (it may equal the page fallback, which the change watcher would ignore);
 - the editor layout lists server sessions plus backed-up route-id sessions the server did not return (shown as `local`), so they stay reachable even while the server is down or empty;

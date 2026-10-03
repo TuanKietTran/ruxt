@@ -3,7 +3,7 @@ import {
    normalizeUserPreferences,
    type UserPreferences,
    type UserPreferencesView,
-} from "#shared/preferences";
+} from "@core/domain/preferences";
 
 export const LOCAL_PREFERENCES_KEY = "cv-sv:preferences:v1";
 

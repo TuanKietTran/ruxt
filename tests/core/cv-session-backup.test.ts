@@ -1,13 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { cvSessionsToRecover, mergeCvSessions, shouldRestoreCvBackup } from "@core/domain/cv";
 import {
    clearCvNewSessionDraft,
    clearCvSessionBackup,
-   cvSessionsToRecover,
    listCvSessionBackups,
-   mergeCvSessions,
    readCvNewSessionDraft,
    readCvSessionBackup,
-   shouldRestoreCvBackup,
    writeCvNewSessionDraft,
    writeCvSessionBackup,
 } from "../../app/utils/cvSessionBackup";

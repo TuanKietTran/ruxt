@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProfileSaveMode } from "#shared/preferences";
+import type { ProfileSaveMode } from "@core/domain/preferences";
 
 /**
  * Click-to-edit profile field. It reads as text until clicked (or activated with Enter/Space), then

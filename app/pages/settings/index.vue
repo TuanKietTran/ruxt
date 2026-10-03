@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PROFILE_SAVE_MODES, type ProfileSaveMode } from "#shared/preferences";
+import { PROFILE_SAVE_MODES, type ProfileSaveMode } from "@core/domain/preferences";
 
 // Preferences work without an account: they stay in this browser until the user signs in.
 definePageMeta({ public: true });

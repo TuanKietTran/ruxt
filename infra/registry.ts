@@ -5,15 +5,15 @@ import { registerLoginUser } from "@core/handlers/login-user";
 import { registerGetUser } from "@core/handlers/get-user";
 import { registerGetCloudDataConsent } from "@core/handlers/get-cloud-data-consent";
 import { registerSetCloudDataConsent } from "@core/handlers/set-cloud-data-consent";
+import { registerGetUserPreferences } from "@core/handlers/get-user-preferences";
+import { registerSetUserPreferences } from "@core/handlers/set-user-preferences";
 import "@infra/deploy/index";
 import { resolveStrategy } from "@infra/deploy/strategy";
 
-export async function bootstrap(): Promise<Repos> {
+export async function bootstrap(): Promise<void> {
    const strategy = await resolveStrategy();
-   const repos = strategy.buildRepos();
-   registerAll(repos);
+   registerAll(strategy.buildRepos());
    console.log(`🚀 infra ready — ${strategy.label}`);
-   return repos;
 }
 
 import { registerCreateSubscription } from "@core/handlers/create-subscription";
@@ -38,7 +38,7 @@ import { registerUpsertSubject } from "@core/handlers/upsert-subject";
 import { registerDeleteSubject } from "@core/handlers/delete-subject";
 
 export function registerAll(repos: Repos): void {
-   const { sub, plan, iam, user, cloudConsent } = repos;
+   const { sub, plan, iam, user, cloudConsent, preferences } = repos;
    const hasher = new ScryptHasher();
 
    registerCreateSubscription(sub);
@@ -68,4 +68,6 @@ export function registerAll(repos: Repos): void {
 
    registerGetCloudDataConsent(cloudConsent);
    registerSetCloudDataConsent(cloudConsent);
+   registerGetUserPreferences(preferences);
+   registerSetUserPreferences(preferences);
 }

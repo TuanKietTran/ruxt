@@ -1,5 +1,5 @@
 import { useMediator } from "@core/cqrs";
-import { setUserPreferencesCommand } from "../../preferences/handlers";
+import { setUserPreferencesCommand } from "@core/handlers/set-user-preferences";
 
 export default defineEventHandler(async (event) => {
    const userId = await requireAuthUser(event);

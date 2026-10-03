@@ -3,7 +3,7 @@ import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, extname, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
-import type { CvExtractor, CvExtractionResult } from "@core/ports/cv-extractor";
+import type { CvExtractor, CvExtractionResult } from "@core/handlers/extract-cv";
 
 const formats = ["application/pdf", "image/png", "image/jpeg", "image/webp", "image/tiff", "image/bmp"];
 const maxUploadBytes = Number(process.env.CV_IMPORT_MAX_BYTES ?? 15 * 1024 * 1024);

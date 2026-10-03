@@ -30,7 +30,7 @@
     "@lezer/highlight": "^1.2.3",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@nuxt/icon": "^2.5.1",
-    "@ruxt/core": "0.1.1",
+    "@ruxt/core": "0.2.0",
     "@ruxt/editor": "0.1.1",
     "docx": "^9.1.1",
     "html2canvas": "^1.4.1",

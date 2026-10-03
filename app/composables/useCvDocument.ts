@@ -1,5 +1,6 @@
 import type { CvDocument, CvUpdateEvent } from "@core/domain/cv";
-import { readCvSessionBackup, shouldRestoreCvBackup, writeCvSessionBackup } from "~/utils/cvSessionBackup";
+import { shouldRestoreCvBackup } from "@core/domain/cv";
+import { readCvSessionBackup, writeCvSessionBackup } from "~/utils/cvSessionBackup";
 
 export type CvSaveState = "saved" | "saving" | "conflict" | "offline";
 
