@@ -8,6 +8,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:smoke": "SMOKE_BASE_URL=${SMOKE_BASE_URL:-http://localhost:3000} vitest run tests/smoke",
+    "test:session-continuity": "node scripts/check-session-continuity.mjs",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",

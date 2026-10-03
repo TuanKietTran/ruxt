@@ -3,6 +3,14 @@ import { computed } from "vue";
 import { useTheme, type ThemeId } from "~/composables/useTheme";
 import type { EditorStats } from "@ruxt/editor/composables/useCodeMirror";
 import type { CvDocumentSummary, CvTemplate } from "@core/domain/cv";
+import {
+    clearCvSessionBackup,
+    cvSessionsToRecover,
+    listCvSessionBackups,
+    mergeCvSessions,
+    writeCvSessionBackup,
+    type CvSessionBackupEntry,
+} from "~/utils/cvSessionBackup";
 import { hasEditorFeature, listEditorContexts, resolveEditorContext, type EditorContext, type EditorFeature } from "~/utils/editorContexts";
 
 const props = withDefaults(
@@ -50,6 +58,8 @@ const hasFeature = (feature: EditorFeature) => hasEditorFeature(editorContext.va
 /** Last location per context, so the activity bar returns to where each context was left. */
 const lastRoutes = useState<Record<string, string>>("editor:last-routes", () => ({}));
 const lastRouteKey = (id: string) => `cv-sv:last-route:${id}`;
+/** Keys used before contexts were registered; still read so an open tab keeps its place across a deploy. */
+const legacyLastRouteKeys: Record<string, string> = { cv: "cv-sv:last-cv-route", profiles: "cv-sv:last-profile-route" };
 const contextRoute = (context: EditorContext) => lastRoutes.value[context.id] ?? context.home;
 
 watch(
@@ -68,7 +78,45 @@ const { openAuthDialog } = useAuthDialog();
 const { data: cvIndex, refresh: reloadCvDocuments } = await useFetch<{ documents: CvDocumentSummary[] }>("/api/cvs", {
     key: "editor-document-list",
 });
-const sessions = computed(() => cvIndex.value?.documents ?? []);
+// The sidebar lists what this browser has backed up as well as what the server returns, so a deployment
+// whose storage misses a session never hides it. Backups are read after mount to keep hydration stable.
+const localBackups = ref<CvSessionBackupEntry[]>([]);
+const sessions = computed(() => mergeCvSessions(cvIndex.value?.documents ?? [], localBackups.value));
+const recovering = new Set<string>();
+/** Re-create sessions this browser has but the server does not, from their local backups. */
+const recoverLocalSessions = async () => {
+    if (!import.meta.client) return;
+    localBackups.value = listCvSessionBackups();
+    const server = cvIndex.value?.documents;
+    if (!server) return;
+    const openId = routeQueryValue(route.query.s);
+    // The open session's editor restores itself; racing it here would only cause a duplicate create.
+    const missing = cvSessionsToRecover(server, localBackups.value)
+        .filter(backup => backup.id !== openId && !recovering.has(backup.id));
+    if (!missing.length) return;
+    let recovered = false;
+    await Promise.all(missing.map(async (backup) => {
+        recovering.add(backup.id);
+        try {
+            const created = await $fetch<CvDocumentSummary>("/api/cvs", {
+                method: "POST",
+                body: { id: backup.id, title: backup.title, markdown: backup.markdown, css: backup.css },
+            });
+            writeCvSessionBackup(backup.id, { ...backup, revision: created.revision, pending: false });
+            recovered = true;
+        } catch (error: any) {
+            // 409: another tab or the editor re-created it first.
+            if (error?.statusCode === 409) recovered = true;
+        } finally {
+            recovering.delete(backup.id);
+        }
+    }));
+    if (recovered) {
+        await reloadCvDocuments();
+        localBackups.value = listCvSessionBackups();
+    }
+};
+watch(() => cvIndex.value?.documents, () => { void recoverLocalSessions(); });
 const templateCatalogUrl = computed(() => user.value ? "/api/cv-templates" : "/api/public/templates");
 const { data: templateIndex, refresh: reloadCvTemplates } = await useFetch<{ templates: CvTemplate[] }>(templateCatalogUrl, {
     key: "editor-template-list",
@@ -181,9 +229,15 @@ const deleteSelectedDocument = async () => {
     const selected = contextMenu.value.document;
     contextMenu.value = null;
     if (!window.confirm(`Delete ${documentLabel(selected)}? This cannot be undone.`)) return;
-    await $fetch(`/api/cvs/${encodeURIComponent(selected.id)}`, { method: "DELETE" });
+    try {
+        await $fetch(`/api/cvs/${encodeURIComponent(selected.id)}`, { method: "DELETE" });
+    } catch (error: any) {
+        // A session that only exists in this browser has nothing to delete on the server.
+        if (error?.statusCode !== 404) throw error;
+    }
     clearCvSessionBackup(selected.id);
     await reloadCvDocuments();
+    localBackups.value = listCvSessionBackups();
     if (isActiveDocument(selected.id)) await navigateTo("/");
 };
 watch(
@@ -353,12 +407,14 @@ const updatePageCount = () => {
 };
 
 onMounted(() => {
+    void recoverLocalSessions();
     window.addEventListener("click", closeDocumentMenu);
     window.addEventListener("blur", closeDocumentMenu);
 
     for (const context of editorContexts) {
         if (context.id === editorContext.value.id) continue;
-        const cached = sessionStorage.getItem(lastRouteKey(context.id));
+        const legacyKey = legacyLastRouteKeys[context.id];
+        const cached = sessionStorage.getItem(lastRouteKey(context.id)) ?? (legacyKey ? sessionStorage.getItem(legacyKey) : null);
         if (cached?.startsWith("/")) lastRoutes.value = { ...lastRoutes.value, [context.id]: cached };
     }
 
@@ -577,7 +633,8 @@ const handleLogout = async () => {
                         @contextmenu.prevent="openDocumentMenu($event, document)"
                     >
                         <span>{{ documentLabel(document) }}</span>
-                        <small>r{{ document.revision }}</small>
+                        <small v-if="'localOnly' in document" title="Only in this browser so far; restoring it to the server">local</small>
+                        <small v-else>r{{ document.revision }}</small>
                     </NuxtLink>
                 </section>
                 <section class="document-group template-group">
