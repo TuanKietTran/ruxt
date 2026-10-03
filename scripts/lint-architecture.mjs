@@ -18,7 +18,16 @@ requireText("app/pages/profiles.vue", [
   [/<NuxtLayout\s+name="editor"/, "product editors must reuse the editor layout"],
   [/<template\s+#workspace>/, "non-CV editor surfaces must use the editor layout workspace slot"],
   [/<template\s+#sidebar>/, "tool-specific navigation must replace, not duplicate, the editor sidebar"],
+  [/definePageMeta\(\{[^}]*editorContext:\s*"profiles"/s, "profile editor must select its registered editor context"],
 ]);
+
+// The editor layout renders from the registered editor context, never from hard-coded route paths.
+{
+  const layout = readFileSync("app/layouts/editor.vue", "utf8");
+  if (/isProfileRoute|route\.path\s*[!=]==\s*["']\/p["']|startsWith\(["']\/p/.test(layout)) {
+    failures.push("app/layouts/editor.vue: branch on the registered editor context (app/utils/editorContexts.ts), not on route paths");
+  }
+}
 
 requireText("app/components/CvImportDialog.vue", [
   [/["']\/api\/cv-imports["']/, "blob import must dispatch through the CV import API"],

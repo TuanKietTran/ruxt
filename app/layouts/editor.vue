@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { useTheme, type ThemeId } from "~/composables/useTheme";
 import type { EditorStats } from "@ruxt/editor/composables/useCodeMirror";
 import type { CvDocumentSummary, CvTemplate } from "@core/domain/cv";
+import { hasEditorFeature, listEditorContexts, resolveEditorContext, type EditorContext, type EditorFeature } from "~/utils/editorContexts";
 
 const props = withDefaults(
     defineProps<{
@@ -41,28 +42,21 @@ const emit = defineEmits<{
 }>();
 
 const route = useRoute();
-const isProfileRoute = (path: string) => path === "/p" || path.startsWith("/p/");
-const lastCvRoute = useState<string>("editor:last-cv-route", () =>
-    isProfileRoute(route.path) ? "/" : route.fullPath,
-);
-const lastProfileRoute = useState<string>("editor:last-profile-route", () =>
-    isProfileRoute(route.path) ? route.fullPath : "/p",
-);
-const cvContextRoute = computed(() => lastCvRoute.value);
-const profileContextRoute = computed(() => lastProfileRoute.value);
+// The page picks its registered context; everything context-specific below reads from it.
+const editorContext = computed(() => resolveEditorContext(route.meta.editorContext));
+const editorContexts = listEditorContexts();
+const hasFeature = (feature: EditorFeature) => hasEditorFeature(editorContext.value, feature);
+
+/** Last location per context, so the activity bar returns to where each context was left. */
+const lastRoutes = useState<Record<string, string>>("editor:last-routes", () => ({}));
+const lastRouteKey = (id: string) => `cv-sv:last-route:${id}`;
+const contextRoute = (context: EditorContext) => lastRoutes.value[context.id] ?? context.home;
 
 watch(
     () => route.fullPath,
     (fullPath) => {
-        if (isProfileRoute(route.path)) lastProfileRoute.value = fullPath;
-        else lastCvRoute.value = fullPath;
-
-        if (import.meta.client) {
-            sessionStorage.setItem(
-                isProfileRoute(route.path) ? "cv-sv:last-profile-route" : "cv-sv:last-cv-route",
-                fullPath,
-            );
-        }
+        lastRoutes.value = { ...lastRoutes.value, [editorContext.value.id]: fullPath };
+        if (import.meta.client) sessionStorage.setItem(lastRouteKey(editorContext.value.id), fullPath);
     },
     { immediate: true },
 );
@@ -193,9 +187,9 @@ const deleteSelectedDocument = async () => {
     if (isActiveDocument(selected.id)) await navigateTo("/");
 };
 watch(
-    [cvTemplates, () => route.query.t, () => route.query.v],
+    [cvTemplates, () => route.query.t, () => route.query.v, editorContext],
     ([templates, templateQuery, version]) => {
-        const id = routeQueryValue(templateQuery);
+        const id = hasFeature("templates") ? routeQueryValue(templateQuery) : undefined;
         if (!id) {
             selectedTemplate.value = null;
             return;
@@ -271,9 +265,31 @@ const workspaceStyle = computed(() => ({
     "--preview-zoom": String(previewZoom.value / 100),
 }));
 
+// Below 900px the sidebar is an overlay drawer for every context, so pages never build their own
+// narrow-screen navigation. Its open state is separate from the persisted desktop sidebar state.
+const COMPACT_QUERY = "(max-width: 900px)";
+const isCompact = ref(false);
+const isDrawerOpen = ref(false);
+const sidebarExpanded = computed(() => isCompact.value ? isDrawerOpen.value : isSidebarOpen.value);
+let compactMedia: MediaQueryList | undefined;
+const syncCompact = () => {
+    isCompact.value = Boolean(compactMedia?.matches);
+    if (!isCompact.value) isDrawerOpen.value = false;
+};
+const closeDrawer = () => { isDrawerOpen.value = false; };
+/** Choosing something in the drawer (a link or button) closes it so the workspace is visible again. */
+const closeDrawerAfterChoice = (event: MouseEvent) => {
+    if (isCompact.value && (event.target as HTMLElement | null)?.closest("a, button, [role='button']")) closeDrawer();
+};
+watch(() => route.fullPath, closeDrawer);
+
 const toggleSidebar = () => {
-    isSidebarOpen.value = !isSidebarOpen.value;
-    localStorage.setItem("editor-sidebar-open", String(isSidebarOpen.value));
+    if (isCompact.value) {
+        isDrawerOpen.value = !isDrawerOpen.value;
+    } else {
+        isSidebarOpen.value = !isSidebarOpen.value;
+        localStorage.setItem("editor-sidebar-open", String(isSidebarOpen.value));
+    }
     emit("toggleSidebar");
 };
 
@@ -340,14 +356,15 @@ onMounted(() => {
     window.addEventListener("click", closeDocumentMenu);
     window.addEventListener("blur", closeDocumentMenu);
 
-    if (isProfileRoute(route.path)) {
-        const cachedCvRoute = sessionStorage.getItem("cv-sv:last-cv-route");
-        if (cachedCvRoute?.startsWith("/") && !isProfileRoute(cachedCvRoute)) lastCvRoute.value = cachedCvRoute;
-    } else {
-        const cachedProfileRoute = sessionStorage.getItem("cv-sv:last-profile-route");
-        if (cachedProfileRoute?.startsWith("/p")) lastProfileRoute.value = cachedProfileRoute;
+    for (const context of editorContexts) {
+        if (context.id === editorContext.value.id) continue;
+        const cached = sessionStorage.getItem(lastRouteKey(context.id));
+        if (cached?.startsWith("/")) lastRoutes.value = { ...lastRoutes.value, [context.id]: cached };
     }
 
+    compactMedia = window.matchMedia(COMPACT_QUERY);
+    compactMedia.addEventListener("change", syncCompact);
+    syncCompact();
     isSidebarOpen.value = localStorage.getItem("editor-sidebar-open") !== "false";
     const savedWidth = Number(localStorage.getItem("editor-sidebar-width"));
     if (Number.isFinite(savedWidth) && savedWidth >= 160 && savedWidth <= 420) sidebarWidth.value = savedWidth;
@@ -365,6 +382,7 @@ onMounted(() => {
 const closeDocumentMenu = () => { contextMenu.value = null; };
 
 onBeforeUnmount(() => {
+    compactMedia?.removeEventListener("change", syncCompact);
     window.removeEventListener("click", closeDocumentMenu);
     window.removeEventListener("blur", closeDocumentMenu);
     previewObserver?.disconnect();
@@ -421,18 +439,19 @@ const handleLogout = async () => {
 <template>
     <div
         class="editor-layout"
-        :class="{ 'editor-layout--sidebar-closed': !isSidebarOpen, 'editor-layout--resizing': isSidebarResizing }"
+        :class="{ 'editor-layout--sidebar-closed': !isSidebarOpen, 'editor-layout--resizing': isSidebarResizing, 'editor-layout--drawer-open': isDrawerOpen }"
         :style="layoutStyle"
+        @keydown.esc="closeDrawer"
     >
         <header class="editor-header">
             <section class="editor-header__identity">
                 <button
                     class="icon-button"
-                    :class="{ 'icon-button--active': isSidebarOpen }"
+                    :class="{ 'icon-button--active': sidebarExpanded }"
                     type="button"
-                    aria-label="Toggle document sidebar"
+                    aria-label="Toggle sidebar"
                     aria-controls="main-aside"
-                    :aria-expanded="isSidebarOpen"
+                    :aria-expanded="sidebarExpanded"
                     @click="toggleSidebar"
                 >
                     <img class="editor-brand-icon" src="/favicon.ico" alt="" aria-hidden="true">
@@ -441,7 +460,7 @@ const handleLogout = async () => {
                 <span class="app-badge">{{ appLabel }}</span>
             </section>
 
-            <nav class="editor-header__tools" aria-label="Editor tools">
+            <nav v-if="hasFeature('formatting')" class="editor-header__tools" aria-label="Editor tools">
                 <button class="tool-button" type="button" aria-label="Bold" :disabled="!sourceFormattingEnabled" @click="emit('format', 'bold')">
                     <strong>B</strong>
                 </button>
@@ -490,8 +509,8 @@ const handleLogout = async () => {
                     </button>
                     <button class="template-back-button" type="button" @click="closeTemplate">Back to CV</button>
                 </div>
-                <button v-if="authenticated && route.path !== '/p'" class="header-button" type="button" @click="isImportOpen = true">Import</button>
-                <button v-if="!isProfileRoute(route.path)" class="header-button header-button--primary" type="button" @click="isExportOpen = true">Export</button>
+                <button v-if="authenticated && hasFeature('import')" class="header-button" type="button" @click="isImportOpen = true">Import</button>
+                <button v-if="hasFeature('export')" class="header-button header-button--primary" type="button" @click="isExportOpen = true">Export</button>
                 <select
                     class="theme-select"
                     :value="current"
@@ -508,17 +527,14 @@ const handleLogout = async () => {
         <nav class="activity-bar" aria-label="Primary navigation">
             <div class="activity-bar__top">
                 <NuxtLink
+                    v-for="context in editorContexts"
+                    :key="context.id"
                     class="activity-button"
-                    :class="{ 'activity-button--active': !isProfileRoute(route.path) }"
-                    :to="cvContextRoute"
-                    aria-label="CV editor"
-                >▤</NuxtLink>
-                <NuxtLink
-                    class="activity-button"
-                    :class="{ 'activity-button--active': isProfileRoute(route.path) }"
-                    :to="profileContextRoute"
-                    aria-label="Profile editor"
-                >♙</NuxtLink>
+                    :class="{ 'activity-button--active': context.id === editorContext.id }"
+                    :to="contextRoute(context)"
+                    :aria-label="context.label"
+                    :aria-current="context.id === editorContext.id ? 'page' : undefined"
+                >{{ context.icon }}</NuxtLink>
             </div>
 
             <div class="activity-bar__bottom">
@@ -539,7 +555,8 @@ const handleLogout = async () => {
             </div>
         </nav>
 
-        <aside id="main-aside" class="document-sidebar">
+        <div v-if="isDrawerOpen" class="sidebar-backdrop" aria-hidden="true" @click="closeDrawer" />
+        <aside id="main-aside" class="document-sidebar" @click="closeDrawerAfterChoice">
             <slot name="sidebar">
             <nav class="document-tree" aria-label="CV sessions">
                 <section class="document-group">
@@ -607,7 +624,7 @@ const handleLogout = async () => {
             id="main-editor"
             ref="workspace"
             class="editor-workspace"
-            :class="{ 'editor-workspace--resizing': isResizing }"
+            :class="{ 'editor-workspace--resizing': isResizing, 'editor-workspace--page': $slots.workspace }"
             :style="workspaceStyle"
         >
             <slot v-if="$slots.workspace" name="workspace" />
@@ -778,9 +795,9 @@ const handleLogout = async () => {
 
         <footer class="editor-statusbar">
             <div class="editor-statusbar__left">
-                <span class="save-state" :class="`save-state--${saveState}`">{{ saveState }}</span>
-                <span v-if="revision">rev {{ revision }}</span>
-                <template v-if="!isProfileRoute(route.path)">
+                <template v-if="hasFeature('documentStats')">
+                    <span class="save-state" :class="`save-state--${saveState}`">{{ saveState }}</span>
+                    <span v-if="revision">rev {{ revision }}</span>
                     <span>Ln {{ statusStats.line }}, Col {{ statusStats.column }}</span>
                     <span>{{ statusStats.words }} {{ statusStats.words === 1 ? 'word' : 'words' }}</span>
                     <span>{{ pageCount }} {{ pageCount === 1 ? 'page' : 'pages' }}</span>
@@ -857,6 +874,8 @@ button {
 }
 
 .editor-header__actions {
+    grid-column: 3;
+    justify-self: end;
     gap: 6px;
     padding: 0 8px;
 }
@@ -1153,6 +1172,20 @@ button {
     background: var(--bg-base);
 }
 
+/* A page that provides its own workspace gets the whole area, not the source/preview split. */
+.editor-workspace--page {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.editor-workspace--page > :deep(*) {
+    min-width: 0;
+    min-height: 0;
+}
+
+.sidebar-backdrop {
+    display: none;
+}
+
 .source-pane,
 .preview-pane {
     display: grid;
@@ -1381,8 +1414,32 @@ button {
         display: none !important;
     }
 
+    .editor-layout--drawer-open .document-sidebar {
+        position: fixed;
+        z-index: 40;
+        top: 42px;
+        bottom: 24px;
+        left: 46px;
+        display: block !important;
+        width: min(300px, calc(100vw - 46px));
+        overflow: auto;
+        box-shadow: 8px 0 24px rgb(0 0 0 / .35);
+    }
+
+    .editor-layout--drawer-open .sidebar-backdrop {
+        position: fixed;
+        z-index: 39;
+        inset: 42px 0 24px 46px;
+        display: block;
+        background: rgb(0 0 0 / .45);
+    }
+
     .editor-header {
         grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .editor-header__actions {
+        grid-column: 2;
     }
 
     .editor-header__tools,

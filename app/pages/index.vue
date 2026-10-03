@@ -4,7 +4,7 @@ import { exportCvImages, type CvImageExportOptions, type CvImageFormat } from "~
 import type { EditorStats, MarkdownFormat } from "@ruxt/editor/composables/useCodeMirror";
 import type { CvDocument } from "@core/domain/cv";
 
-definePageMeta({ layout: false });
+definePageMeta({ layout: false, editorContext: "cv" });
 
 const route = useRoute();
 const queryValue = (value: unknown) => typeof value === "string" && value ? value : undefined;

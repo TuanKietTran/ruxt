@@ -12,7 +12,7 @@ import {
 
 type LocalProfileInput = CvProfileProps;
 
-definePageMeta({ layout: false, public: true, path: "/p" });
+definePageMeta({ layout: false, public: true, path: "/p", editorContext: "profiles" });
 
 const profiles = ref<LocalProfile[]>([]);
 /** `null` = nothing open, `""` = a new profile that has not been stored yet. */
@@ -153,10 +153,6 @@ const startEdit = (profile: LocalProfile) => {
     draft.value = profileValue;
     editingId.value = profile.id;
     lastSavedAt.value = updatedAt;
-};
-const selectProfile = (id: string) => {
-    const profile = profiles.value.find(item => item.id === id);
-    if (profile) startEdit(profile);
 };
 const remove = (profile: LocalProfile) => {
     if (!confirm(`Delete ${profile.identity.fullName}'s profile?`)) return;
@@ -320,7 +316,7 @@ const runApply = async () => {
 </script>
 
 <template>
-    <NuxtLayout name="editor" title="Profile editor" app-label="LOCAL" :formatting-enabled="false">
+    <NuxtLayout name="editor" title="Profile editor" app-label="LOCAL">
         <template #sidebar>
             <nav class="profiles-list" aria-label="Local profiles">
                 <header class="profiles-list__header"><span>Profiles</span></header>
@@ -339,14 +335,6 @@ const runApply = async () => {
 
         <template #workspace>
             <main class="profiles-page">
-            <div class="profiles-mobile-bar">
-                <select :value="editingId ?? ''" aria-label="Profile" @change="selectProfile(($event.target as HTMLSelectElement).value)">
-                    <option value="" disabled>{{ editingId === "" ? "New profile" : profiles.length ? "Choose a profile…" : "No profiles yet" }}</option>
-                    <option v-for="profile in profiles" :key="profile.id" :value="profile.id">{{ profile.identity.fullName }}</option>
-                </select>
-                <button type="button" @click="startCreate">＋ New</button>
-                <button type="button" @click="openTransfer('import')">Import</button>
-            </div>
             <section class="profile-form">
                 <div v-if="editingId === null" class="profile-placeholder">
                     <p>{{ profiles.length ? "Select a profile or create a new one." : "No local profiles yet." }}</p>
@@ -524,7 +512,7 @@ const runApply = async () => {
 </template>
 
 <style scoped>
-.profiles-page { grid-column: 1 / -1; display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; height: 100%; overflow: hidden; background: var(--bg-base, #111); color: var(--fg-text, #ddd); font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.profiles-page { display: grid; grid-template-rows: minmax(0, 1fr); min-width: 0; min-height: 0; height: 100%; overflow: hidden; background: var(--bg-base, #111); color: var(--fg-text, #ddd); font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .profiles-list { box-sizing: border-box; height: 100%; padding: 14px 12px; overflow: auto; background: var(--bg-mantle, #171717); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .profiles-list__header { margin: 0 4px 12px; color: var(--fg-subtext0, #888); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
 .profiles-new, .profile-card { width: 100%; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
@@ -545,9 +533,6 @@ const runApply = async () => {
 .profiles-page select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 34px; padding: 7px 8px; border: 1px solid var(--border, #333); border-radius: 3px; outline: none; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; }
 .profiles-page select:focus { border-color: var(--accent, #89b4fa); }
 
-/* The layout hides the profile sidebar on narrow screens; this bar replaces it there. */
-.profiles-mobile-bar { display: none; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border, #333); background: var(--bg-mantle, #171717); }
-@media (max-width: 900px) { .profiles-mobile-bar { display: grid; } }
 
 .profile-form { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .profile-placeholder { display: grid; align-content: center; justify-items: center; gap: 14px; min-height: 100%; padding: 24px 16px; box-sizing: border-box; color: var(--fg-subtext0, #888); text-align: center; }
@@ -617,7 +602,6 @@ const runApply = async () => {
     .profile-toolbar { margin: 0 -16px 14px; padding: 12px 16px 10px; }
     .profile-toolbar__actions { width: 100%; }
     .profile-toolbar__actions button { flex: 1 1 auto; }
-    .profiles-mobile-bar { padding: 10px 16px; }
 }
 
 .profiles-transfer { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: -4px 0 12px; }
