@@ -590,12 +590,12 @@ const handleLogout = async () => {
                     :to="contextRoute(context)"
                     :aria-label="context.label"
                     :aria-current="context.id === editorContext.id ? 'page' : undefined"
-                >{{ context.icon }}</NuxtLink>
+                ><AppIcon :name="context.icon" /></NuxtLink>
             </div>
 
             <div class="activity-bar__bottom">
-                <NuxtLink class="activity-button" to="/about" aria-label="Help">?</NuxtLink>
-                <NuxtLink class="activity-button" to="/settings" aria-label="Settings">⚙</NuxtLink>
+                <NuxtLink class="activity-button" to="/about" aria-label="Help"><AppIcon name="lucide:circle-help" /></NuxtLink>
+                <NuxtLink class="activity-button" to="/settings" aria-label="Settings"><AppIcon name="lucide:settings" /></NuxtLink>
                 <template v-if="authenticated">
                     <button
                         v-if="user"
@@ -604,9 +604,9 @@ const handleLogout = async () => {
                         :aria-label="`Sign out ${user.email}`"
                         @click="handleLogout"
                     >
-                        ◉
+                        <AppIcon name="lucide:circle-user-round" />
                     </button>
-                    <button v-else class="activity-button" type="button" aria-label="Sign in or create account" @click="openAuthDialog('login')">◉</button>
+                    <button v-else class="activity-button" type="button" aria-label="Sign in or create account" @click="openAuthDialog('login')"><AppIcon name="lucide:log-in" /></button>
                 </template>
             </div>
         </nav>

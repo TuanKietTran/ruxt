@@ -8,8 +8,8 @@ import {
 } from "../../app/utils/editorContexts";
 
 describe("editor context registry", () => {
-   registerEditorContext({ id: DEFAULT_EDITOR_CONTEXT, label: "CV editor", icon: "▤", home: "/", features: ["formatting", "export"] });
-   registerEditorContext({ id: "profiles", label: "Profile editor", icon: "♙", home: "/p", features: [] });
+   registerEditorContext({ id: DEFAULT_EDITOR_CONTEXT, label: "CV editor", icon: "lucide:file-text", home: "/", features: ["formatting", "export"] });
+   registerEditorContext({ id: "profiles", label: "Profile editor", icon: "lucide:id-card", home: "/p", features: [] });
 
    it("lists contexts in registration order", () => {
       expect(listEditorContexts().map(context => context.id)).toEqual([DEFAULT_EDITOR_CONTEXT, "profiles"]);
@@ -27,7 +27,7 @@ describe("editor context registry", () => {
    });
 
    it("replaces a context registered again under the same id without reordering", () => {
-      registerEditorContext({ id: "profiles", label: "Profiles", icon: "♙", home: "/p", features: ["export"] });
+      registerEditorContext({ id: "profiles", label: "Profiles", icon: "lucide:id-card", home: "/p", features: ["export"] });
       expect(listEditorContexts().map(context => context.id)).toEqual([DEFAULT_EDITOR_CONTEXT, "profiles"]);
       expect(hasEditorFeature(resolveEditorContext("profiles"), "export")).toBe(true);
    });

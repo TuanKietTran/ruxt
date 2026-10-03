@@ -5,14 +5,14 @@ export default defineNuxtPlugin(() => {
     registerEditorContext({
         id: DEFAULT_EDITOR_CONTEXT,
         label: "CV editor",
-        icon: "▤",
+        icon: "lucide:file-text",
         home: "/",
         features: ["formatting", "export", "import", "templates", "documentStats"],
     });
     registerEditorContext({
         id: "profiles",
         label: "Profile editor",
-        icon: "♙",
+        icon: "lucide:id-card",
         home: "/p",
         features: [],
     });

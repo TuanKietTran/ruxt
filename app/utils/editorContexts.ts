@@ -1,3 +1,5 @@
+import type { IconCode } from "~/utils/icons";
+
 /**
  * Editor contexts are the products that share the editor layout (CV editor, profile editor, …). Each
  * registers its activity-bar entry and the layout features it uses, and a page selects its context with
@@ -20,8 +22,8 @@ export interface EditorContext {
     id: string;
     /** Accessible label for the activity-bar entry. */
     label: string;
-    /** Activity-bar glyph. */
-    icon: string;
+    /** Activity-bar Iconify code listed in `~/utils/icons`. */
+    icon: IconCode;
     /** Route opened from the activity bar before this context remembers a location of its own. */
     home: string;
     features: readonly EditorFeature[];
