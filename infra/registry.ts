@@ -8,10 +8,12 @@ import { registerSetCloudDataConsent } from "@core/handlers/set-cloud-data-conse
 import "@infra/deploy/index";
 import { resolveStrategy } from "@infra/deploy/strategy";
 
-export async function bootstrap(): Promise<void> {
+export async function bootstrap(): Promise<Repos> {
    const strategy = await resolveStrategy();
-   registerAll(strategy.buildRepos());
+   const repos = strategy.buildRepos();
+   registerAll(repos);
    console.log(`🚀 infra ready — ${strategy.label}`);
+   return repos;
 }
 
 import { registerCreateSubscription } from "@core/handlers/create-subscription";

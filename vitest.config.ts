@@ -8,6 +8,7 @@ export default defineConfig({
       alias: {
          "@core": resolvePath("./core"),
          "@infra": resolvePath("./infra"),
+         "#shared": resolvePath("./shared"),
       },
    },
    test: {

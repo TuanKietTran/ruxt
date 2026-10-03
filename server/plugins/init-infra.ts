@@ -1,5 +1,7 @@
 import { bootstrap } from "@infra/registry";
+import { registerUserPreferencesHandlers } from "../preferences/handlers";
 
 export default defineNitroPlugin(async () => {
-   await bootstrap();
+   const repos = await bootstrap();
+   registerUserPreferencesHandlers(repos.preferences);
 });

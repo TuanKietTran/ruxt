@@ -86,6 +86,29 @@ smoke("HTTP smoke", () => {
       });
    });
 
+   it("requires a session for account preferences and stores a valid change", async () => {
+      expect((await call("/api/preferences")).status).toBe(401);
+      const registration = await call("/api/auth/register", json({
+         email: `smoke-preferences-${Date.now()}@example.com`,
+         password: "smoke-test-password",
+      }));
+      const cookie = registration.headers.get("set-cookie")?.split(";", 1)[0];
+      expect(cookie).toBeTruthy();
+
+      const initial = await call("/api/preferences", { headers: { cookie: cookie! } });
+      expect(initial.body).toMatchObject({ preferences: { profileSaveMode: "auto" }, updatedAt: null });
+
+      const put = (preferences: unknown) => call("/api/preferences", {
+         method: "PUT",
+         headers: { "content-type": "application/json", cookie: cookie! },
+         body: JSON.stringify({ preferences }),
+      });
+      expect((await put({ profileSaveMode: "sometimes" })).status).toBe(400);
+      const changed = await put({ profileSaveMode: "manual" });
+      expect(changed.status).toBe(200);
+      expect(changed.body).toMatchObject({ preferences: { profileSaveMode: "manual" } });
+   });
+
    it("completes the legacy sign-up, session, logout, and login compatibility scenario", async () => {
       const email = `smoke-auth-${Date.now()}@example.com`;
       const password = "smoke-test-password";

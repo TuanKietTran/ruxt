@@ -100,5 +100,13 @@ export function getSqliteDb() {
       ON cloud_consent_events (owner_id, changed_at)
    `);
 
+   _db.run(sql`
+      CREATE TABLE IF NOT EXISTS user_preferences (
+         owner_id    TEXT PRIMARY KEY,
+         preferences TEXT NOT NULL,
+         updated_at  TEXT NOT NULL
+      )
+   `);
+
    return _db;
 }

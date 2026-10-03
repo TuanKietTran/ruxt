@@ -4,6 +4,7 @@ import { SqlitePlanRepo } from "./plan-repo-sqlite";
 import { SqliteIamRepo } from "./iam-repo-sqlite";
 import { SqliteUserRepo } from "./user-repo-sqlite";
 import { SqliteCloudConsentRepo } from "./cloud-consent-repo-sqlite";
+import { SqliteUserPreferencesRepo } from "./user-preferences-repo-sqlite";
 
 createDeployStrategy({
    label: "SQLite",
@@ -21,6 +22,7 @@ createDeployStrategy({
          iam: new SqliteIamRepo(),
          user: new SqliteUserRepo(),
          cloudConsent: new SqliteCloudConsentRepo(),
+         preferences: new SqliteUserPreferencesRepo(),
       };
    },
 });

@@ -27,12 +27,20 @@ const persist = (items: LocalProfile[]) => {
     readProfiles();
 };
 
-// Every field saves on its own once its value is committed (blur, select change, removal).
+// Fields are click-to-edit; each one saves on its own when its edit is committed. Whether that happens
+// while typing or only on an explicit Save is the `profileSaveMode` preference.
+const { preferences, load: loadPreferences, signedIn } = usePreferences();
+const saveMode = computed(() => preferences.value.profileSaveMode);
 type EntrySection = "contacts" | "experiences" | "skills" | "certifications" | "education" | "projects" | "languages";
 const touched = reactive(new Set<string>());
 const savedFlash = reactive<Record<string, number>>({});
 const lastSavedAt = ref<number | null>(null);
-let dirty = false;
+/** Manual-mode fields with edits that are neither saved nor cancelled. */
+const unsavedKeys = reactive(new Set<string>());
+/** The field to open for editing as soon as it renders (new profile, added entry). */
+const autoEditKey = ref<string | null>(null);
+/** Bumped on profile switch so no field keeps an edit buffer from the previous profile. */
+const formKey = ref(0);
 
 const blank = (value: string) => !value.trim();
 const requiredFields: Record<Exclude<EntrySection, "languages">, Record<string, string>> = {
@@ -64,8 +72,14 @@ const pendingCount = computed(() => new Set(Object.keys(issues.value)
     .filter(key => key !== "identity.fullName")
     .map(key => key.split(".").slice(0, 2).join("."))).size);
 
-/** Props for a `ProfileField`: its save flash, and its validation error once the field was committed. */
-const field = (key: string) => ({ saved: Boolean(savedFlash[key]), error: touched.has(key) ? issues.value[key] : undefined });
+/** Props for an `EditableField`: save mode, save flash, validation error once committed, and auto-open. */
+const field = (key: string) => ({
+    mode: saveMode.value,
+    saved: Boolean(savedFlash[key]),
+    error: touched.has(key) ? issues.value[key] : undefined,
+    startEditing: autoEditKey.value === key,
+    onDirty: (dirty: boolean) => { if (dirty) unsavedKeys.add(key); else unsavedKeys.delete(key); },
+});
 
 /** The stored copy keeps complete entries only; incomplete ones stay in the form until finished. */
 const savableDraft = (): CvProfileProps => {
@@ -81,7 +95,6 @@ const savableDraft = (): CvProfileProps => {
     return value;
 };
 const persistDraft = (): boolean => {
-    dirty = false;
     if (editingId.value === null || blank(draft.value.identity.fullName)) return false;
     const saved = saveLocalProfile(savableDraft(), editingId.value || undefined);
     editingId.value = saved.id;
@@ -101,34 +114,39 @@ const commit = (key: string) => {
     if (/^\d+$/.test(index ?? "") && entryPending(section as EntrySection, Number(index))) return;
     flash(key);
 };
-const markDirty = () => { dirty = true; };
-const flushDraft = () => { if (dirty) persistDraft(); };
 const resetFieldState = () => {
     touched.clear();
+    unsavedKeys.clear();
     for (const key of Object.keys(savedFlash)) delete savedFlash[key];
     lastSavedAt.value = null;
-    dirty = false;
+    autoEditKey.value = null;
+    formKey.value++;
+};
+const confirmDiscard = () => !unsavedKeys.size
+    || confirm(`Discard ${unsavedKeys.size} unsaved ${unsavedKeys.size === 1 ? "edit" : "edits"}?`);
+const warnUnsaved = (event: BeforeUnloadEvent) => {
+    if (!unsavedKeys.size) return;
+    event.preventDefault();
+    event.returnValue = "";
 };
 
 onMounted(() => {
     readProfiles();
-    window.addEventListener("beforeunload", flushDraft);
+    loadPreferences();
+    window.addEventListener("beforeunload", warnUnsaved);
 });
-onBeforeUnmount(() => {
-    flushDraft();
-    window.removeEventListener("beforeunload", flushDraft);
-});
+onBeforeUnmount(() => window.removeEventListener("beforeunload", warnUnsaved));
+watch(signedIn, loadPreferences);
 
 const startCreate = () => {
-    flushDraft();
+    if (!confirmDiscard()) return;
     resetFieldState();
     editingId.value = "";
     draft.value = emptyProfile();
-    nextTick(() => document.querySelector<HTMLElement>(".profile-identity textarea")?.focus());
+    autoEditKey.value = "identity.fullName";
 };
 const startEdit = (profile: LocalProfile) => {
-    if (profile.id === editingId.value) return;
-    flushDraft();
+    if (profile.id === editingId.value || !confirmDiscard()) return;
     resetFieldState();
     const cloned = structuredClone(toRaw(profile));
     const { id: _id, createdAt: _createdAt, updatedAt, ...profileValue } = cloned;
@@ -158,15 +176,18 @@ const newEntries = {
     projects: () => ({ name: "", url: "", description: "", technologies: [] }),
     languages: () => "",
 };
+const firstFields: Record<EntrySection, string> = {
+    contacts: "value", experiences: "title", skills: "name", certifications: "name", education: "school", projects: "name", languages: "",
+};
 const addEntry = (section: EntrySection) => {
     const entries = draft.value[section] as unknown[];
     entries.push(newEntries[section]());
-    const index = entries.length - 1;
-    nextTick(() => document.querySelector<HTMLElement>(`[data-entry="${section}-${index}"] textarea`)?.focus());
+    autoEditKey.value = [section, entries.length - 1, firstFields[section]].filter(part => part !== "").join(".");
 };
 const removeEntry = (section: EntrySection, index: number) => {
     (draft.value[section] as unknown[]).splice(index, 1);
     for (const key of [...touched]) if (key.startsWith(`${section}.`)) touched.delete(key);
+    for (const key of [...unsavedKeys]) if (key.startsWith(`${section}.`)) unsavedKeys.delete(key);
     for (const key of Object.keys(savedFlash)) if (key.startsWith(`${section}.`)) delete savedFlash[key];
     persistDraft();
 };
@@ -175,9 +196,10 @@ const splitLines = (value: string) => value.split("\n").filter(line => line.trim
 const contactKinds: CvContactKind[] = ["email", "phone", "linkedin", "github", "website", "other"];
 
 const saveStatus = computed(() => {
+    if (unsavedKeys.size) return `${unsavedKeys.size} unsaved ${unsavedKeys.size === 1 ? "edit" : "edits"} — Save or Cancel ${unsavedKeys.size === 1 ? "it" : "each one"}.`;
     if (blank(draft.value.identity.fullName)) return editingId.value ? "Add a full name to keep saving." : "Add a full name to start saving.";
     if (pendingCount.value) return `${pendingCount.value} incomplete ${pendingCount.value === 1 ? "entry isn't" : "entries aren't"} saved yet.`;
-    if (!lastSavedAt.value) return "Changes save as you leave each field.";
+    if (!lastSavedAt.value) return "Click a field to edit it.";
     return `All changes saved · ${new Date(lastSavedAt.value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 });
 
@@ -325,16 +347,19 @@ const runApply = async () => {
                 <button type="button" @click="startCreate">＋ New</button>
                 <button type="button" @click="openTransfer('import')">Import</button>
             </div>
-            <section class="profile-form" @input="markDirty">
+            <section class="profile-form">
                 <div v-if="editingId === null" class="profile-placeholder">
                     <p>{{ profiles.length ? "Select a profile or create a new one." : "No local profiles yet." }}</p>
                     <div><button type="button" class="profile-save" @click="startCreate">＋ New profile</button><button type="button" @click="openTransfer('import')">Import</button></div>
                 </div>
-                <div v-else class="profile-sheet">
+                <div v-else :key="formKey" class="profile-sheet">
                     <header class="profile-toolbar">
                         <div class="profile-toolbar__title">
                             <h1>{{ draft.identity.fullName.trim() || "New profile" }}</h1>
-                            <p :class="{ 'profile-toolbar__warn': blank(draft.identity.fullName) || pendingCount }" role="status" aria-live="polite">{{ saveStatus }}</p>
+                            <p role="status" aria-live="polite">
+                                <span :class="{ 'profile-toolbar__warn': unsavedKeys.size || blank(draft.identity.fullName) || pendingCount }">{{ saveStatus }}</span>
+                                · <NuxtLink to="/settings" class="profile-toolbar__mode" title="Change in settings">{{ saveMode === "auto" ? "Auto-save" : "Save with button" }}</NuxtLink>
+                            </p>
                         </div>
                         <div v-if="currentProfile" class="profile-toolbar__actions">
                             <button type="button" title="Copy this saved profile to the clipboard, encrypted" @click="openTransfer('copy', [currentProfile])">Copy encrypted</button>
@@ -345,32 +370,18 @@ const runApply = async () => {
                     </header>
 
                     <div class="profile-identity">
-                        <ProfileField class="identity-name" label="Full name" v-bind="field('identity.fullName')">
-                            <ProfileInput v-model="draft.identity.fullName" maxlength="120" autocomplete="name" @change="commit('identity.fullName')" />
-                        </ProfileField>
-                        <ProfileField class="identity-headline" label="Headline" v-bind="field('identity.headline')">
-                            <ProfileInput v-model="draft.identity.headline" placeholder="Software engineer, product designer…" @change="commit('identity.headline')" />
-                        </ProfileField>
-                        <ProfileField class="identity-location" label="Location" v-bind="field('identity.location')">
-                            <ProfileInput v-model="draft.identity.location" placeholder="City, Country" @change="commit('identity.location')" />
-                        </ProfileField>
-                        <ProfileField class="span-all" label="Summary" v-bind="field('identity.summary')">
-                            <ProfileInput v-model="draft.identity.summary" multiline placeholder="A few lines about you" @change="commit('identity.summary')" />
-                        </ProfileField>
+                        <EditableField class="identity-name" label="Full name" placeholder="Your name" maxlength="120" autocomplete="name" v-bind="field('identity.fullName')" :model-value="draft.identity.fullName" @commit="draft.identity.fullName = $event; commit('identity.fullName')" />
+                        <EditableField class="identity-headline" label="Headline" placeholder="Software engineer, product designer…" optional v-bind="field('identity.headline')" :model-value="draft.identity.headline" @commit="draft.identity.headline = $event; commit('identity.headline')" />
+                        <EditableField class="identity-location" label="Location" placeholder="City, Country" optional v-bind="field('identity.location')" :model-value="draft.identity.location" @commit="draft.identity.location = $event; commit('identity.location')" />
+                        <EditableField class="span-all" label="Summary" placeholder="A few lines about you" multiline optional v-bind="field('identity.summary')" :model-value="draft.identity.summary" @commit="draft.identity.summary = $event; commit('identity.summary')" />
                     </div>
 
                     <section class="profile-section">
                         <div class="profile-section-heading"><h2>Contact information</h2><button type="button" @click="addEntry('contacts')">＋ Add</button></div>
                         <div v-for="(contact, index) in draft.contacts" :key="index" class="entry-row contact-row" :data-entry="`contacts-${index}`">
-                            <ProfileField class="contact-kind" label="Type" v-bind="field(`contacts.${index}.kind`)">
-                                <select v-model="contact.kind" @change="commit(`contacts.${index}.kind`)"><option v-for="kind in contactKinds" :key="kind" :value="kind">{{ kind }}</option></select>
-                            </ProfileField>
-                            <ProfileField class="contact-label" label="Display text" v-bind="field(`contacts.${index}.label`)">
-                                <ProfileInput v-model="contact.label" placeholder="Shown on the CV" @change="commit(`contacts.${index}.label`)" />
-                            </ProfileField>
-                            <ProfileField class="contact-value" label="Value or link" v-bind="field(`contacts.${index}.value`)">
-                                <ProfileInput v-model="contact.value" placeholder="name@example.com, https://…" @change="commit(`contacts.${index}.value`)" />
-                            </ProfileField>
+                            <EditableField class="contact-kind" label="Type" :options="contactKinds" v-bind="field(`contacts.${index}.kind`)" :model-value="contact.kind" @commit="contact.kind = $event as CvContactKind; commit(`contacts.${index}.kind`)" />
+                            <EditableField class="contact-value" label="Value or link" placeholder="name@example.com, https://…" v-bind="field(`contacts.${index}.value`)" :model-value="contact.value" @commit="contact.value = $event; commit(`contacts.${index}.value`)" />
+                            <EditableField class="contact-label" label="Display text" placeholder="Same as value" optional v-bind="field(`contacts.${index}.label`)" :model-value="contact.label" @commit="contact.label = $event; commit(`contacts.${index}.label`)" />
                             <button type="button" class="entry-remove" aria-label="Remove contact" @click="removeEntry('contacts', index)">×</button>
                         </div>
                     </section>
@@ -380,14 +391,14 @@ const runApply = async () => {
                         <article v-for="(experience, index) in draft.experiences" :key="index" class="entry-card" :data-entry="`experiences-${index}`">
                             <button type="button" class="entry-remove" aria-label="Remove experience" @click="removeEntry('experiences', index)">×</button>
                             <div class="entry-grid">
-                                <ProfileField class="span-2" label="Job title" v-bind="field(`experiences.${index}.title`)"><ProfileInput v-model="experience.title" @change="commit(`experiences.${index}.title`)" /></ProfileField>
-                                <ProfileField class="span-2" label="Company" v-bind="field(`experiences.${index}.company`)"><ProfileInput v-model="experience.company" @change="commit(`experiences.${index}.company`)" /></ProfileField>
-                                <ProfileField class="span-2" label="Location" v-bind="field(`experiences.${index}.location`)"><ProfileInput v-model="experience.location" @change="commit(`experiences.${index}.location`)" /></ProfileField>
-                                <ProfileField label="Start" v-bind="field(`experiences.${index}.start`)"><ProfileInput v-model="experience.start" placeholder="Jan 2024" @change="commit(`experiences.${index}.start`)" /></ProfileField>
-                                <ProfileField label="End" v-bind="field(`experiences.${index}.end`)"><ProfileInput v-model="experience.end" placeholder="Present" @change="commit(`experiences.${index}.end`)" /></ProfileField>
-                                <ProfileField class="span-all" label="Highlights · one per line" v-bind="field(`experiences.${index}.highlights`)">
-                                    <ProfileInput :model-value="experience.highlights.join('\n')" multiline placeholder="What you shipped, owned or improved" @update:model-value="experience.highlights = splitLines($event)" @change="commit(`experiences.${index}.highlights`)" />
-                                </ProfileField>
+                                <EditableField class="span-2" label="Job title" v-bind="field(`experiences.${index}.title`)" :model-value="experience.title" @commit="experience.title = $event; commit(`experiences.${index}.title`)" />
+                                <EditableField class="span-2" label="Company" v-bind="field(`experiences.${index}.company`)" :model-value="experience.company" @commit="experience.company = $event; commit(`experiences.${index}.company`)" />
+                                <EditableField class="span-2" label="Location" optional v-bind="field(`experiences.${index}.location`)" :model-value="experience.location" @commit="experience.location = $event; commit(`experiences.${index}.location`)" />
+                                <EditableField label="Start" placeholder="Jan 2024" optional v-bind="field(`experiences.${index}.start`)" :model-value="experience.start" @commit="experience.start = $event; commit(`experiences.${index}.start`)" />
+                                <EditableField label="End" placeholder="Present" optional v-bind="field(`experiences.${index}.end`)" :model-value="experience.end" @commit="experience.end = $event; commit(`experiences.${index}.end`)" />
+                                <EditableField class="span-all" label="Highlights · one per line" placeholder="What you shipped, owned or improved" multiline optional v-bind="field(`experiences.${index}.highlights`)" :model-value="experience.highlights.join('\n')" @commit="experience.highlights = splitLines($event); commit(`experiences.${index}.highlights`)">
+                                    <template #display><ul><li v-for="(line, lineIndex) in experience.highlights" :key="lineIndex">{{ line }}</li></ul></template>
+                                </EditableField>
                             </div>
                             <p v-if="entryPending('experiences', index)" class="entry-pending">{{ pendingNote('experiences', index) }}</p>
                         </article>
@@ -396,10 +407,10 @@ const runApply = async () => {
                     <section class="profile-section">
                         <div class="profile-section-heading"><h2>Skills</h2><button type="button" @click="addEntry('skills')">＋ Add</button></div>
                         <div v-for="(skill, index) in draft.skills" :key="index" class="entry-row skill-row" :data-entry="`skills-${index}`">
-                            <ProfileField class="skill-name" label="Group" v-bind="field(`skills.${index}.name`)"><ProfileInput v-model="skill.name" placeholder="Languages" @change="commit(`skills.${index}.name`)" /></ProfileField>
-                            <ProfileField class="skill-list" label="Skills · comma-separated" v-bind="field(`skills.${index}.skills`)">
-                                <ProfileInput :model-value="skill.skills.join(', ')" placeholder="TypeScript, Go, SQL" @update:model-value="skill.skills = splitList($event)" @change="commit(`skills.${index}.skills`)" />
-                            </ProfileField>
+                            <EditableField class="skill-name" label="Group" placeholder="Languages" v-bind="field(`skills.${index}.name`)" :model-value="skill.name" @commit="skill.name = $event; commit(`skills.${index}.name`)" />
+                            <EditableField class="skill-list" label="Skills · comma-separated" placeholder="TypeScript, Go, SQL" v-bind="field(`skills.${index}.skills`)" :model-value="skill.skills.join(', ')" @commit="skill.skills = splitList($event); commit(`skills.${index}.skills`)">
+                                <template #display><span class="chips"><span v-for="item in skill.skills" :key="item">{{ item }}</span></span></template>
+                            </EditableField>
                             <button type="button" class="entry-remove" aria-label="Remove skill group" @click="removeEntry('skills', index)">×</button>
                         </div>
                     </section>
@@ -409,12 +420,12 @@ const runApply = async () => {
                         <article v-for="(education, index) in draft.education" :key="index" class="entry-card" :data-entry="`education-${index}`">
                             <button type="button" class="entry-remove" aria-label="Remove education" @click="removeEntry('education', index)">×</button>
                             <div class="entry-grid">
-                                <ProfileField class="span-2" label="Institution" v-bind="field(`education.${index}.school`)"><ProfileInput v-model="education.school" @change="commit(`education.${index}.school`)" /></ProfileField>
-                                <ProfileField class="span-2" label="Degree and field of study" v-bind="field(`education.${index}.degree`)"><ProfileInput v-model="education.degree" @change="commit(`education.${index}.degree`)" /></ProfileField>
-                                <ProfileField class="span-2" label="Location" v-bind="field(`education.${index}.location`)"><ProfileInput v-model="education.location" @change="commit(`education.${index}.location`)" /></ProfileField>
-                                <ProfileField label="Start" v-bind="field(`education.${index}.start`)"><ProfileInput v-model="education.start" @change="commit(`education.${index}.start`)" /></ProfileField>
-                                <ProfileField label="End" v-bind="field(`education.${index}.end`)"><ProfileInput v-model="education.end" @change="commit(`education.${index}.end`)" /></ProfileField>
-                                <ProfileField class="span-all" label="Details" v-bind="field(`education.${index}.details`)"><ProfileInput v-model="education.details" multiline placeholder="GPA, honours, coursework" @change="commit(`education.${index}.details`)" /></ProfileField>
+                                <EditableField class="span-2" label="Institution" v-bind="field(`education.${index}.school`)" :model-value="education.school" @commit="education.school = $event; commit(`education.${index}.school`)" />
+                                <EditableField class="span-2" label="Degree and field of study" optional v-bind="field(`education.${index}.degree`)" :model-value="education.degree" @commit="education.degree = $event; commit(`education.${index}.degree`)" />
+                                <EditableField class="span-2" label="Location" optional v-bind="field(`education.${index}.location`)" :model-value="education.location" @commit="education.location = $event; commit(`education.${index}.location`)" />
+                                <EditableField label="Start" optional v-bind="field(`education.${index}.start`)" :model-value="education.start" @commit="education.start = $event; commit(`education.${index}.start`)" />
+                                <EditableField label="End" optional v-bind="field(`education.${index}.end`)" :model-value="education.end" @commit="education.end = $event; commit(`education.${index}.end`)" />
+                                <EditableField class="span-all" label="Details" placeholder="GPA, honours, coursework" multiline optional v-bind="field(`education.${index}.details`)" :model-value="education.details" @commit="education.details = $event; commit(`education.${index}.details`)" />
                             </div>
                             <p v-if="entryPending('education', index)" class="entry-pending">{{ pendingNote('education', index) }}</p>
                         </article>
@@ -425,12 +436,12 @@ const runApply = async () => {
                         <article v-for="(project, index) in draft.projects" :key="index" class="entry-card" :data-entry="`projects-${index}`">
                             <button type="button" class="entry-remove" aria-label="Remove project" @click="removeEntry('projects', index)">×</button>
                             <div class="entry-grid">
-                                <ProfileField class="span-2" label="Project name" v-bind="field(`projects.${index}.name`)"><ProfileInput v-model="project.name" @change="commit(`projects.${index}.name`)" /></ProfileField>
-                                <ProfileField class="span-2" label="URL" v-bind="field(`projects.${index}.url`)"><ProfileInput v-model="project.url" placeholder="https://…" @change="commit(`projects.${index}.url`)" /></ProfileField>
-                                <ProfileField class="span-all" label="Technologies · comma-separated" v-bind="field(`projects.${index}.technologies`)">
-                                    <ProfileInput :model-value="project.technologies.join(', ')" @update:model-value="project.technologies = splitList($event)" @change="commit(`projects.${index}.technologies`)" />
-                                </ProfileField>
-                                <ProfileField class="span-all" label="Description" v-bind="field(`projects.${index}.description`)"><ProfileInput v-model="project.description" multiline @change="commit(`projects.${index}.description`)" /></ProfileField>
+                                <EditableField class="span-2" label="Project name" v-bind="field(`projects.${index}.name`)" :model-value="project.name" @commit="project.name = $event; commit(`projects.${index}.name`)" />
+                                <EditableField class="span-2" label="URL" placeholder="https://…" optional v-bind="field(`projects.${index}.url`)" :model-value="project.url" @commit="project.url = $event; commit(`projects.${index}.url`)" />
+                                <EditableField class="span-all" label="Technologies · comma-separated" optional v-bind="field(`projects.${index}.technologies`)" :model-value="project.technologies.join(', ')" @commit="project.technologies = splitList($event); commit(`projects.${index}.technologies`)">
+                                    <template #display><span class="chips"><span v-for="item in project.technologies" :key="item">{{ item }}</span></span></template>
+                                </EditableField>
+                                <EditableField class="span-all" label="Description" multiline optional v-bind="field(`projects.${index}.description`)" :model-value="project.description" @commit="project.description = $event; commit(`projects.${index}.description`)" />
                             </div>
                             <p v-if="entryPending('projects', index)" class="entry-pending">{{ pendingNote('projects', index) }}</p>
                         </article>
@@ -440,14 +451,14 @@ const runApply = async () => {
                         <section class="profile-section">
                             <div class="profile-section-heading"><h2>Certifications</h2><button type="button" @click="addEntry('certifications')">＋ Add</button></div>
                             <div v-for="(certification, index) in draft.certifications" :key="index" class="entry-row single-row" :data-entry="`certifications-${index}`">
-                                <ProfileField :label="`Certification ${index + 1}`" v-bind="field(`certifications.${index}.name`)"><ProfileInput v-model="certification.name" @change="commit(`certifications.${index}.name`)" /></ProfileField>
+                                <EditableField :label="`Certification ${index + 1}`" v-bind="field(`certifications.${index}.name`)" :model-value="certification.name" @commit="certification.name = $event; commit(`certifications.${index}.name`)" />
                                 <button type="button" class="entry-remove" aria-label="Remove certification" @click="removeEntry('certifications', index)">×</button>
                             </div>
                         </section>
                         <section class="profile-section">
                             <div class="profile-section-heading"><h2>Languages</h2><button type="button" @click="addEntry('languages')">＋ Add</button></div>
-                            <div v-for="(_, index) in draft.languages" :key="index" class="entry-row single-row" :data-entry="`languages-${index}`">
-                                <ProfileField :label="`Language ${index + 1}`" v-bind="field(`languages.${index}`)"><ProfileInput v-model="draft.languages[index]" placeholder="English — fluent" @change="commit(`languages.${index}`)" /></ProfileField>
+                            <div v-for="(language, index) in draft.languages" :key="index" class="entry-row single-row" :data-entry="`languages-${index}`">
+                                <EditableField :label="`Language ${index + 1}`" placeholder="English — fluent" v-bind="field(`languages.${index}`)" :model-value="language" @commit="draft.languages[index] = $event; commit(`languages.${index}`)" />
                                 <button type="button" class="entry-remove" aria-label="Remove language" @click="removeEntry('languages', index)">×</button>
                             </div>
                         </section>
@@ -549,6 +560,8 @@ const runApply = async () => {
 .profile-toolbar h1 { margin: 0; overflow-wrap: anywhere; font-size: 15px; font-weight: 600; }
 .profile-toolbar p { margin: 4px 0 0; color: var(--fg-subtext0, #888); font-size: 11px; }
 .profile-toolbar .profile-toolbar__warn { color: var(--warning, #f9e2af); }
+.profile-toolbar__mode { color: var(--accent, #89b4fa); text-decoration: none; }
+.profile-toolbar__mode:hover { text-decoration: underline; }
 .profile-toolbar__actions { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .profile-identity { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px 14px; }
@@ -588,7 +601,7 @@ const runApply = async () => {
     .profile-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @container sheet (min-width: 560px) {
-    .contact-row { grid-template-columns: 112px minmax(0, 1fr) minmax(0, 1.25fr) auto; }
+    .contact-row { grid-template-columns: 112px minmax(0, 1.25fr) minmax(0, 1fr) auto; }
     .contact-row .contact-kind, .contact-row .contact-label, .contact-row .contact-value, .contact-row .entry-remove { grid-column: auto; grid-row: auto; }
     .skill-row { grid-template-columns: minmax(0, 1fr) minmax(0, 3fr) auto; }
     .skill-row .skill-name, .skill-row .skill-list { grid-column: auto; grid-row: auto; }

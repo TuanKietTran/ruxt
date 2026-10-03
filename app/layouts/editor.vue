@@ -523,6 +523,7 @@ const handleLogout = async () => {
 
             <div class="activity-bar__bottom">
                 <NuxtLink class="activity-button" to="/about" aria-label="Help">?</NuxtLink>
+                <NuxtLink class="activity-button" to="/settings" aria-label="Settings">⚙</NuxtLink>
                 <template v-if="authenticated">
                     <button
                         v-if="user"

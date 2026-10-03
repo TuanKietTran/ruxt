@@ -73,6 +73,7 @@ Current browser routes include (the dedicated admin workspace deliberately adds 
 - `/about`: construction/marketing page;
 - `/login`: deep-link/redirect bridge to the global Clerk-backed sign-in and account-creation dialog;
 - `/p`: browser-local profile editor;
+- `/settings`: public editor preferences (browser-local, or account-stored when signed in);
 - `/settings/cloud-data`: authenticated, independent cloud-session/template consent controls;
 - `/?t=<id>&v=<version>`: read-only template source and preview; anonymous selection is restricted to the public catalog;
 - `/d`: subscription dashboard;
