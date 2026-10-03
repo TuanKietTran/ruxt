@@ -54,8 +54,8 @@ importers:
         specifier: ^2.5.1
         version: 2.5.1(magic-string@1.4.1)(magicast@0.5.2)(oxc-parser@0.117.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0))(vite@7.3.2(@types/node@25.6.0)(jiti@2.6.1)(terser@5.46.1)(yaml@2.8.3))(vue@3.5.32(typescript@6.0.3))
       '@ruxt/core':
-        specifier: 0.1.1
-        version: 0.1.1
+        specifier: 0.2.0
+        version: 0.2.0
       '@ruxt/editor':
         specifier: 0.1.1
         version: 0.1.1(026358aa348ed970e717cd1a6d19b2bc)
@@ -1522,8 +1522,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@ruxt/core@0.1.1':
-    resolution: {integrity: sha512-dCLrM04E9nBYcWtyv6+BX2YNAzncZ709fkSS/c+2xWDrthE0iXokqov2nT/nPW8+h40VkANJlmRIBGS9cZMMaw==}
+  '@ruxt/core@0.2.0':
+    resolution: {integrity: sha512-oQswQ7T+RbG2zqb4yvSwZtcna6ihKAFpvsemKe4Mv4eqc0QW1kcd7l57WIrMXHL1IZZS9lC7zc2kaaXCJGd2KA==}
     engines: {node: '>=22'}
 
   '@ruxt/editor@0.1.1':
@@ -6269,7 +6269,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.60.1':
     optional: true
 
-  '@ruxt/core@0.1.1': {}
+  '@ruxt/core@0.2.0': {}
 
   '@ruxt/editor@0.1.1(026358aa348ed970e717cd1a6d19b2bc)':
     dependencies:
