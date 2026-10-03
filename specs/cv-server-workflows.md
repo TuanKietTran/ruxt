@@ -264,7 +264,7 @@ Composition is total for a valid profile and deterministic. Composing a Harvard 
 
 Profiles stay unpersisted on the server. Callers send the profile payload, for example a browser-local profile from `/p`. The payload is normalized (missing collections become empty, unknown contact kinds become `other`), then validated. A blank `identity.fullName` is a 400 `Invalid profile`. Anonymous callers, and all MCP calls, can only compose into `public`-tagged templates. Other templates report `CV template not found`. Session documents have no owner scope yet, so the session variant is open like `PUT /api/cvs/:id`.
 
-`SwitchCvProfile` is orchestrated by `runSaga` (`core/services/saga.ts`) through the mediator, because the document store and the application store cannot share a transaction:
+`SwitchCvProfile` is orchestrated by `runSaga` (`@ruxt/core` `saga.ts`, imported as `@core/saga`) through the mediator, because the document store and the application store cannot share a transaction:
 
 1. `compose`: `GetCvDocument`, check `expectedRevision` (409 on mismatch), then `ComposeCvProfile` against that exact read. No side effects.
 2. `document`: `SaveCvSource` with the composed Markdown/CSS under the read revision, published to SSE with the caller's `sourceId`. The compensation writes the previous Markdown/CSS back under the new revision with `sourceId` `<sourceId>:compensate`.
