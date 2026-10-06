@@ -2,9 +2,9 @@
 import { computed } from "vue";
 import { useTheme, type ThemeId } from "~/composables/useTheme";
 import type { EditorStats } from "@ruxt/editor/composables/useCodeMirror";
-import type { CvDocument, CvDocumentSummary, CvTemplate } from "@core/domain/cv";
+import type { CvDocumentSummary, CvTemplate } from "@core/domain/cv";
 import { cvSessionsToRecover, mergeCvSessions, type CvSessionBackupEntry } from "@core/domain/cv";
-import { clearCvSessionBackup, listCvSessionBackups, writeCvSessionBackup } from "~/utils/cvSessionBackup";
+import { clearCvSessionBackup, listCvSessionBackups } from "~/utils/cvSessionBackup";
 import { hasEditorFeature, listEditorContexts, resolveEditorContext, type EditorContext, type EditorFeature } from "~/utils/editorContexts";
 
 const props = withDefaults(
@@ -41,6 +41,12 @@ const emit = defineEmits<{
     exportDocument: [format: "md" | "html" | "jsonresume" | "yaml" | "docx"];
     format: [format: "bold" | "italic" | "link" | "heading" | "quote" | "bullet" | "code"];
     toggleIndicators: [];
+    recoverSession: [backup: CvSessionBackupEntry];
+    cloneTemplate: [templateId: string, version: number, newId: string];
+    createFromTemplate: [template: CvTemplate, documentId: string];
+    renameDocument: [id: string, title: string];
+    forkDocument: [sourceId: string, newId: string, title: string];
+    deleteDocument: [id: string];
 }>();
 
 const route = useRoute();
@@ -84,7 +90,7 @@ const localBackups = ref<CvSessionBackupEntry[]>([]);
 const sessions = computed(() => mergeCvSessions(cvIndex.value?.documents ?? [], localBackups.value));
 const recovering = new Set<string>();
 /** Re-create sessions this browser has but the server does not, from their local backups. */
-const recoverLocalSessions = async () => {
+const recoverLocalSessions = () => {
     if (!import.meta.client) return;
     localBackups.value = listCvSessionBackups();
     const server = cvIndex.value?.documents;
@@ -93,27 +99,10 @@ const recoverLocalSessions = async () => {
     // The open session's editor restores itself; racing it here would only cause a duplicate create.
     const missing = cvSessionsToRecover(server, localBackups.value)
         .filter(backup => backup.id !== openId && !recovering.has(backup.id));
-    if (!missing.length) return;
-    let recovered = false;
-    await Promise.all(missing.map(async (backup) => {
+    for (const backup of missing) {
         recovering.add(backup.id);
-        try {
-            const created = await $fetch<CvDocumentSummary>("/api/cvs", {
-                method: "POST",
-                body: { id: backup.id, title: backup.title, markdown: backup.markdown, css: backup.css },
-            });
-            writeCvSessionBackup(backup.id, { ...backup, revision: created.revision, pending: false });
-            recovered = true;
-        } catch (error: any) {
-            // 409: another tab or the editor re-created it first.
-            if (error?.statusCode === 409) recovered = true;
-        } finally {
-            recovering.delete(backup.id);
-        }
-    }));
-    if (recovered) {
-        await reloadCvDocuments();
-        localBackups.value = listCvSessionBackups();
+        emit('recoverSession', backup);
+        recovering.delete(backup.id);
     }
 };
 watch(() => cvIndex.value?.documents, () => { void recoverLocalSessions(); });
@@ -155,24 +144,13 @@ const viewTemplate = async (template: CvTemplate) => {
     operationError.value = "";
     await navigateTo(templateRoute(template));
 };
-const cloneTemplateToLocal = async () => {
+const cloneTemplateToLocal = () => {
     if (!selectedTemplate.value || isCloningTemplate.value) return;
-    isCloningTemplate.value = true;
+    const source = selectedTemplate.value;
+    const base = source.id.slice(0, 48).replace(/[^a-zA-Z0-9_-]/g, "-");
+    const newId = `${base}-local-${crypto.randomUUID().slice(0, 8)}`;
     operationError.value = "";
-    try {
-        const source = selectedTemplate.value;
-        const base = source.id.slice(0, 48).replace(/[^a-zA-Z0-9_-]/g, "-");
-        selectedTemplate.value = await $fetch<CvTemplate>(`/api/cv-templates/${encodeURIComponent(source.id)}/clone`, {
-            method: "POST",
-            body: { version: source.version, newId: `${base}-local-${crypto.randomUUID().slice(0, 8)}` },
-        });
-        await reloadCvTemplates();
-        await navigateTo(templateRoute(selectedTemplate.value));
-    } catch (error: any) {
-        operationError.value = error?.data?.statusMessage ?? error?.message ?? "Template clone failed.";
-    } finally {
-        isCloningTemplate.value = false;
-    }
+    emit('cloneTemplate', source.id, source.version, newId);
 };
 const documentLabel = (document: CvDocumentSummary | string) => {
     if (typeof document !== "string" && document.title?.trim()) return document.title;
@@ -180,7 +158,6 @@ const documentLabel = (document: CvDocumentSummary | string) => {
     return id === "master" ? "Current CV" : id.replaceAll("-", " ").replace(/\b\w/g, character => character.toUpperCase());
 };
 const documentPath = (id: string) => ({ path: "/", query: { s: id } });
-const nuxtApp = useNuxtApp();
 const creatingFromTemplate = ref<string | null>(null);
 const createSessionFromTemplate = async (template: CvTemplate) => {
     if (creatingFromTemplate.value) return;
@@ -188,36 +165,13 @@ const createSessionFromTemplate = async (template: CvTemplate) => {
     operationError.value = "";
     try {
         const id = crypto.randomUUID();
-        const created = await $fetch<CvDocument>("/api/cvs", {
-            method: "POST",
-            body: {
-                id,
-                title: template.name,
-                markdown: template.markdownSkeleton,
-                css: template.css,
-                sourceId: crypto.randomUUID(),
-            },
-        });
-        nuxtApp.payload.data[`cv-document:${id}`] = created;
-        await reloadCvDocuments();
+        emit('createFromTemplate', template, id);
         await navigateTo(documentPath(id));
-    } catch (error: any) {
-        operationError.value = error?.data?.statusMessage ?? error?.message ?? "Could not create a CV from this template.";
     } finally {
         creatingFromTemplate.value = null;
     }
 };
-// Opening a session waits on its document request (~1s on prod), so fetch it before the click.
-const warmDocument = async (id: string) => {
-    const key = `cv-document:${id}`;
-    if (!import.meta.client || nuxtApp.payload.data[key]) return;
-    try {
-        nuxtApp.payload.data[key] = await $fetch(`/api/cvs/${encodeURIComponent(id)}`);
-    } catch { /* the editor fetches it on open */ }
-};
-watch(() => cvIndex.value?.documents, (documents) => {
-    if (import.meta.client) documents?.slice(0, 5).forEach(document => { void warmDocument(document.id); });
-}, { immediate: true });
+const warmDocument = (_id: string) => {};
 const isActiveDocument = (id: string) => !routeQueryValue(route.query.t) && routeQueryValue(route.query.s) === id;
 const createSession = async () => {
     operationError.value = "";
@@ -251,24 +205,17 @@ const startRename = () => {
 const confirmRename = async () => {
     if (!renameDocument.value) return;
     if (!renameValue.value.trim()) { operationError.value = "Enter a valid name."; return; }
-    try {
-        const id = renameDocument.value.id;
-        await $fetch(`/api/cvs/${encodeURIComponent(id)}`, { method: "PATCH", body: { title: renameValue.value.trim() } });
-        renameDocument.value = null;
-        await reloadCvDocuments();
-    } catch (error: any) {
-        operationError.value = error?.data?.statusMessage ?? error?.message ?? "Rename failed.";
-    }
+    const id = renameDocument.value.id;
+    emit('renameDocument', id, renameValue.value.trim());
+    renameDocument.value = null;
+    await reloadCvDocuments();
 };
 const forkSelectedDocument = async () => {
     if (!contextMenu.value) return;
     const source = contextMenu.value.document;
     contextMenu.value = null;
     const nextId = crypto.randomUUID();
-    await $fetch(`/api/cvs/${encodeURIComponent(source.id)}/fork`, {
-        method: "POST",
-        body: { id: nextId, title: `${documentLabel(source)} Copy` },
-    });
+    emit('forkDocument', source.id, nextId, `${documentLabel(source)} Copy`);
     await reloadCvDocuments();
     await navigateTo(documentPath(nextId));
 };
@@ -277,12 +224,7 @@ const deleteSelectedDocument = async () => {
     const selected = contextMenu.value.document;
     contextMenu.value = null;
     if (!window.confirm(`Delete ${documentLabel(selected)}? This cannot be undone.`)) return;
-    try {
-        await $fetch(`/api/cvs/${encodeURIComponent(selected.id)}`, { method: "DELETE" });
-    } catch (error: any) {
-        // A session that only exists in this browser has nothing to delete on the server.
-        if (error?.statusCode !== 404) throw error;
-    }
+    emit('deleteDocument', selected.id);
     clearCvSessionBackup(selected.id);
     await reloadCvDocuments();
     localBackups.value = listCvSessionBackups();
