@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { useTheme, type ThemeId } from "~/composables/useTheme";
 import type { EditorStats } from "@ruxt/editor/composables/useCodeMirror";
-import type { CvDocumentSummary, CvTemplate } from "@core/domain/cv";
+import type { CvDocument, CvDocumentSummary, CvTemplate } from "@core/domain/cv";
 import { cvSessionsToRecover, mergeCvSessions, type CvSessionBackupEntry } from "@core/domain/cv";
 import { clearCvSessionBackup, listCvSessionBackups, writeCvSessionBackup } from "~/utils/cvSessionBackup";
 import { hasEditorFeature, listEditorContexts, resolveEditorContext, type EditorContext, type EditorFeature } from "~/utils/editorContexts";
@@ -180,8 +180,34 @@ const documentLabel = (document: CvDocumentSummary | string) => {
     return id === "master" ? "Current CV" : id.replaceAll("-", " ").replace(/\b\w/g, character => character.toUpperCase());
 };
 const documentPath = (id: string) => ({ path: "/", query: { s: id } });
-// Opening a session waits on its document request (~1s on prod), so fetch it before the click.
 const nuxtApp = useNuxtApp();
+const creatingFromTemplate = ref<string | null>(null);
+const createSessionFromTemplate = async (template: CvTemplate) => {
+    if (creatingFromTemplate.value) return;
+    creatingFromTemplate.value = template.id;
+    operationError.value = "";
+    try {
+        const id = crypto.randomUUID();
+        const created = await $fetch<CvDocument>("/api/cvs", {
+            method: "POST",
+            body: {
+                id,
+                title: template.name,
+                markdown: template.markdownSkeleton,
+                css: template.css,
+                sourceId: crypto.randomUUID(),
+            },
+        });
+        nuxtApp.payload.data[`cv-document:${id}`] = created;
+        await reloadCvDocuments();
+        await navigateTo(documentPath(id));
+    } catch (error: any) {
+        operationError.value = error?.data?.statusMessage ?? error?.message ?? "Could not create a CV from this template.";
+    } finally {
+        creatingFromTemplate.value = null;
+    }
+};
+// Opening a session waits on its document request (~1s on prod), so fetch it before the click.
 const warmDocument = async (id: string) => {
     const key = `cv-document:${id}`;
     if (!import.meta.client || nuxtApp.payload.data[key]) return;
@@ -744,17 +770,21 @@ const handleLogout = async () => {
                         :key="`${cvTemplate.id}:${cvTemplate.version}`"
                         class="template-card"
                         type="button"
-                        @click="viewTemplate(cvTemplate)"
+                        :disabled="Boolean(creatingFromTemplate)"
+                        @click="createSessionFromTemplate(cvTemplate)"
                     >
                         <span class="template-card__preview">
                             <strong>{{ cvTemplate.name }}</strong>
                             <i /><i /><i /><i />
                         </span>
                         <span class="template-card__title">{{ cvTemplate.name }}</span>
-                        <span class="template-card__meta">Version {{ cvTemplate.version }}</span>
+                        <span class="template-card__meta">
+                            {{ creatingFromTemplate === cvTemplate.id ? "Creating session…" : `Version ${cvTemplate.version}` }}
+                        </span>
                     </button>
                 </div>
-                <p v-if="!templatesLoading && !cvTemplates.length" class="template-picker__empty">No templates are available. Start with a blank CV.</p>
+                <p v-if="operationError" class="template-picker__error" role="alert">{{ operationError }}</p>
+                <p v-else-if="!templatesLoading && !cvTemplates.length" class="template-picker__empty">No templates are available. Start with a blank CV.</p>
             </section>
 
             <template v-else-if="selectedTemplate">
@@ -1365,6 +1395,7 @@ button {
 .template-card:hover .template-card__preview,
 .template-card:focus-visible .template-card__preview { border-color: var(--accent); transform: translateY(-2px); }
 .template-card:focus-visible { outline: none; }
+.template-card:disabled { cursor: wait; opacity: .65; }
 .template-card__preview strong { overflow: hidden; font-size: 12px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .template-card__preview i { display: block; height: 4px; border-radius: 2px; background: var(--bg-surface1); }
 .template-card__preview i:nth-last-child(2) { width: 82%; }
@@ -1372,6 +1403,7 @@ button {
 .template-card--blank .template-card__preview { align-items: center; justify-content: center; color: var(--fg-overlay1); font-size: 40px; font-weight: 200; }
 .template-card__title { font-size: 13px; font-weight: 600; }
 .template-card__meta, .template-picker__empty { color: var(--fg-subtext0); font-size: 11px; }
+.template-picker__error { margin-top: 20px; color: var(--error, #f38ba8); font-size: 12px; }
 .template-card--loading { height: 310px; border-radius: 4px; background: var(--bg-mantle); animation: tree-skeleton-pulse 1.2s ease-in-out infinite; }
 
 .source-editor {
