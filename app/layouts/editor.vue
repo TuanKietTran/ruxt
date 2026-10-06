@@ -224,8 +224,8 @@ const deleteSelectedDocument = async () => {
     const selected = contextMenu.value.document;
     contextMenu.value = null;
     if (!window.confirm(`Delete ${documentLabel(selected)}? This cannot be undone.`)) return;
-    emit('deleteDocument', selected.id);
     clearCvSessionBackup(selected.id);
+    emit('deleteDocument', selected.id);
     await reloadCvDocuments();
     localBackups.value = listCvSessionBackups();
     if (isActiveDocument(selected.id)) await navigateTo("/");
@@ -337,8 +337,9 @@ const toggleSidebar = () => {
     if (isCompact.value) {
         isDrawerOpen.value = !isDrawerOpen.value;
     } else {
-        isSidebarOpen.value = !isSidebarOpen.value;
-        localStorage.setItem("editor-sidebar-open", String(isSidebarOpen.value));
+        const next = !isSidebarOpen.value;
+        localStorage.setItem("editor-sidebar-open", String(next));
+        isSidebarOpen.value = next;
     }
     emit("toggleSidebar");
 };
@@ -354,8 +355,8 @@ const startSidebarResize = (event: PointerEvent) => {
 };
 
 const stopSidebarResize = (event: PointerEvent) => {
-    isSidebarResizing.value = false;
     localStorage.setItem("editor-sidebar-width", String(Math.round(sidebarWidth.value)));
+    isSidebarResizing.value = false;
     const divider = event.currentTarget as HTMLElement;
     if (divider.hasPointerCapture(event.pointerId)) divider.releasePointerCapture(event.pointerId);
 };
@@ -363,13 +364,14 @@ const stopSidebarResize = (event: PointerEvent) => {
 const resizeSidebarWithKeyboard = (event: KeyboardEvent) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
-    sidebarWidth.value = Math.min(420, Math.max(160, sidebarWidth.value + (event.key === "ArrowLeft" ? -16 : 16)));
-    localStorage.setItem("editor-sidebar-width", String(sidebarWidth.value));
+    const next = Math.min(420, Math.max(160, sidebarWidth.value + (event.key === "ArrowLeft" ? -16 : 16)));
+    localStorage.setItem("editor-sidebar-width", String(next));
+    sidebarWidth.value = next;
 };
 
 const resetSidebarWidth = () => {
-    sidebarWidth.value = 232;
     localStorage.setItem("editor-sidebar-width", "232");
+    sidebarWidth.value = 232;
 };
 
 const formatFromSelect = (event: Event) => {
