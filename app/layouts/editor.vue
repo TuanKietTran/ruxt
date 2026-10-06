@@ -288,6 +288,12 @@ const editorTitle = computed(
         ?? (route.meta.editorTitle as string | undefined)
         ?? props.title,
 );
+// Pages set the tab title for sessions; a template is rendered by this layout, so it names the tab itself.
+const templateTitle = computed(() => selectedTemplate.value?.name);
+useSeoMeta({
+    title: templateTitle,
+    ogTitle: templateTitle,
+});
 
 const workspace = useTemplateRef<HTMLElement>("workspace");
 const previewCanvas = useTemplateRef<HTMLElement>("previewCanvas");
