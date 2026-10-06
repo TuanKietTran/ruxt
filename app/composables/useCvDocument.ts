@@ -9,6 +9,7 @@ export async function useCvDocument(
     fallback: Pick<CvDocument, "markdown" | "css">,
 ) {
     // Lifecycle hooks must be registered before the first await, or Vue drops them.
+    const nuxtApp = useNuxtApp();
     let mounted: (() => void) | undefined;
     let unmounting: (() => void) | undefined;
     onMounted(() => mounted?.());
@@ -16,6 +17,9 @@ export async function useCvDocument(
 
     const { data } = await useFetch<CvDocument>(`/api/cvs/${encodeURIComponent(id)}`, {
         key: `cv-document:${id}`,
+        // Reuse a document the sidebar already warmed so opening a session does not wait on the network;
+        // the event stream and local backup reconcile anything newer.
+        getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key],
     });
 
     const resolvedId = ref(data.value?.id ?? id);
@@ -170,6 +174,8 @@ export async function useCvDocument(
         window.removeEventListener("online", retryNow);
         document.removeEventListener("visibilitychange", retryWhenVisible);
         events?.close();
+        // Drop the cached copy so the next visit does not open a stale revision.
+        if (import.meta.client) delete nuxtApp.payload.data[`cv-document:${id}`];
     };
 
     /** Adopt a server-written document (for example, a profile switch) without re-saving it. */

@@ -173,6 +173,18 @@ const documentLabel = (document: CvDocumentSummary | string) => {
     return id === "master" ? "Current CV" : id.replaceAll("-", " ").replace(/\b\w/g, character => character.toUpperCase());
 };
 const documentPath = (id: string) => ({ path: "/", query: { s: id } });
+// Opening a session waits on its document request (~1s on prod), so fetch it before the click.
+const nuxtApp = useNuxtApp();
+const warmDocument = async (id: string) => {
+    const key = `cv-document:${id}`;
+    if (!import.meta.client || nuxtApp.payload.data[key]) return;
+    try {
+        nuxtApp.payload.data[key] = await $fetch(`/api/cvs/${encodeURIComponent(id)}`);
+    } catch { /* the editor fetches it on open */ }
+};
+watch(() => cvIndex.value?.documents, (documents) => {
+    if (import.meta.client) documents?.slice(0, 5).forEach(document => { void warmDocument(document.id); });
+}, { immediate: true });
 const routeQueryValue = (value: unknown) => typeof value === "string" && value ? value : undefined;
 const isActiveDocument = (id: string) => !routeQueryValue(route.query.t) && routeQueryValue(route.query.s) === id;
 const createSession = async () => {
@@ -632,6 +644,8 @@ const handleLogout = async () => {
                         class="document-tree__item"
                         :class="{ 'document-tree__item--active': isActiveDocument(document.id) }"
                         :to="documentPath(document.id)"
+                        @pointerenter="warmDocument(document.id)"
+                        @focus="warmDocument(document.id)"
                         @contextmenu.prevent="openDocumentMenu($event, document)"
                     >
                         <span>{{ documentLabel(document) }}</span>
