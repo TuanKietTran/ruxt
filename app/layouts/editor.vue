@@ -73,6 +73,8 @@ const { openAuthDialog } = useAuthDialog();
 const { data: cvIndex, refresh: reloadCvDocuments, status: cvIndexStatus } = useFetch<{ documents: CvDocumentSummary[] }>("/api/cvs", {
     key: "editor-document-list",
     lazy: true,
+    // The layout remounts when switching between a session and a template; keep the loaded list so the sidebar does not flash skeletons.
+    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key],
 });
 const sessionsLoading = computed(() => !cvIndex.value && cvIndexStatus.value !== "error");
 // The sidebar lists what this browser has backed up as well as what the server returns, so a deployment
@@ -118,6 +120,7 @@ const templateCatalogUrl = computed(() => user.value ? "/api/cv-templates" : "/a
 const { data: templateIndex, refresh: reloadCvTemplates, status: templateStatus } = useFetch<{ templates: CvTemplate[] }>(templateCatalogUrl, {
     key: "editor-template-list",
     lazy: true,
+    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key],
 });
 const templatesLoading = computed(() => !templateIndex.value && templateStatus.value !== "error");
 const cvTemplates = computed(() => templateIndex.value?.templates ?? []);
