@@ -69,9 +69,12 @@ const { current, themes, apply } = useTheme();
 const { user, logout } = useAppAuth();
 const { authenticated } = useFeatureFlags();
 const { openAuthDialog } = useAuthDialog();
-const { data: cvIndex, refresh: reloadCvDocuments } = await useFetch<{ documents: CvDocumentSummary[] }>("/api/cvs", {
+// Lazy: slow catalog requests must not block first render or navigation; the sidebar shows skeletons meanwhile.
+const { data: cvIndex, refresh: reloadCvDocuments, status: cvIndexStatus } = useFetch<{ documents: CvDocumentSummary[] }>("/api/cvs", {
     key: "editor-document-list",
+    lazy: true,
 });
+const sessionsLoading = computed(() => !cvIndex.value && cvIndexStatus.value !== "error");
 // The sidebar lists what this browser has backed up as well as what the server returns, so a deployment
 // whose storage misses a session never hides it. Backups are read after mount to keep hydration stable.
 const localBackups = ref<CvSessionBackupEntry[]>([]);
@@ -112,9 +115,11 @@ const recoverLocalSessions = async () => {
 };
 watch(() => cvIndex.value?.documents, () => { void recoverLocalSessions(); });
 const templateCatalogUrl = computed(() => user.value ? "/api/cv-templates" : "/api/public/templates");
-const { data: templateIndex, refresh: reloadCvTemplates } = await useFetch<{ templates: CvTemplate[] }>(templateCatalogUrl, {
+const { data: templateIndex, refresh: reloadCvTemplates, status: templateStatus } = useFetch<{ templates: CvTemplate[] }>(templateCatalogUrl, {
     key: "editor-template-list",
+    lazy: true,
 });
+const templatesLoading = computed(() => !templateIndex.value && templateStatus.value !== "error");
 const cvTemplates = computed(() => templateIndex.value?.templates ?? []);
 const selectedTemplate = ref<CvTemplate | null>(null);
 const templateSourceTab = ref<"markdown" | "css">("markdown");
@@ -617,7 +622,10 @@ const handleLogout = async () => {
                             <button type="button" aria-label="Refresh sessions" @click="refreshDocuments">↻</button>
                         </div>
                     </header>
-                    <p v-if="!sessions.length" class="document-tree__empty">No sessions yet</p>
+                    <div v-if="sessionsLoading" class="document-tree__skeleton" role="status" aria-label="Loading sessions">
+                        <span v-for="n in 3" :key="n" />
+                    </div>
+                    <p v-else-if="!sessions.length" class="document-tree__empty">No sessions yet</p>
                     <NuxtLink
                         v-for="document in sessions"
                         :key="document.id"
@@ -635,7 +643,10 @@ const handleLogout = async () => {
                     <header class="document-group__header">
                         <h2>Templates</h2>
                     </header>
-                    <p v-if="!cvTemplates.length" class="document-tree__empty">No templates available</p>
+                    <div v-if="templatesLoading" class="document-tree__skeleton" role="status" aria-label="Loading templates">
+                        <span v-for="n in 3" :key="n" />
+                    </div>
+                    <p v-else-if="!cvTemplates.length" class="document-tree__empty">No templates available</p>
                     <button
                         v-for="cvTemplate in cvTemplates"
                         :key="`${cvTemplate.id}:${cvTemplate.version}`"
@@ -679,6 +690,8 @@ const handleLogout = async () => {
             :style="workspaceStyle"
         >
             <slot v-if="$slots.workspace" name="workspace" />
+
+            <p v-else-if="templatesLoading && routeQueryValue(route.query.t)" class="workspace-loading" role="status">Loading template…</p>
 
             <template v-else-if="selectedTemplate">
                 <section class="source-pane" aria-label="Read-only template source">
@@ -1441,6 +1454,14 @@ button {
 .export-dialog footer .export-dialog__submit { border-color: var(--accent); background: var(--accent); color: var(--bg-crust); }
 .operation-error { margin-top: 10px !important; color: var(--red); font-size: 11px; }
 .template-group { margin-top: 12px; }
+.document-tree__skeleton { display: grid; gap: 6px; padding: 4px 12px; }
+.document-tree__skeleton span { height: 22px; border-radius: var(--radius-sm); background: var(--bg-surface0); animation: tree-skeleton-pulse 1.2s ease-in-out infinite; }
+.document-tree__skeleton span:nth-child(2) { animation-delay: .15s; }
+.document-tree__skeleton span:nth-child(3) { animation-delay: .3s; }
+.workspace-loading { grid-column: 1 / -1; display: grid; place-items: center; margin: 0; color: var(--fg-subtext0); font-size: 12px; animation: tree-skeleton-pulse 1.2s ease-in-out infinite; }
+.document-tree__item { transition: background-color .15s ease, color .15s ease; }
+@keyframes tree-skeleton-pulse { 0%, 100% { opacity: .4; } 50% { opacity: .9; } }
+@media (prefers-reduced-motion: reduce) { .document-tree__skeleton span, .workspace-loading { animation: none; } }
 .template-tree__item { width: calc(100% - 12px); border: 0; background: transparent; font-family: inherit; font-size: 12px; font-weight: 400; text-align: left; cursor: pointer; }
 .tool-button--indicator { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
 .tool-button--active { color: var(--accent); background: var(--bg-surface0); }
