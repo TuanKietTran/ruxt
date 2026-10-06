@@ -14,12 +14,16 @@ const templateKey = (template: Pick<CvTemplate, "id" | "version">) =>
    `templates:${template.id}:v${template.version}`;
 let seedPromise: Promise<void> | undefined;
 
+/** Templates the server uses on its own (CV import) but never lists in a catalog. */
+export const INTERNAL_TEMPLATE_TAG = "internal";
+export const isCatalogTemplate = (template: Pick<CvTemplate, "tags">) => !template.tags.includes(INTERNAL_TEMPLATE_TAG);
+
 /**
  * Soft migration: copy JSON seed blobs into the configured CV storage only when
  * a version is absent. Existing persisted versions always win and the legacy
  * template-harvard document is intentionally left untouched for rollback.
  */
-async function ensurePersistedTemplates() {
+export async function ensurePersistedTemplates() {
    seedPromise ??= (async () => {
       const storage = useStorage("cv");
       await Promise.all(seedTemplates.map(async (template) => {
@@ -28,8 +32,8 @@ async function ensurePersistedTemplates() {
       }));
 
       // Existing versions win semantically, except for narrow safety migrations:
-      // rendering hooks move off app-owned classes and the internal pipeline
-      // template is removed from the public catalog.
+      // rendering hooks move off app-owned classes and the import-only pipeline
+      // template loses `public` and gains `internal`, which hides it from every catalog.
       await Promise.all((await storage.getKeys("templates:")).map(async (key) => {
          const template = await storage.getItem<CvTemplateProps>(key);
          if (!template) return;
@@ -38,9 +42,9 @@ async function ensurePersistedTemplates() {
             css: template.css,
          });
          const tags = template.id === "pipeline-default"
-            ? template.tags.filter(tag => tag !== "public")
+            ? [...template.tags.filter(tag => tag !== "public" && tag !== INTERNAL_TEMPLATE_TAG), INTERNAL_TEMPLATE_TAG]
             : template.tags;
-         if (migrated.changed || tags.length !== template.tags.length) {
+         if (migrated.changed || tags.join("\n") !== template.tags.join("\n")) {
             await storage.setItem(key, {
                ...template,
                tags,

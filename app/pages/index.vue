@@ -3,8 +3,9 @@ import referenceCvCss from "~/data/reference-cv.css?raw";
 import { exportCvImages, type CvImageExportOptions, type CvImageFormat } from "~/utils/exportCvImage";
 import type { EditorStats, MarkdownFormat } from "@ruxt/editor/composables/useCodeMirror";
 import type { CvDocument } from "@core/domain/cv";
+import { clearCvNewSessionDraft, readCvNewSessionDraft, writeCvNewSessionDraft } from "~/utils/cvSessionBackup";
 
-definePageMeta({ layout: false });
+definePageMeta({ layout: false, editorContext: "cv" });
 
 const route = useRoute();
 const queryValue = (value: unknown) => typeof value === "string" && value ? value : undefined;
@@ -23,6 +24,10 @@ const saveState = ref<SaveState>("saved");
 const sourceId = ref("");
 let registrationTimer: ReturnType<typeof setTimeout> | undefined;
 let registrationPromise: Promise<void> | undefined;
+// Registration that fails (offline, or a deployment rolling over) retries with backoff; meanwhile the
+// draft lives in localStorage so a reload cannot lose it.
+const REGISTRATION_RETRY_DELAYS = [2_000, 5_000, 10_000, 30_000];
+let registrationAttempt = 0;
 
 const resetDraft = () => {
     if (registrationPromise) return;
@@ -33,6 +38,8 @@ const resetDraft = () => {
     stylesheet.value = referenceCvCss;
     revision.value = 0;
     saveState.value = "saved";
+    registrationAttempt = 0;
+    clearCvNewSessionDraft();
 };
 
 const documentTitle = computed(
@@ -72,12 +79,20 @@ const registerDraft = () => {
                 saveState.value = "saved";
                 await refreshNuxtData("editor-document-list");
                 await navigateTo({ path: "/", query: { s: id } });
+                clearCvNewSessionDraft();
             } catch (error: any) {
                 saveState.value = error?.statusCode === 409 ? "conflict" : "offline";
                 registrationPromise = undefined;
+                const delay = REGISTRATION_RETRY_DELAYS[Math.min(registrationAttempt, REGISTRATION_RETRY_DELAYS.length - 1)]!;
+                registrationAttempt += 1;
+                registrationTimer = setTimeout(registerDraft, delay);
             }
         })();
     }, 450);
+};
+const retryRegistration = () => {
+    if (registrationPromise || !readCvNewSessionDraft()) return;
+    registerDraft();
 };
 
 const activeSource = computed({
@@ -85,6 +100,7 @@ const activeSource = computed({
     set: (value: string) => {
         if (activeTab.value === "markdown") document.value = value;
         else stylesheet.value = value;
+        writeCvNewSessionDraft({ markdown: document.value, css: stylesheet.value });
         registerDraft();
     },
 });
@@ -99,8 +115,19 @@ const exportImage = (format: CvImageFormat, options: CvImageExportOptions) =>
         options,
     );
 
+onMounted(() => {
+    // Only the placeholder route restores the draft; `?s=` and `?t=` render other views.
+    const draft = !sessionId.value && !queryValue(route.query.t) ? readCvNewSessionDraft() : null;
+    if (draft) {
+        document.value = draft.markdown;
+        stylesheet.value = draft.css;
+        registerDraft();
+    }
+    window.addEventListener("online", retryRegistration);
+});
 onBeforeUnmount(() => {
     if (registrationTimer) clearTimeout(registrationTimer);
+    window.removeEventListener("online", retryRegistration);
 });
 </script>
 

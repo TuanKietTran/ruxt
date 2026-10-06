@@ -1,53 +1,8 @@
 import type { CvDocument, CvUpdateEvent } from "@core/domain/cv";
+import { shouldRestoreCvBackup } from "@core/domain/cv";
+import { readCvSessionBackup, writeCvSessionBackup } from "~/utils/cvSessionBackup";
 
 export type CvSaveState = "saved" | "saving" | "conflict" | "offline";
-
-/** Last source this browser saw or wrote for a session, used to survive storage misses. */
-interface CvSessionBackup {
-    markdown: string;
-    css: string;
-    /** Server revision the source is based on. */
-    revision: number;
-    /** The source has edits the server has not acknowledged. */
-    pending: boolean;
-}
-
-const BACKUP_PREFIX = "cv-sv:session-backup:";
-
-function readBackup(id: string): CvSessionBackup | null {
-    try {
-        const value = JSON.parse(localStorage.getItem(BACKUP_PREFIX + id) || "null");
-        return value && typeof value.markdown === "string" && typeof value.css === "string" && Number.isInteger(value.revision)
-            ? { markdown: value.markdown, css: value.css, revision: value.revision, pending: Boolean(value.pending) }
-            : null;
-    } catch {
-        return null;
-    }
-}
-
-function writeBackup(id: string, backup: CvSessionBackup) {
-    try { localStorage.setItem(BACKUP_PREFIX + id, JSON.stringify(backup)); } catch { /* storage full or blocked */ }
-}
-
-/** Forget a session's local backup (after the session is deleted). */
-export function clearCvSessionBackup(id: string) {
-    try { localStorage.removeItem(BACKUP_PREFIX + id); } catch { /* storage blocked */ }
-}
-
-/**
- * Whether the local backup should replace what the server returned: the server
- * lost the session, is behind this browser, or never received its last edit.
- */
-export function shouldRestoreCvBackup(
-    backup: CvSessionBackup | null,
-    server: Pick<CvDocument, "markdown" | "css" | "revision"> | null | undefined,
-): backup is CvSessionBackup {
-    if (!backup) return false;
-    if (!server) return true;
-    if (backup.revision > server.revision) return true;
-    return backup.pending && backup.revision === server.revision
-        && (backup.markdown !== server.markdown || backup.css !== server.css);
-}
 
 export async function useCvDocument(
     id: string,
@@ -76,8 +31,27 @@ export async function useCvDocument(
     let events: EventSource | undefined;
 
     const backup = (pending: boolean) => {
-        if (import.meta.client) writeBackup(resolvedId.value, { markdown: markdown.value, css: css.value, revision: revision.value, pending });
+        if (import.meta.client) writeCvSessionBackup(resolvedId.value, { markdown: markdown.value, css: css.value, revision: revision.value, pending });
     };
+
+    // A failed save (offline, or a deployment rolling over) is retried with backoff, and again when the
+    // browser comes back online or the tab becomes visible, until the server has the edit.
+    const RETRY_DELAYS = [2_000, 5_000, 10_000, 30_000];
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let retryAttempt = 0;
+    const cancelRetry = () => { if (retryTimer) clearTimeout(retryTimer); retryTimer = undefined; };
+    const scheduleRetry = () => {
+        cancelRetry();
+        const delay = RETRY_DELAYS[Math.min(retryAttempt, RETRY_DELAYS.length - 1)];
+        retryAttempt += 1;
+        retryTimer = setTimeout(() => { retryTimer = undefined; if (dirty) flush(); }, delay);
+    };
+    const retryNow = () => {
+        if (!dirty || timer || saveState.value === "conflict") return;
+        cancelRetry();
+        flush();
+    };
+    const retryWhenVisible = () => { if (document.visibilityState === "visible") retryNow(); };
 
     const applyRemote = (document: CvDocument) => {
         if (dirty || document.revision <= revision.value) return;
@@ -119,10 +93,16 @@ export async function useCvDocument(
         } catch (error: any) {
             if (error?.statusCode !== 404) throw error;
             // The server no longer has this session: recreate it from the editor.
-            return await $fetch<CvDocument>("/api/cvs", {
-                method: "POST",
-                body: { id: resolvedId.value, ...snapshot },
-            });
+            try {
+                return await $fetch<CvDocument>("/api/cvs", {
+                    method: "POST",
+                    body: { id: resolvedId.value, ...snapshot },
+                });
+            } catch (createError: any) {
+                // Another tab (or the sidebar's recovery) re-created it first: save over that copy.
+                if (createError?.statusCode !== 409) throw createError;
+                return await $fetch<CvDocument>(url, { method: "PUT", body: snapshot });
+            }
         }
     };
 
@@ -139,11 +119,14 @@ export async function useCvDocument(
                 revision.value = updated.revision;
                 dirty = markdown.value !== snapshot.markdown || css.value !== snapshot.css;
                 saveState.value = dirty ? "saving" : "saved";
+                retryAttempt = 0;
+                cancelRetry();
                 backup(dirty);
                 // A stream refused while the session was missing does not retry on its own.
                 if (events?.readyState === EventSource.CLOSED) connect();
             } catch (error: any) {
                 saveState.value = error?.statusCode === 409 ? "conflict" : "offline";
+                if (saveState.value === "offline") scheduleRetry();
             }
         });
     };
@@ -161,17 +144,20 @@ export async function useCvDocument(
 
     mounted = () => {
         sourceId.value = crypto.randomUUID();
-        const local = readBackup(resolvedId.value);
+        const local = readCvSessionBackup(resolvedId.value);
         if (shouldRestoreCvBackup(local, data.value)) {
-            // Never show a lost or stale server copy over this browser's newer source;
-            // the watcher saves the restored source back to the server.
+            // Never show a lost or stale server copy over this browser's newer source, and save the
+            // restored source back explicitly: it may equal the fallback, which the watcher ignores.
             revision.value = data.value?.revision ?? 0;
             markdown.value = local.markdown;
             css.value = local.css;
+            nextTick(save);
         } else {
             backup(false);
         }
         connect();
+        window.addEventListener("online", retryNow);
+        document.addEventListener("visibilitychange", retryWhenVisible);
     };
 
     unmounting = () => {
@@ -180,6 +166,9 @@ export async function useCvDocument(
             clearTimeout(timer);
             flush();
         }
+        cancelRetry();
+        window.removeEventListener("online", retryNow);
+        document.removeEventListener("visibilitychange", retryWhenVisible);
         events?.close();
     };
 

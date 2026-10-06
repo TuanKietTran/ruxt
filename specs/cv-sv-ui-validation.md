@@ -45,7 +45,9 @@ The dedicated check column uses `[x]` only for behavior that was exercised and f
 
 | UI | Check | Status | What was tested and observed |
 |---|:---:|---|---|
-| Documents activity button | [x] | **Working** | The activity bar now holds two `NuxtLink` entries (CV editor and Profile editor) that navigate to the remembered CV/profile route and mark the active one. |
+| Documents activity button | [x] | **Working** | The activity bar renders one `NuxtLink` per registered editor context (CV editor, Profile editor) that navigates to that context's remembered route and marks the active one. |
+| Context-specific header | [x] | **Working** | Production build, 1440 px: `/p` showed no formatting toolbar, Import, Export, or status-bar document stats; `/` showed the toolbar, Import, Export, and `saved · Ln · words · pages · A4`. |
+| Sidebar drawer (≤900 px) | [x] | **Working** | At 390 px the header sidebar button opened the drawer on `/p` (profile list) and `/` (sessions/templates); choosing a profile closed it and opened that profile, and Esc closed it on `/`. |
 | Create document — activity bar | [x] | **Working** | `createSession` clears the selected template, emits `createDocument`, and navigates to `/`; the index page listens and resets the draft. |
 | Create document — sidebar header | [x] | **Working** | The sidebar `＋` calls the same `createSession` handler. |
 | Refresh documents | [x] | **Working** | `refreshDocuments` re-runs the `/api/cvs` fetch through `reloadCvDocuments` before emitting, so the tree refreshes from the layout itself. |

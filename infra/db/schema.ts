@@ -53,6 +53,12 @@ export const cloudConsentStates = sqliteTable("cloud_consent_states", {
    changedAt: text("changed_at").notNull(),
 }, table => [primaryKey({ columns: [table.ownerId, table.category] })]);
 
+export const userPreferences = sqliteTable("user_preferences", {
+   ownerId: text("owner_id").primaryKey(),
+   preferences: text("preferences").notNull(),
+   updatedAt: text("updated_at").notNull(),
+});
+
 export const cloudConsentEvents = sqliteTable("cloud_consent_events", {
    id: text("id").primaryKey(),
    ownerId: text("owner_id").notNull(),

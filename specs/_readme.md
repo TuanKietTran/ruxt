@@ -29,6 +29,8 @@ If source and specs disagree, source is ground truth. During ordinary implementa
 
 ## Working Rules
 
+- Paths written as `core/<path>` refer to `<path>` inside the pinned `@ruxt/core` package (source in the `ruxt-core` repository, imported as `@core/...`); this repository has no `core/` folder. Change shared contracts there, publish, then bump the pin here.
+
 - Start here before substantial work and read the owning subsystem spec before editing that area.
 - For cross-cutting work, also read architecture/runtime, auth/security, persistence/deployment, and testing/devops as applicable.
 - Keep specs dense and factual; put proposals, audits, branch notes, and exploratory plans elsewhere.
