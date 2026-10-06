@@ -44,6 +44,7 @@ const emit = defineEmits<{
 }>();
 
 const route = useRoute();
+const routeQueryValue = (value: unknown) => typeof value === "string" && value ? value : undefined;
 // The page picks its registered context; everything context-specific below reads from it.
 const editorContext = computed(() => resolveEditorContext(route.meta.editorContext));
 const editorContexts = listEditorContexts();
@@ -128,6 +129,9 @@ const selectedTemplate = ref<CvTemplate | null>(null);
 const templateSourceTab = ref<"markdown" | "css">("markdown");
 const showTemplateIndicators = ref(true);
 const templateStats = ref<EditorStats>({ line: 1, column: 1, words: 0 });
+const showBlankEditor = ref(false);
+const isHome = computed(() => !routeQueryValue(route.query.s) && !routeQueryValue(route.query.t));
+const showTemplatePicker = computed(() => isHome.value && !showBlankEditor.value);
 // The layout owns the template editor, so its status must come from that view rather than the page.
 const statusStats = computed<EditorStats>(() =>
     selectedTemplate.value
@@ -188,13 +192,17 @@ const warmDocument = async (id: string) => {
 watch(() => cvIndex.value?.documents, (documents) => {
     if (import.meta.client) documents?.slice(0, 5).forEach(document => { void warmDocument(document.id); });
 }, { immediate: true });
-const routeQueryValue = (value: unknown) => typeof value === "string" && value ? value : undefined;
 const isActiveDocument = (id: string) => !routeQueryValue(route.query.t) && routeQueryValue(route.query.s) === id;
 const createSession = async () => {
     operationError.value = "";
     selectedTemplate.value = null;
+    showBlankEditor.value = true;
     emit("createDocument");
     await navigateTo("/");
+};
+const startBlankSession = () => {
+    showBlankEditor.value = true;
+    emit("createDocument");
 };
 const refreshDocuments = async () => {
     await reloadCvDocuments();
@@ -289,7 +297,7 @@ const editorTitle = computed(
         ?? props.title,
 );
 // Pages set the tab title for sessions; a template is rendered by this layout, so it names the tab itself.
-const templateTitle = computed(() => selectedTemplate.value?.name);
+const templateTitle = computed(() => selectedTemplate.value?.name ?? (showTemplatePicker.value ? "Choose a CV template" : undefined));
 useSeoMeta({
     title: templateTitle,
     ogTitle: templateTitle,
@@ -715,6 +723,39 @@ const handleLogout = async () => {
             <slot v-if="$slots.workspace" name="workspace" />
 
             <p v-else-if="templatesLoading && routeQueryValue(route.query.t)" class="workspace-loading" role="status">Loading template…</p>
+
+            <section v-else-if="showTemplatePicker" class="template-picker" aria-labelledby="template-picker-title">
+                <header class="template-picker__header">
+                    <p class="template-picker__eyebrow">NEW DOCUMENT</p>
+                    <h1 id="template-picker-title">Choose a starting point</h1>
+                    <p>Start with a template or open a blank CV.</p>
+                </header>
+                <div v-if="templatesLoading" class="template-picker__grid" aria-label="Loading templates">
+                    <div v-for="index in 3" :key="index" class="template-card template-card--loading" />
+                </div>
+                <div v-else class="template-picker__grid">
+                    <button class="template-card template-card--blank" type="button" @click="startBlankSession">
+                        <span class="template-card__preview">+</span>
+                        <span class="template-card__title">Blank CV</span>
+                        <span class="template-card__meta">Start from scratch</span>
+                    </button>
+                    <button
+                        v-for="cvTemplate in cvTemplates"
+                        :key="`${cvTemplate.id}:${cvTemplate.version}`"
+                        class="template-card"
+                        type="button"
+                        @click="viewTemplate(cvTemplate)"
+                    >
+                        <span class="template-card__preview">
+                            <strong>{{ cvTemplate.name }}</strong>
+                            <i /><i /><i /><i />
+                        </span>
+                        <span class="template-card__title">{{ cvTemplate.name }}</span>
+                        <span class="template-card__meta">Version {{ cvTemplate.version }}</span>
+                    </button>
+                </div>
+                <p v-if="!templatesLoading && !cvTemplates.length" class="template-picker__empty">No templates are available. Start with a blank CV.</p>
+            </section>
 
             <template v-else-if="selectedTemplate">
                 <section class="source-pane" aria-label="Read-only template source">
@@ -1290,6 +1331,7 @@ button {
 }
 
 .source-tab,
+.source-tabs :deep(.source-tab),
 .preview-toolbar button {
     height: 100%;
     padding: 0 14px;
@@ -1301,10 +1343,36 @@ button {
     cursor: pointer;
 }
 
-.source-tab--active {
+.source-tab--active,
+.source-tabs :deep(.source-tab--active) {
     color: var(--fg-text);
     border-bottom: 1px solid var(--accent);
 }
+
+.template-picker {
+    overflow: auto;
+    padding: clamp(32px, 6vw, 72px);
+    background: var(--bg-base);
+}
+
+.template-picker__header { max-width: 560px; margin-bottom: 32px; }
+.template-picker__eyebrow { margin: 0 0 8px; color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: .14em; }
+.template-picker__header h1 { margin: 0; color: var(--fg-text); font-size: clamp(24px, 3vw, 36px); }
+.template-picker__header > p:last-child { margin: 10px 0 0; color: var(--fg-subtext0); }
+.template-picker__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 220px)); gap: 20px; }
+.template-card { display: grid; gap: 9px; padding: 0; border: 0; background: transparent; color: var(--fg-text); font: inherit; text-align: left; cursor: pointer; }
+.template-card__preview { box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; width: 100%; aspect-ratio: 8.5 / 11; padding: 24px 20px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-mantle); transition: border-color .15s ease, transform .15s ease; }
+.template-card:hover .template-card__preview,
+.template-card:focus-visible .template-card__preview { border-color: var(--accent); transform: translateY(-2px); }
+.template-card:focus-visible { outline: none; }
+.template-card__preview strong { overflow: hidden; font-size: 12px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.template-card__preview i { display: block; height: 4px; border-radius: 2px; background: var(--bg-surface1); }
+.template-card__preview i:nth-last-child(2) { width: 82%; }
+.template-card__preview i:last-child { width: 60%; }
+.template-card--blank .template-card__preview { align-items: center; justify-content: center; color: var(--fg-overlay1); font-size: 40px; font-weight: 200; }
+.template-card__title { font-size: 13px; font-weight: 600; }
+.template-card__meta, .template-picker__empty { color: var(--fg-subtext0); font-size: 11px; }
+.template-card--loading { height: 310px; border-radius: 4px; background: var(--bg-mantle); animation: tree-skeleton-pulse 1.2s ease-in-out infinite; }
 
 .source-editor {
     min-width: 0;
