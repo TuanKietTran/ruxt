@@ -34,3 +34,6 @@ logs
 # Python caches
 __pycache__/
 *.py[cod]
+
+# clerk configuration (can include secrets)
+/.clerk/
