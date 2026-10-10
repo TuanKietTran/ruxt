@@ -1,6 +1,6 @@
 # Testing And Devops
 
-Last updated: main@6c64d4f | 2026-09-20
+Last updated: main@aca87ed | 2026-10-10
 
 ## Scope
 
@@ -12,6 +12,7 @@ This spec covers:
 - `.gitignore`, `.env.example`, and local/generated artifacts;
 - `.github/workflows/deploy.yml` and repository contribution templates;
 - development and automation commands, including MCP and headless PDF prerequisites;
+- the local setup/run/teardown lifecycle;
 - current executable validation coverage.
 
 ## Development Commands
@@ -34,6 +35,49 @@ pnpm cv:pipeline:setup # create the ignored Python venv for imports
 `postinstall` runs `nuxt prepare`, generating Nuxt types/config under `.nuxt`. The root `tsconfig.json` references Nuxt-generated app/server/shared/node projects; run preparation before treating standalone TypeScript results as authoritative. `infra/tsconfig.json` is strict and owns workspace aliases for infrastructure source.
 
 The app normally runs at `http://localhost:3000`; its MCP Streamable HTTP endpoint is `/mcp`. The editor's persistent EventSource means browser automation should not wait for network idle.
+
+## Local Lifecycle
+
+Verified 2026-10-10 on Windows with Node 24, no globally installed pnpm, and port 3000 already taken.
+
+**Setup**
+
+```bash
+pnpm install --frozen-lockfile   # CI pins pnpm 11.25.0; `npx -y pnpm@11.25.0 <cmd>` works without a global pnpm
+pnpm lint && pnpm test           # hermetic gate; the two tests/smoke files skip without SMOKE_BASE_URL
+```
+
+Install takes about 40 seconds. `better-sqlite3` and esbuild build without extra tooling, and `postinstall` runs `nuxt prepare` into `.nuxt`. The test gate reported 163 passed and 19 skipped. `pnpm cv:pipeline:setup` (Python/Tesseract import pipeline) is optional for the editor and was not exercised.
+
+**Run**
+
+```bash
+pnpm exec nuxt dev --host 127.0.0.1 --port 3010   # `pnpm dev` is the same on the default port 3000
+```
+
+The first request compiles and takes about 9 seconds. Quick checks:
+
+- `GET /` returns 200.
+- `GET /api/cvs` lists the auto-created "Current CV" and creates `.data/cv`.
+- `GET /api/plans` returns `{"plans":[]}`.
+- `POST /mcp` with `{"jsonrpc":"2.0","id":1,"method":"tools/list"}` needs the header `accept: application/json, text/event-stream`. It answers as an SSE `message` event listing `list_cvs`, `open_cv`, `save_cv` and the other tools.
+
+Boot logs `infra ready — SQLite` and creates `local.db` (with `-shm`/`-wal`) in the working directory.
+
+**Clerk keyless mode.** If `NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `NUXT_CLERK_SECRET_KEY` are unset, `@clerk/nuxt` starts in keyless mode on dev start:
+
+- It provisions a temporary, unclaimed Clerk development instance, which is an outbound call.
+- It writes `.clerk/` (git-ignored via `/.clerk/` in `.gitignore`; the module re-appends that entry to the tracked file only when it is missing).
+
+Set a `pk_test_`/`sk_test_` pair in `.env` to avoid it.
+
+**Teardown**
+
+1. Stop the server process tree. Through `npx`, the chain is npx, then pnpm, then `nuxt.mjs`, and killing only the launching shell leaves `nuxt` listening. On Windows use `taskkill /PID <npx node pid> /T /F`, after matching the command line to the `nuxt dev` you started.
+2. Delete runtime state: `.data/` (CV documents, pipeline jobs, analytics), `.clerk/`, and `local.db`, `local.db-shm`, `local.db-wal`. All are git-ignored.
+3. Optional full purge: `rm -rf node_modules .nuxt`. Keep them as a dependency cache otherwise.
+
+**Windows.** `build`, `test:smoke` and `cv:pipeline:setup` use POSIX syntax (`VAR=x cmd`, `${VAR:-x}`, `sh`) and fail under cmd or PowerShell. Run them from Git Bash or invoke the underlying command directly. `setup-cv-pipeline.sh` creates the venv at `.data/cv-pipeline-venv/bin/python`, a POSIX path; Windows venvs use `Scripts\python.exe`, so set `CV_PIPELINE_PYTHON`.
 
 ## Dependencies And Platform Requirements
 
@@ -67,7 +111,7 @@ Error-message assertions are deliberate: `server/utils/api-errors.ts` maps domai
 
 ## Artifacts And Sensitive Data
 
-Ignored build/runtime paths include `.output`, `.nuxt`, `.nitro`, `.cache`, `dist`, `node_modules`, `.data`, logs, local SQLite database/WAL files, and local `.env*` except `.env.example`.
+Ignored build/runtime paths include `.output`, `.nuxt`, `.nitro`, `.cache`, `dist`, `node_modules`, `.data`, logs, local SQLite database/WAL files, and local `.env*` except `.env.example`. `.clerk/` (Clerk keyless state, which can include secrets) is ignored by `/.clerk/`.
 
 Do not commit generated Nuxt/Nitro output, `local.db`, `.data/cv`, rendered PDFs/images, logs, or local environment files. CV documents, exports, and browser profile storage may contain personal data. Do not copy profile `localStorage` values into fixtures, screenshots, logs, or issue reports. Session secrets and future MCP credentials belong in local/deployment secret configuration, never source or command output.
 
@@ -111,4 +155,7 @@ Build success covers Nuxt compilation and some TypeScript integration but does n
 - The smoke suite asserts status codes and coarse shapes only; it does not authenticate, so authenticated CV, template-save, import, subscription, and IAM routes have no end-to-end coverage.
 - No component or browser-level tests exist; `app/` is covered only indirectly through the architecture lint and the smoke suite's server-rendered page checks.
 - Headless PDF automation is not portable by default and has no package script or CI browser setup.
+- A keyless `nuxt dev` (no Clerk keys in `.env`) still creates an unclaimed Clerk development instance as an outbound side effect, and the resulting `.clerk/` holds that instance's secret key.
+- Three package scripts (`build`, `test:smoke`, `cv:pipeline:setup`) are POSIX-shell only, and the CV pipeline venv path is hard-coded to `bin/`, so none of them work natively on Windows.
+- There is no documented teardown command; stopping the dev server and clearing `.data`, `.clerk` and `local.db*` is manual (see Local Lifecycle).
 - There is no production deployment smoke test, multi-instance persistence test, or documented backup/restore procedure for either `local.db` or CV filesystem data.
