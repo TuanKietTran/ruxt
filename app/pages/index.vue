@@ -132,7 +132,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <CvSessionEditor v-if="sessionId" :key="sessionId" :document-id="sessionId" />
+    <KeepAlive v-if="sessionId">
+        <CvSessionEditor :key="sessionId" :document-id="sessionId" />
+    </KeepAlive>
     <NuxtLayout
         v-else
         name="editor"

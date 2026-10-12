@@ -29,9 +29,16 @@ export function useCvSessionActions() {
 
     const upsertSummary = (summary: CvDocumentSummary) => {
         mutateDocuments((documents) => {
-            const next = documents.filter(document => document.id !== summary.id);
-            next.unshift(summary);
-            return next.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+            const existingIndex = documents.findIndex(document => document.id === summary.id);
+            if (existingIndex >= 0) {
+                // Keep an existing row in place. Rename/save responses update the title in place
+                // instead of moving the active session, which otherwise causes a visible sidebar
+                // reflow while the editor is still focused.
+                const next = [...documents];
+                next[existingIndex] = summary;
+                return next;
+            }
+            return [summary, ...documents];
         });
     };
 
