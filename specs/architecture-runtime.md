@@ -70,7 +70,7 @@ Current browser routes include (the dedicated admin workspace deliberately adds 
 
 - `/`: the master CV editor, rendered without the default layout;
 - `/?s=<id>`: named CV session editor, also without the default layout;
-- `/about`: construction/marketing page;
+- `/about`: product overview page (local-first CV editor, optional cloud);
 - `/login`: deep-link/redirect bridge to the global Clerk-backed sign-in and account-creation dialog;
 - `/p`: browser-local profile editor;
 - `/settings`: public editor preferences (browser-local, or account-stored when signed in);

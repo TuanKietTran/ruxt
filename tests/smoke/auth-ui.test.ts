@@ -93,15 +93,16 @@ ui("authenticated and unauthenticated data-ownership UI", () => {
       await alicePage.waitForFunction(() => Boolean((document.querySelector("#__nuxt") as HTMLElement & { __vue_app__?: unknown })?.__vue_app__));
       await alicePage.getByText(aliceEmail).waitFor();
 
-      const aliceSessionConsent = alicePage.locator("section", { hasText: "Cloud session recovery" }).getByRole("checkbox");
+      const aliceSessionConsent = alicePage.locator("label.consent-card", { hasText: "Cloud session recovery" }).getByRole("checkbox");
       expect(await aliceSessionConsent.isChecked()).toBe(false);
       const saveResponse = alicePage.waitForResponse(response =>
          response.url().endsWith("/api/cloud-data/consent") && response.request().method() === "PUT");
-      await aliceSessionConsent.click();
+      // Clicking the card title (not just the checkbox) must toggle consent.
+      await alicePage.getByRole("heading", { name: "Cloud session recovery" }).click();
       expect((await saveResponse).status()).toBe(200);
-      await alicePage.locator("section", { hasText: "Cloud session recovery" }).getByText("Allowed", { exact: true }).waitFor();
+      await alicePage.locator("label.consent-card", { hasText: "Cloud session recovery" }).getByText("Allowed", { exact: true }).waitFor();
       await alicePage.reload();
-      expect(await alicePage.locator("section", { hasText: "Cloud session recovery" }).getByRole("checkbox").isChecked()).toBe(true);
+      expect(await alicePage.locator("label.consent-card", { hasText: "Cloud session recovery" }).getByRole("checkbox").isChecked()).toBe(true);
 
       const bobContext = await browser.newContext();
       bobContext.setDefaultTimeout(5_000);
@@ -110,8 +111,8 @@ ui("authenticated and unauthenticated data-ownership UI", () => {
       await bobPage.goto(`${baseUrl}/settings/cloud-data`);
       await bobPage.getByRole("heading", { name: "Cloud data" }).waitFor();
       await bobPage.waitForFunction(() => Boolean((document.querySelector("#__nuxt") as HTMLElement & { __vue_app__?: unknown })?.__vue_app__));
-      expect(await bobPage.locator("section", { hasText: "Cloud session recovery" }).getByRole("checkbox").isChecked()).toBe(false);
-      expect(await bobPage.locator("section", { hasText: "Cloud templates" }).getByRole("checkbox").isChecked()).toBe(false);
+      expect(await bobPage.locator("label.consent-card", { hasText: "Cloud session recovery" }).getByRole("checkbox").isChecked()).toBe(false);
+      expect(await bobPage.locator("label.consent-card", { hasText: "Cloud templates" }).getByRole("checkbox").isChecked()).toBe(false);
 
       await aliceContext.close();
       await bobContext.close();

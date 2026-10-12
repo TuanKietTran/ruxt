@@ -44,7 +44,7 @@ async function setConsent(category: ConsentCategory, input: HTMLInputElement) {
         <p v-else-if="loadError" class="notice error" role="alert">Consent settings could not be loaded.</p>
 
         <template v-else-if="consent">
-            <section class="consent-card" aria-labelledby="session-consent-title">
+            <label class="consent-card">
                 <div>
                     <h2 id="session-consent-title">Cloud session recovery</h2>
                     <p>
@@ -53,18 +53,19 @@ async function setConsent(category: ConsentCategory, input: HTMLInputElement) {
                     </p>
                     <p class="detail">Each session remains local-first and starts with cloud saving off.</p>
                 </div>
-                <label class="toggle-row">
+                <span class="toggle-row">
                     <input
                         type="checkbox"
+                        :aria-labelledby="'session-consent-title'"
                         :checked="consent.cloudSessions.granted"
                         :disabled="saving !== null"
                         @change="setConsent('cloudSessions', $event.target as HTMLInputElement)"
                     >
                     <span>{{ consent.cloudSessions.granted ? "Allowed" : "Not allowed" }}</span>
-                </label>
-            </section>
+                </span>
+            </label>
 
-            <section class="consent-card" aria-labelledby="template-consent-title">
+            <label class="consent-card">
                 <div>
                     <h2 id="template-consent-title">Cloud templates</h2>
                     <p>
@@ -73,16 +74,17 @@ async function setConsent(category: ConsentCategory, input: HTMLInputElement) {
                     </p>
                     <p class="detail">Built-in templates and browser-local profiles are never uploaded by this setting.</p>
                 </div>
-                <label class="toggle-row">
+                <span class="toggle-row">
                     <input
                         type="checkbox"
+                        :aria-labelledby="'template-consent-title'"
                         :checked="consent.cloudTemplates.granted"
                         :disabled="saving !== null"
                         @change="setConsent('cloudTemplates', $event.target as HTMLInputElement)"
                     >
                     <span>{{ consent.cloudTemplates.granted ? "Allowed" : "Not allowed" }}</span>
-                </label>
-            </section>
+                </span>
+            </label>
 
             <section class="retention-note">
                 <h2>What happens when you turn a feature off?</h2>
@@ -119,13 +121,14 @@ async function setConsent(category: ConsentCategory, input: HTMLInputElement) {
     background: var(--bg-mantle);
     padding: 22px;
 }
-.consent-card { display: flex; justify-content: space-between; gap: 28px; align-items: center; }
+.consent-card { cursor: pointer; display: flex; justify-content: space-between; gap: 28px; align-items: center; }
 .consent-card h2, .retention-note h2 { margin: 0 0 8px; font-size: 18px; }
 .consent-card p, .retention-note p { margin: 6px 0; color: var(--fg-subtext0); line-height: 1.55; }
 .detail { font-size: 13px; }
-.toggle-row { min-width: 118px; display: flex; align-items: center; gap: 9px; font-weight: 600; cursor: pointer; }
+.toggle-row { min-width: 118px; display: flex; align-items: center; gap: 9px; font-weight: 600; }
 .toggle-row input { width: 20px; height: 20px; accent-color: var(--accent); }
-.toggle-row:has(input:disabled) { opacity: .6; cursor: wait; }
+.consent-card:has(input:disabled) { cursor: wait; }
+.toggle-row:has(input:disabled) { opacity: .6; }
 .notice { margin: 0; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--bg-surface0); }
 .error { color: var(--error, #e55); }
 code { color: var(--fg-subtext1); }

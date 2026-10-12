@@ -17,37 +17,33 @@ useSeoMeta({
 
 <template>
   <div class="landing">
-    <div class="noise" aria-hidden="true" />
-
     <div class="content">
-      <div class="badge">
-        <span class="badge-dot" />
-        Under Construction
-      </div>
+      <p class="eyebrow">About Ruxt</p>
 
       <h1 class="heading">
-        Something<br />
-        <span class="heading-accent">great</span> is coming.
+        Write your CV in <span class="heading-accent">Markdown</span>.
       </h1>
 
       <p class="sub">
-        Subscription management, simplified.<br />
-        We're building it right now.
+        Ruxt is a local-first CV editor. Edit Markdown and CSS side by side,
+        preview the A4 result live, and export when you're ready.
       </p>
 
+      <ul class="points">
+        <li><strong>Local-first.</strong> Sessions, templates and profiles stay in your browser by default.</li>
+        <li><strong>Optional cloud.</strong> Signing in uploads nothing; cloud recovery and templates are separate opt-ins you control in Settings.</li>
+        <li><strong>Your layout.</strong> Start from a template or style your CV with plain CSS.</li>
+      </ul>
+
       <div class="actions">
-        <NuxtLink to="/login?mode=signup" class="btn btn-primary">
-          Get early access
+        <NuxtLink to="/" class="btn btn-primary">
+          Open the editor
           <span aria-hidden="true">→</span>
         </NuxtLink>
-        <NuxtLink to="/d" class="btn btn-ghost">
-          View dashboard
+        <NuxtLink to="/settings/cloud-data" class="btn btn-ghost">
+          Cloud data settings
         </NuxtLink>
       </div>
-    </div>
-
-    <div class="grid-bg" aria-hidden="true">
-      <div v-for="n in 64" :key="n" class="cell" />
     </div>
   </div>
 </template>
@@ -63,67 +59,35 @@ useSeoMeta({
   padding: 80px 24px;
 }
 
-/* Animated grid background */
-.grid-bg {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  grid-template-rows: repeat(8, 1fr);
-  opacity: 0.04;
-  pointer-events: none;
-}
-.cell {
-  border: 1px solid var(--fg-text);
-}
-
-/* Noise overlay */
-.noise {
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
-  opacity: 0.3;
-  pointer-events: none;
-}
-
 /* Content */
 .content {
   position: relative;
   z-index: 1;
   text-align: center;
-  max-width: 600px;
+  max-width: 640px;
 }
 
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--bg-surface0);
-  border: 1px solid var(--border-strong);
-  color: var(--fg-subtext1);
-  border-radius: var(--radius-full);
-  padding: 6px 14px;
+.eyebrow {
+  color: var(--accent);
   font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  margin-bottom: 32px;
+  margin: 0 0 16px;
 }
-.badge-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--yellow);
-  box-shadow: 0 0 8px var(--yellow);
-  animation: pulse 2s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.4; }
+.points {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 40px;
+  display: grid;
+  gap: 10px;
+  text-align: left;
+  color: var(--fg-subtext1);
+  line-height: 1.6;
 }
 
 .heading {
-  font-size: clamp(48px, 8vw, 80px);
+  font-size: clamp(36px, 6vw, 56px);
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: -0.03em;
