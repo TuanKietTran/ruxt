@@ -343,7 +343,7 @@ const runApply = async () => {
                 <div v-else :key="formKey" class="profile-sheet">
                     <header class="profile-toolbar">
                         <div class="profile-toolbar__title">
-                            <h1>{{ draft.identity.fullName.trim() || "New profile" }}</h1>
+                            <h1>Profile</h1>
                             <p role="status" aria-live="polite">
                                 <span :class="{ 'profile-toolbar__warn': unsavedKeys.size || blank(draft.identity.fullName) || pendingCount }">{{ saveStatus }}</span>
                                 · <NuxtLink to="/settings" class="profile-toolbar__mode" title="Change in settings">{{ saveMode === "auto" ? "Auto-save" : "Save with button" }}</NuxtLink>
@@ -357,12 +357,19 @@ const runApply = async () => {
                         </div>
                     </header>
 
-                    <div class="profile-identity">
+                    <section class="profile-section profile-name-section">
+                        <div class="profile-section-heading"><h2>Profile identity</h2></div>
                         <EditableField class="identity-name" label="Full name" placeholder="Your name" maxlength="120" autocomplete="name" v-bind="field('identity.fullName')" :model-value="draft.identity.fullName" @commit="draft.identity.fullName = $event; commit('identity.fullName')" />
-                        <EditableField class="identity-headline" label="Headline" placeholder="Software engineer, product designer…" optional v-bind="field('identity.headline')" :model-value="draft.identity.headline" @commit="draft.identity.headline = $event; commit('identity.headline')" />
-                        <EditableField class="identity-location" label="Location" placeholder="City, Country" optional v-bind="field('identity.location')" :model-value="draft.identity.location" @commit="draft.identity.location = $event; commit('identity.location')" />
-                        <EditableField class="span-all" label="Summary" placeholder="A few lines about you" multiline optional v-bind="field('identity.summary')" :model-value="draft.identity.summary" @commit="draft.identity.summary = $event; commit('identity.summary')" />
-                    </div>
+                    </section>
+
+                    <section class="profile-section">
+                        <div class="profile-section-heading"><h2>About</h2></div>
+                        <div class="profile-identity">
+                            <EditableField class="identity-headline" label="Headline" placeholder="Software engineer, product designer…" optional v-bind="field('identity.headline')" :model-value="draft.identity.headline" @commit="draft.identity.headline = $event; commit('identity.headline')" />
+                            <EditableField class="identity-location" label="Location" placeholder="City, Country" optional v-bind="field('identity.location')" :model-value="draft.identity.location" @commit="draft.identity.location = $event; commit('identity.location')" />
+                            <EditableField class="span-all" label="Summary" placeholder="A few lines about you" multiline optional v-bind="field('identity.summary')" :model-value="draft.identity.summary" @commit="draft.identity.summary = $event; commit('identity.summary')" />
+                        </div>
+                    </section>
 
                     <section class="profile-section">
                         <div class="profile-section-heading"><h2>Contact information</h2><button type="button" @click="addEntry('contacts')">＋ Add</button></div>
