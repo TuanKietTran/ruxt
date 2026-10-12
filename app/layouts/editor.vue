@@ -73,6 +73,7 @@ watch(
 );
 
 const { current, themes, apply } = useTheme();
+const sessionActions = useCvSessionActions();
 const { user, logout } = useAppAuth();
 const { authenticated } = useFeatureFlags();
 const { openAuthDialog } = useAuthDialog();
@@ -101,8 +102,7 @@ const recoverLocalSessions = () => {
         .filter(backup => backup.id !== openId && !recovering.has(backup.id));
     for (const backup of missing) {
         recovering.add(backup.id);
-        emit('recoverSession', backup);
-        recovering.delete(backup.id);
+        void sessionActions.recoverSession(backup).catch(() => undefined).finally(() => { recovering.delete(backup.id); });
     }
 };
 watch(() => cvIndex.value?.documents, () => { void recoverLocalSessions(); });
@@ -144,13 +144,21 @@ const viewTemplate = async (template: CvTemplate) => {
     operationError.value = "";
     await navigateTo(templateRoute(template));
 };
-const cloneTemplateToLocal = () => {
+const cloneTemplateToLocal = async () => {
     if (!selectedTemplate.value || isCloningTemplate.value) return;
     const source = selectedTemplate.value;
     const base = source.id.slice(0, 48).replace(/[^a-zA-Z0-9_-]/g, "-");
     const newId = `${base}-local-${crypto.randomUUID().slice(0, 8)}`;
     operationError.value = "";
-    emit('cloneTemplate', source.id, source.version, newId);
+    isCloningTemplate.value = true;
+    try {
+        const cloned = await sessionActions.cloneTemplate(source.id, source.version, newId);
+        await navigateTo(templateRoute(cloned));
+    } catch (error: any) {
+        operationError.value = error?.statusMessage || error?.message || "Could not clone template.";
+    } finally {
+        isCloningTemplate.value = false;
+    }
 };
 const documentLabel = (document: CvDocumentSummary | string) => {
     if (typeof document !== "string" && document.title?.trim()) return document.title;
@@ -165,8 +173,10 @@ const createSessionFromTemplate = async (template: CvTemplate) => {
     operationError.value = "";
     try {
         const id = crypto.randomUUID();
-        emit('createFromTemplate', template, id);
+        await sessionActions.createFromTemplate(template, id);
         await navigateTo(documentPath(id));
+    } catch (error: any) {
+        operationError.value = error?.statusMessage || error?.message || "Could not create session.";
     } finally {
         creatingFromTemplate.value = null;
     }
@@ -206,18 +216,25 @@ const confirmRename = async () => {
     if (!renameDocument.value) return;
     if (!renameValue.value.trim()) { operationError.value = "Enter a valid name."; return; }
     const id = renameDocument.value.id;
-    emit('renameDocument', id, renameValue.value.trim());
+    const title = renameValue.value.trim();
     renameDocument.value = null;
-    await reloadCvDocuments();
+    try {
+        await sessionActions.renameDocument(id, title);
+    } catch (error: any) {
+        operationError.value = error?.statusMessage || error?.message || "Could not rename session.";
+    }
 };
 const forkSelectedDocument = async () => {
     if (!contextMenu.value) return;
     const source = contextMenu.value.document;
     contextMenu.value = null;
     const nextId = crypto.randomUUID();
-    emit('forkDocument', source.id, nextId, `${documentLabel(source)} Copy`);
-    await reloadCvDocuments();
-    await navigateTo(documentPath(nextId));
+    try {
+        await sessionActions.forkDocument(source.id, nextId, `${documentLabel(source)} Copy`);
+        await navigateTo(documentPath(nextId));
+    } catch (error: any) {
+        operationError.value = error?.statusMessage || error?.message || "Could not fork session.";
+    }
 };
 const deleteSelectedDocument = async () => {
     if (!contextMenu.value) return;
@@ -225,10 +242,13 @@ const deleteSelectedDocument = async () => {
     contextMenu.value = null;
     if (!window.confirm(`Delete ${documentLabel(selected)}? This cannot be undone.`)) return;
     clearCvSessionBackup(selected.id);
-    emit('deleteDocument', selected.id);
-    await reloadCvDocuments();
     localBackups.value = listCvSessionBackups();
-    if (isActiveDocument(selected.id)) await navigateTo("/");
+    try {
+        await sessionActions.deleteDocument(selected.id);
+        if (isActiveDocument(selected.id)) await navigateTo("/");
+    } catch (error: any) {
+        operationError.value = error?.statusMessage || error?.message || "Could not delete session.";
+    }
 };
 watch(
     [cvTemplates, () => route.query.t, () => route.query.v, editorContext],
