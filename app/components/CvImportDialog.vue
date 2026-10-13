@@ -2,6 +2,8 @@
 import type { CvImportJobProps, CvImportPreview, CvPipelineCapabilities, CvTemplate } from "@core/domain/cv";
 
 const emit = defineEmits<{ close: []; committed: [documentId: string] }>();
+const { openAuthDialog } = useAuthDialog();
+const route = useRoute();
 const CLIENT_MAX_BYTES = 5 * 1024 * 1024;
 const accepted = new Map([
     ["pdf", "application/pdf"], ["png", "image/png"], ["jpg", "image/jpeg"], ["jpeg", "image/jpeg"],
@@ -13,6 +15,7 @@ const file = ref<File | null>(null);
 const dragging = ref(false);
 const busy = ref(false);
 const error = ref("");
+const authRequired = ref(false);
 const capabilities = ref<CvPipelineCapabilities | null>(null);
 const templates = ref<CvTemplate[]>([]);
 const templateKey = ref("");
@@ -23,6 +26,11 @@ const maxBytes = computed(() => Math.min(CLIENT_MAX_BYTES, capabilities.value?.m
 const readableBytes = (bytes: number) => bytes < 1024 * 1024 ? `${Math.ceil(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
 const message = (reason: any) => reason?.data?.statusMessage ?? reason?.data?.message ?? reason?.message ?? String(reason);
+const captureError = (reason: any) => {
+    error.value = message(reason);
+    authRequired.value = reason?.statusCode === 401 || reason?.data?.statusCode === 401 || error.value === "Authentication required";
+};
+const signIn = () => openAuthDialog("login", route.fullPath);
 const loadSetup = async () => {
     try {
         const [caps, catalog] = await Promise.all([
@@ -34,7 +42,7 @@ const loadSetup = async () => {
         const preferred = catalog.templates[0];
         if (preferred) templateKey.value = `${preferred.id}:${preferred.version}`;
         if (!caps.available) error.value = caps.degradedReason ?? "CV extraction is unavailable.";
-    } catch (reason) { error.value = message(reason); }
+    } catch (reason) { captureError(reason); }
 };
 
 const selectFile = (candidate?: File) => {
@@ -55,7 +63,7 @@ const poll = async () => {
     try {
         job.value = await $fetch<CvImportJobProps>(`/api/cv-imports/${encodeURIComponent(job.value.id)}`);
         if (!terminal.has(job.value.state)) pollTimer = setTimeout(poll, 900);
-    } catch (reason) { error.value = message(reason); }
+    } catch (reason) { captureError(reason); }
 };
 
 const triggerPipeline = async () => {
@@ -74,7 +82,7 @@ const triggerPipeline = async () => {
             headers: { "Idempotency-Key": `${file.value.name}:${file.value.size}:${file.value.lastModified}` },
         });
         pollTimer = setTimeout(poll, 500);
-    } catch (reason) { error.value = message(reason); }
+    } catch (reason) { captureError(reason); }
     finally { busy.value = false; }
 };
 
@@ -83,13 +91,13 @@ const loadPreview = async () => {
     busy.value = true;
     error.value = "";
     try { preview.value = await $fetch<CvImportPreview>(`/api/cv-imports/${encodeURIComponent(job.value.id)}/preview`); }
-    catch (reason) { error.value = message(reason); }
+    catch (reason) { captureError(reason); }
     finally { busy.value = false; }
 };
 const cancel = async () => {
     if (!job.value) return;
     try { job.value = await $fetch<CvImportJobProps>(`/api/cv-imports/${encodeURIComponent(job.value.id)}/cancel`, { method: "POST" }); }
-    catch (reason) { error.value = message(reason); }
+    catch (reason) { captureError(reason); }
 };
 const retry = async () => {
     if (!job.value) return;
@@ -97,7 +105,7 @@ const retry = async () => {
         job.value = await $fetch<CvImportJobProps>(`/api/cv-imports/${encodeURIComponent(job.value.id)}/retry`, { method: "POST" });
         preview.value = null;
         pollTimer = setTimeout(poll, 500);
-    } catch (reason) { error.value = message(reason); }
+    } catch (reason) { captureError(reason); }
 };
 const commit = async () => {
     if (!job.value || !preview.value || busy.value) return;
@@ -108,7 +116,7 @@ const commit = async () => {
         await $fetch(`/api/cv-imports/${encodeURIComponent(job.value.id)}/commit`, { method: "POST", body: { documentId } });
         await refreshNuxtData("editor-document-list");
         emit("committed", documentId);
-    } catch (reason) { error.value = message(reason); }
+    } catch (reason) { captureError(reason); }
     finally { busy.value = false; }
 };
 
@@ -148,7 +156,10 @@ onBeforeUnmount(() => { if (pollTimer) clearTimeout(pollTimer); });
                         <button v-if="!terminal.has(job.state)" class="secondary" type="button" @click="cancel">Cancel pipeline</button>
                         <button v-if="job.state === 'failed' || job.state === 'cancelled'" class="secondary" type="button" @click="retry">Retry pipeline</button>
                     </template>
-                    <div v-if="error" class="error" role="alert">{{ error }}</div>
+                    <div v-if="error" class="error" role="alert">
+                        <p>{{ error }}</p>
+                        <button v-if="authRequired" class="secondary error-action" type="button" @click="signIn">Sign in to continue</button>
+                    </div>
                 </aside>
             </div>
         </section>
@@ -171,5 +182,7 @@ label { display: grid; gap: 6px; margin-top: 16px; color: var(--fg-subtext0); fo
 .progress { height: 3px; margin: 12px 0; background: var(--bg-surface0); } .progress span { display: block; height: 100%; background: var(--accent); transition: width .2s; }
 pre { max-height: 260px; overflow: auto; padding: 12px; border: 1px solid var(--border); background: var(--bg-crust); color: var(--fg-subtext1); font-size: 10px; white-space: pre-wrap; }
 .warning, .error { margin-top: 12px; padding: 10px; border: 1px solid var(--warning, #f9e2af); color: var(--warning, #f9e2af); font-size: 10px; white-space: pre-wrap; } .error { border-color: var(--danger); color: var(--danger); }
+.error p { margin: 0; }
+.error-action { margin-top: 10px; }
 @media (max-width: 720px) { .import-grid { grid-template-columns: 1fr; overflow: auto; } aside { border-left: 0; border-top: 1px solid var(--border); } }
 </style>
