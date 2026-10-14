@@ -14,6 +14,7 @@
 |---|---|
 | [Architecture](./architecture.md) | Runtime surfaces, layers, storage ownership, CQRS, and boot sequence |
 | [Extending](./extending.md) | How to add handlers, deploy strategies, policies, and API routes |
+| [AWS Hosting](./aws-hosting.md) | AWS validation deployment and reviewed DNS switching procedure |
 | [CV Editor](../specs/cv-editor.md) | Editor UI, rendering, themes, and export behavior |
 | [CV Documents](../specs/cv-documents-realtime.md) | REST, persistence, revisions, autosave, conflicts, and SSE |
 | [CV Server Workflows](../specs/cv-server-workflows.md) | Target CV workflows, MCP surface, ports, and staged implementation |
