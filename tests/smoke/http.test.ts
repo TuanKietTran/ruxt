@@ -199,6 +199,7 @@ smoke("HTTP smoke", () => {
       expect((await call("/api/subscriptions", { headers: { cookie: bob } })).body).toMatchObject({ subscriptions: [] });
       expect((await call(`/api/subscriptions/${subscriptionId}`, { headers: { cookie: bob } })).status).toBe(404);
       expect((await call(`/api/subscriptions/${subscriptionId}/cancel`, { ...json({}), headers: { "content-type": "application/json", cookie: bob } })).status).toBe(404);
+      expect((await call(`/api/subscriptions/${subscriptionId}`, { method: "DELETE", headers: { cookie: bob } })).status).toBe(404);
       expect((await call(`/api/subscriptions/${subscriptionId}`, { headers: { cookie: alice } })).status).toBe(200);
    });
 
@@ -224,8 +225,8 @@ smoke("HTTP smoke", () => {
       if (status === 200) expect(body).not.toHaveProperty("passwordHash");
    });
 
-   it("answers MCP initialize over Streamable HTTP", async () => {
-      const response = await fetch(`${baseUrl}/mcp`, {
+   it("requires a session for MCP initialize over Streamable HTTP", async () => {
+      const anonymous = await fetch(`${baseUrl}/mcp`, {
          method: "POST",
          headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
          body: JSON.stringify({
@@ -233,8 +234,25 @@ smoke("HTTP smoke", () => {
             params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "smoke", version: "0" } },
          }),
       });
-      expect(response.status).toBe(200);
-      expect(await response.text()).toContain("cv-sv");
+      expect(anonymous.status).toBe(401);
+
+      const registration = await call("/api/auth/register", json({
+         email: `smoke-mcp-${Date.now()}@example.com`,
+         password: "smoke-test-password",
+      }));
+      expect(registration.status).toBe(201);
+      const cookie = registration.headers.get("set-cookie")?.split(";", 1)[0];
+      expect(cookie).toBeTruthy();
+      const authenticated = await fetch(`${baseUrl}/mcp`, {
+         method: "POST",
+         headers: { "content-type": "application/json", accept: "application/json, text/event-stream", cookie: cookie! },
+         body: JSON.stringify({
+            jsonrpc: "2.0", id: 1, method: "initialize",
+            params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "smoke", version: "0" } },
+         }),
+      });
+      expect(authenticated.status).toBe(200);
+      expect(await authenticated.text()).toContain("cv-sv");
    });
 
    it("serves the editor shell", async () => {
