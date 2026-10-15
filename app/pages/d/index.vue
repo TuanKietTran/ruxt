@@ -8,7 +8,8 @@ import type {
 import type { StatusCode, BillingPeriod, CurrencyCode } from "@core/domain";
 
 const route = useRoute();
-const userId = computed(() => (route.query.userId as string) || "demo");
+const { user } = useAppAuth();
+const userId = computed(() => user.value?.id ?? "");
 
 const {
     data: plansData,
@@ -20,7 +21,7 @@ const {
     status: subsStatus,
     refresh: refreshSubs,
 } = await useFetch<SubscriptionsResponse>("/api/subscriptions", {
-    query: computed(() => ({ userId: userId.value, include: "entitlements" })),
+    query: { include: "entitlements" },
 });
 
 const plans = computed<UIPlan[]>(() => plansData.value?.plans ?? []);
@@ -229,7 +230,6 @@ async function submitSub() {
         await $fetch("/api/subscriptions", {
             method: "POST",
             body: {
-                userId: userId.value,
                 planId: subForm.value.planId,
                 billingPeriod: subForm.value.billingPeriod || selectedPlan.value?.billingCycle,
                 trialDays: subForm.value.trialDays !== "" ? Number(subForm.value.trialDays) : undefined,
@@ -278,7 +278,6 @@ async function submitPlanThenSub() {
         await $fetch("/api/subscriptions", {
             method: "POST",
             body: {
-                userId: userId.value,
                 planId: newId,
                 billingPeriod: f.billingCycle,
                 trialDays: f.trialDays !== "" ? Number(f.trialDays) : undefined,
