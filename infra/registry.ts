@@ -9,10 +9,13 @@ import { registerGetUserPreferences } from "@core/handlers/get-user-preferences"
 import { registerSetUserPreferences } from "@core/handlers/set-user-preferences";
 import "@infra/deploy/index";
 import { resolveStrategy } from "@infra/deploy/strategy";
+import { initializeCatalog } from "@infra/plan-catalog";
 
 export async function bootstrap(): Promise<void> {
    const strategy = await resolveStrategy();
-   registerAll(strategy.buildRepos());
+   const repos = strategy.buildRepos();
+   await initializeCatalog(repos.plan);
+   registerAll(repos);
    console.log(`🚀 infra ready — ${strategy.label}`);
 }
 
