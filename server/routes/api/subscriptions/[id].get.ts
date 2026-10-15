@@ -1,8 +1,12 @@
 import { useMediator } from "@core/cqrs";
-import { getSubscriptionQuery } from "@core/handlers/get-subscription";
+import { requireOwnedSubscription } from "../../../utils/auth-user";
 
 export default defineEventHandler(async (event) => {
    const id = getRouterParam(event, "id")!;
    const mediator = useMediator();
-   return sendApiRequest(mediator, getSubscriptionQuery({ subscriptionId: id }));
+   const subscription = await requireOwnedSubscription(event, mediator, id);
+   if (getQuery(event).manage === "true") {
+      return { subscription, billing: { provider: "mock", action: "manage", status: "available", url: `/d?manage=mock&subscription=${encodeURIComponent(id)}` } };
+   }
+   return subscription;
 });

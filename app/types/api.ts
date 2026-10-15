@@ -38,6 +38,18 @@ export interface PlansResponse {
    plans: UIPlan[]
 }
 
+export interface AutomationEntitlements {
+   planId: string | null
+   planName: string
+   status: string
+   capabilities: ("read" | "write" | "profile")[]
+   monthlyQuota: number
+   used: number
+   remaining: number
+   metering: "monthly"
+}
+
 export interface SubscriptionsResponse {
    subscriptions: UISubscription[]
+   entitlements?: AutomationEntitlements
 }

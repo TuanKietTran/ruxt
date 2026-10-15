@@ -12,7 +12,7 @@ createDeployStrategy({
    weight: 10,
 
    predicate() {
-      return typeof globalThis.Deno !== "undefined";
+      return "Deno" in globalThis;
    },
 
    buildRepos() {

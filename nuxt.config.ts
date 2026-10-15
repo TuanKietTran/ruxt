@@ -48,6 +48,12 @@ export default defineNuxtConfig({
       },
    },
    devtools: { enabled: true },
+   hooks: {
+      "prepare:types": ({ tsConfig }) => {
+         tsConfig.compilerOptions ||= {};
+         tsConfig.compilerOptions.noImplicitOverride = false;
+      },
+   },
    experimental: { serverAppConfig: false },
 
    css: ['~/assets/theme/themes.css'],

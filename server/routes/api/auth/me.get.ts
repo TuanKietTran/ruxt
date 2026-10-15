@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
 
   if (principal.provider === "clerk") {
     try {
-      const user = await clerkClient(event).users.getUser(principal.providerUserId);
+      const user = await clerkClient(event as any).users.getUser(principal.providerUserId);
       const primary = user.emailAddresses.find(address => address.id === user.primaryEmailAddressId)
         ?? user.emailAddresses[0];
       if (!primary?.emailAddress) throw new Error("Clerk user has no email address");

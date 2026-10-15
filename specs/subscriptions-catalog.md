@@ -49,6 +49,10 @@ Pause, resume, and cancel use those transitions. Scheduling a plan change reject
 
 ## Subscription API
 
+Subscription management is separate from payment collection. `PUT /api/subscriptions/:id/plan-change` verifies the authenticated owner and schedules an upgrade for the next interval; its response includes a provider-neutral mock checkout action until a billing adapter/webhook is configured. `GET /api/subscriptions/:id?manage=true` returns a mock management action after the same ownership check. These seams never accept or persist payment credentials.
+
+Plans may declare automation entitlements in `features`: `automation:read`, `automation:write`, `automation:profile`, and `automation:quota=<calls per UTC month>`. Only active/trialing subscriptions grant those entitlements. The `/api/subscriptions?include=entitlements` response exposes the current plan, capabilities, quota, usage, and remaining calls for the dashboard. Meter records live in the analytics storage namespace rather than the subscription aggregate, are counted after successful automation, and use request ids for retry idempotency.
+
 - `POST /api/subscriptions`: creates with a generated UUID; cycle defaults to monthly and start defaults to now.
 - `GET /api/subscriptions?userId=...`: lists subscriptions for the exact user id; missing/non-string id returns 400.
 - `GET /api/subscriptions/:id`: returns the complete serialized aggregate.

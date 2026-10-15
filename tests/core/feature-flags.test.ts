@@ -7,6 +7,7 @@ import {
    parsePatterns,
    routeMatches,
 } from "@core/shared";
+import { parseAutomationFeatures } from "../../server/utils/auth-user";
 
 const authenticatedFeature = createAuthenticatedFeature(
    ["/login", "/api/auth/**", "/api/cv-capabilities"],
@@ -46,6 +47,14 @@ describe("feature flag strategy", () => {
          hostname: "cv.example.com",
          pathname: "/login",
       })).toBe(true);
+   });
+
+   it("parses provider-neutral automation capabilities and safe quota defaults", () => {
+      expect(parseAutomationFeatures(["automation:read", "automation:write", "automation:quota=100", "billing:custom"])).toEqual({
+         capabilities: ["read", "write"],
+         monthlyQuota: 100,
+      });
+      expect(parseAutomationFeatures(["automation:quota=not-a-number"])).toEqual({ capabilities: ["read"], monthlyQuota: 25 });
    });
 
    it("parses deployment policy, including an intentionally empty list", () => {

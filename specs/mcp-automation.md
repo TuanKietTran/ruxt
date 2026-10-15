@@ -14,6 +14,14 @@ This spec covers:
 
 CV storage and revisions belong to [cv-documents-realtime.md](cv-documents-realtime.md). Browser export belongs to [cv-editor.md](cv-editor.md). Intended intent-level tools, resources, prompts, jobs, and core handlers belong to [cv-server-workflows.md](cv-server-workflows.md).
 
+## Subscription-aware automation
+
+The MCP route requires the authenticated Ruxt owner session. Before each tool call it resolves the owner's active `trialing` or `active` subscription and reads provider-neutral plan features: `automation:read`, `automation:write`, `automation:profile`, and `automation:quota=<monthly calls>`. Free/no-subscription access is read-only and capped at 25 calls per UTC month. `past_due`, paused, cancelled, and expired subscriptions do not grant automation access.
+
+Reads (`list_cvs`, `open_cv`) require `read`; document writes (`save_cv`, `patch_cv`) require `write`; profile detection, switching, and apply require `profile`. Usage is metered only after a successful tool operation in the `analytics` storage namespace. Write clients should pass a stable `requestId`; the meter stores that id per owner/month so transport retries do not double-count. Quota checks occur before work, and failures are not metered.
+
+The billing boundary is intentionally provider-agnostic. Upgrade scheduling and the management response expose a mock action URL and `provider: "mock"`; no card data, payment credentials, or provider SDK crosses the domain, API, or persistence boundaries. A future adapter may replace the mock URL and confirm changes through a signed provider webhook, while entitlement changes remain server-side. Automation never bypasses CV revision checks, ownership, or safety limits, and it must not be used as a payment or credential transport.
+
 ## MCP Runtime
 
 The running Nitro server exposes `/mcp` as an MCP Streamable HTTP endpoint. `server/routes/mcp.ts` converts the H3 event to a Web Standard `Request` and delegates to `WebStandardStreamableHTTPServerTransport`.

@@ -1,4 +1,4 @@
-import type { CvDocument, CvUpdateEvent } from "@core/domain/cv";
+import type { CvDocument, CvDocumentProps, CvUpdateEvent } from "@core/domain/cv";
 import { shouldRestoreCvBackup } from "@core/domain/cv";
 import { readCvSessionBackup, writeCvSessionBackup } from "~/utils/cvSessionBackup";
 
@@ -57,7 +57,7 @@ export async function useCvDocument(
     };
     const retryWhenVisible = () => { if (document.visibilityState === "visible") retryNow(); };
 
-    const applyRemote = (document: CvDocument) => {
+    const applyRemote = (document: Pick<CvDocumentProps, "markdown" | "css" | "revision">) => {
         if (dirty || document.revision <= revision.value) return;
         applyingRemote = true;
         markdown.value = document.markdown;

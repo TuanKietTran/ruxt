@@ -20,13 +20,14 @@ const {
     status: subsStatus,
     refresh: refreshSubs,
 } = await useFetch<SubscriptionsResponse>("/api/subscriptions", {
-    query: computed(() => ({ userId: userId.value })),
+    query: computed(() => ({ userId: userId.value, include: "entitlements" })),
 });
 
 const plans = computed<UIPlan[]>(() => plansData.value?.plans ?? []);
 const subs = computed<UISubscription[]>(
     () => subsData.value?.subscriptions ?? [],
 );
+const entitlements = computed(() => subsData.value?.entitlements);
 const pageTitle = computed(() => {
     const count = subs.value.length;
     return `${count} Subscription${count === 1 ? "" : "s"}`;
@@ -294,6 +295,25 @@ async function submitPlanThenSub() {
 }
 
 // ── Cancel subscription ───────────────────────────────────────────────────────
+async function upgradeSub(id: string) {
+    const requested = window.prompt(`Upgrade to which plan? Available: ${plans.value.map((plan) => plan.name).join(", ")}`);
+    if (!requested) return;
+    const target = plans.value.find((plan) => plan.name.toLowerCase() === requested.trim().toLowerCase());
+    if (!target) { alert("Plan not found."); return; }
+    try {
+        const result = await $fetch<{ billing: { url: string } }>(`/api/subscriptions/${id}/plan-change`, { method: "PUT", body: { newPlanId: target.id } });
+        window.open(result.billing.url, "_blank", "noopener");
+        await refreshSubs();
+    } catch (e: any) { alert(e?.data?.message ?? "Sign in to upgrade billing."); }
+}
+
+async function manageSub(id: string) {
+    try {
+        const result = await $fetch<{ billing: { url: string } }>(`/api/subscriptions/${id}?manage=true`);
+        window.open(result.billing.url, "_blank", "noopener");
+    } catch (e: any) { alert(e?.data?.message ?? "Sign in to manage billing."); }
+}
+
 async function cancelSub(id: string) {
     if (!confirm("Cancel this subscription?")) return;
     try {
@@ -384,6 +404,15 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
                     </div>
                 </div>
 
+                <div v-if="entitlements" class="automation-card">
+                    <div>
+                        <div class="stat-label">Automation allowance</div>
+                        <strong>{{ entitlements.planName }} · {{ entitlements.remaining }}/{{ entitlements.monthlyQuota }} left</strong>
+                        <p class="stat-delta">{{ entitlements.capabilities.join(", ") }} automation · resets monthly</p>
+                    </div>
+                    <span class="status-badge">{{ entitlements.status }}</span>
+                </div>
+
                 <div class="section">
                     <div class="section-head">
                         <h2 class="section-title">Subscriptions</h2>
@@ -453,6 +482,20 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
                                     </td>
                                     <td>
                                         <div class="row-actions">
+                                            <button
+                                                class="action-btn"
+                                                type="button"
+                                                title="Upgrade plan"
+                                                aria-label="Upgrade plan"
+                                                @click="upgradeSub(sub.id)"
+                                            >↑</button>
+                                            <button
+                                                class="action-btn"
+                                                type="button"
+                                                title="Manage billing"
+                                                aria-label="Manage billing"
+                                                @click="manageSub(sub.id)"
+                                            >↗</button>
                                             <button
                                                 class="action-btn danger"
                                                 type="button"

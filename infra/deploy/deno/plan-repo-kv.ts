@@ -24,7 +24,7 @@ export class DenoKvPlanRepo implements PlanRepository {
          prefix: ["plan"],
       })) {
          // skip index keys (value is "")
-         if (typeof entry.value === "string") continue;
+         if (typeof entry.value === "string" || entry.value === null) continue;
          results.push(Plan.fromJSON(entry.value));
       }
       return results;

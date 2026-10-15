@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
+// @ts-ignore Vite's raw asset loader resolves this import at build time.
 import referenceMarkdown from "../../../app/data/reference-cv.md?raw";
+// @ts-ignore Vite's raw asset loader resolves this import at build time.
 import referenceCss from "../../../app/data/reference-cv.css?raw";
 import { CvDocument } from "@core/domain/cv/document";
 import { migrateCvIndicatorSources } from "./source-migration";

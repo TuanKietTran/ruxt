@@ -88,7 +88,7 @@ ruxt/
 | CV documents | `GET /api/cvs`, `GET/PUT /api/cvs/:id`, `GET /api/cvs/:id/events` |
 | CV profile switch | `POST /api/cvs/:id/profile/preview`, `PUT /api/cvs/:id/profile` |
 | CV profile detection | `GET /api/cvs/:id/profile/detect`, `POST /api/cv-profiles/apply` |
-| Automation | `POST /mcp` (MCP Streamable HTTP) |
+| Automation | `POST /mcp` (authenticated MCP Streamable HTTP; plan-gated and metered) |
 
 ## CV editor API and MCP
 
@@ -106,7 +106,7 @@ pnpm dev
 # Connect an MCP Streamable HTTP client to http://localhost:3000/mcp
 ```
 
-The stateless Streamable HTTP endpoint exposes `list_cvs`, `open_cv`, `save_cv`, `patch_cv`, `switch_cv_profile`, `detect_cv_profile`, and `apply_cv_profile`.
+The stateless Streamable HTTP endpoint exposes `list_cvs`, `open_cv`, `save_cv`, `patch_cv`, `switch_cv_profile`, `detect_cv_profile`, and `apply_cv_profile`. Automation is authenticated, plan-gated, and metered by UTC month; see [MCP automation](./specs/mcp-automation.md) for capabilities, quotas, retries, and the provider-neutral billing seam.
 
 The editor can export PDF through the browser print pipeline, or render every CV sheet as a 2× PNG/JPEG image from the header actions.
 

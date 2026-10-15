@@ -8,24 +8,31 @@ import { patchCvSourceCommand } from "@core/handlers/patch-cv-source";
 import { switchCvProfileCommand } from "@core/handlers/switch-cv-profile";
 import { detectCvProfileQuery } from "@core/handlers/detect-cv-profile";
 import { applyCvProfileCommand, MAX_CV_PROFILE_APPLY_TARGETS } from "@core/handlers/apply-cv-profile";
+import { assertAutomationAccess, meterAutomation } from "./auth-user";
 
 const textResult = (value: unknown) => ({
     content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
 });
 
 /** Create an isolated MCP protocol server for one stateless HTTP request. */
-export function createCvMcpServer(): McpServer {
+export function createCvMcpServer(ownerId?: string): McpServer {
     const server = new McpServer({ name: "cv-sv", version: "0.1.0" });
     const mediator = useMediator();
+    const guard = async (capability: "read" | "write" | "profile", requestId?: string) => {
+        if (ownerId) await assertAutomationAccess(ownerId, capability, requestId);
+    };
+    const metered = async (requestId?: string) => {
+        if (ownerId) await meterAutomation(ownerId, requestId ?? crypto.randomUUID());
+    };
 
     server.registerTool("list_cvs", {
         description: "List CV documents and their current revisions",
-    }, async () => textResult({ documents: await mediator.send(listCvDocumentsQuery()) }));
+    }, async () => { await guard("read"); const result = await mediator.send(listCvDocumentsQuery()); await metered(); return textResult({ documents: result }); });
 
     server.registerTool("open_cv", {
         description: "Read the Markdown, CSS and revision of a CV document",
         inputSchema: { id: z.string().default("master") },
-    }, async ({ id }) => textResult(await mediator.send(getCvDocumentQuery({ id }))));
+    }, async ({ id }) => { await guard("read"); const result = await mediator.send(getCvDocumentQuery({ id })); await metered(); return textResult(result); });
 
     server.registerTool("save_cv", {
         description: "Save complete Markdown and/or CSS. Pass expectedRevision to prevent overwriting concurrent edits.",
@@ -34,16 +41,14 @@ export function createCvMcpServer(): McpServer {
             markdown: z.string().optional(),
             css: z.string().optional(),
             expectedRevision: z.number().int().positive().optional(),
+            requestId: z.string().optional(),
         },
-    }, async ({ id, markdown, css, expectedRevision }) => textResult(
-        await mediator.send(saveCvSourceCommand({
-            id,
-            markdown,
-            css,
-            expectedRevision,
-            sourceId: "mcp",
-        })),
-    ));
+    }, async ({ id, markdown, css, expectedRevision, requestId }) => {
+        await guard("write", requestId);
+        const result = await mediator.send(saveCvSourceCommand({ id, markdown, css, expectedRevision, sourceId: "mcp" }));
+        await metered(requestId);
+        return textResult(result);
+    });
 
     server.registerTool("patch_cv", {
         description: "Replace one unique piece of Markdown or CSS and publish the edit to connected browsers.",
@@ -53,17 +58,14 @@ export function createCvMcpServer(): McpServer {
             oldText: z.string().min(1),
             newText: z.string(),
             expectedRevision: z.number().int().positive().optional(),
+            requestId: z.string().optional(),
         },
-    }, async ({ id, target, oldText, newText, expectedRevision }) => textResult(
-        await mediator.send(patchCvSourceCommand({
-            id,
-            target,
-            oldText,
-            newText,
-            expectedRevision,
-            sourceId: "mcp",
-        })),
-    ));
+    }, async ({ id, target, oldText, newText, expectedRevision, requestId }) => {
+        await guard("write", requestId);
+        const result = await mediator.send(patchCvSourceCommand({ id, target, oldText, newText, expectedRevision, sourceId: "mcp" }));
+        await metered(requestId);
+        return textResult(result);
+    });
 
     server.registerTool("switch_cv_profile", {
         description: "Re-render a CV with another profile, keeping the session's layout or switching to a public template. Pass expectedRevision to prevent overwriting concurrent edits.",
@@ -74,21 +76,19 @@ export function createCvMcpServer(): McpServer {
             templateVersion: z.number().int().positive().optional(),
             expectedRevision: z.number().int().positive().optional(),
         },
-    }, async ({ id, profile, templateId, templateVersion, expectedRevision }) => textResult(
-        await mediator.send(switchCvProfileCommand({
+    }, async ({ id, profile, templateId, templateVersion, expectedRevision }) => { await guard("profile"); const result = await mediator.send(switchCvProfileCommand({
             documentId: id,
             profile,
             template: templateId ? { id: templateId, version: templateVersion } : undefined,
             expectedRevision,
             publicOnly: true,
             sourceId: "mcp",
-        })),
-    ));
+        })); await metered(); return textResult(result); });
 
     server.registerTool("detect_cv_profile", {
         description: "Extract the profile (identity, contacts, experience, education, projects, skills, certifications, languages) from a CV and report where each value appears in its Markdown.",
         inputSchema: { id: z.string().default("master") },
-    }, async ({ id }) => textResult(await mediator.send(detectCvProfileQuery({ documentId: id }))));
+    }, async ({ id }) => { await guard("profile"); const result = await mediator.send(detectCvProfileQuery({ documentId: id })); await metered(); return textResult(result); });
 
     server.registerTool("apply_cv_profile", {
         description: "Re-render several CVs with one profile, keeping each CV's layout or switching all of them to a public template. Each CV succeeds or fails independently.",
@@ -98,15 +98,13 @@ export function createCvMcpServer(): McpServer {
             templateId: z.string().optional(),
             templateVersion: z.number().int().positive().optional(),
         },
-    }, async ({ ids, profile, templateId, templateVersion }) => textResult(
-        await mediator.send(applyCvProfileCommand({
+    }, async ({ ids, profile, templateId, templateVersion }) => { await guard("profile"); const result = await mediator.send(applyCvProfileCommand({
             documentIds: ids,
             profile,
             template: templateId ? { id: templateId, version: templateVersion } : undefined,
             publicOnly: true,
             sourceId: "mcp",
-        })),
-    ));
+        })); await metered(); return textResult(result); });
 
     return server;
 }

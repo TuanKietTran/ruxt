@@ -170,6 +170,44 @@ smoke("HTTP smoke", () => {
       expect(bobView.body).toMatchObject({ cloudTemplates: { granted: false } });
    });
 
+   it("isolates subscription reads and mutations between authenticated users", async () => {
+      const stamp = `${Date.now()}-${Math.random()}`;
+      const register = async (label: string) => {
+         const response = await call("/api/auth/register", json({
+            email: `smoke-sub-${label}-${stamp}@example.com`,
+            password: "smoke-test-password",
+         }));
+         expect(response.status).toBe(201);
+         const cookie = response.headers.get("set-cookie")?.split(";", 1)[0];
+         expect(cookie).toBeTruthy();
+         return cookie!;
+      };
+      const alice = await register("alice");
+      const bob = await register("bob");
+      const plans = await call("/api/plans");
+      const planId = (plans.body as { plans?: Array<{ id: string }> }).plans?.[0]?.id;
+      expect(planId).toBeTruthy();
+
+      const created = await call("/api/subscriptions", {
+         ...json({ userId: "bob", planId }),
+         headers: { "content-type": "application/json", cookie: alice },
+      });
+      expect(created.status).toBe(201);
+      const subscriptionId = (created.body as { subscriptionId: string }).subscriptionId;
+      expect(subscriptionId).toBeTruthy();
+
+      expect((await call("/api/subscriptions", { headers: { cookie: bob } })).body).toMatchObject({ subscriptions: [] });
+      expect((await call(`/api/subscriptions/${subscriptionId}`, { headers: { cookie: bob } })).status).toBe(404);
+      expect((await call(`/api/subscriptions/${subscriptionId}/cancel`, { ...json({}), headers: { "content-type": "application/json", cookie: bob } })).status).toBe(404);
+      expect((await call(`/api/subscriptions/${subscriptionId}`, { headers: { cookie: alice } })).status).toBe(200);
+   });
+
+   it("rejects unauthenticated subscription access", async () => {
+      expect((await call("/api/subscriptions")).status).toBe(401);
+      expect((await call("/api/subscriptions", json({ planId: "auto-pro" }))).status).toBe(401);
+      expect((await call("/api/subscriptions/sub_missing")).status).toBe(401);
+   });
+
    it("rejects malformed registration before touching persistence", async () => {
       const { status } = await call("/api/auth/register", json({ email: "", password: "" }));
       expect(status).toBe(400);
