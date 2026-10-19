@@ -76,7 +76,7 @@ export function useCvSessionActions() {
     const renameDocument = async (id: string, title: string) => {
         const trimmed = title.trim();
         const existing = cvIndex.value?.documents.find(document => document.id === id);
-        const optimistic = { id, title: trimmed, revision: existing?.revision ?? 0, updatedAt: new Date().toISOString() };
+        const optimistic = { id, title: trimmed, revision: existing?.revision ?? 0, updatedAt: existing?.updatedAt ?? new Date().toISOString() };
         upsertSummary(optimistic);
         try {
             const updated = await $fetch<CvDocument>(`/api/cvs/${encodeURIComponent(id)}`, {

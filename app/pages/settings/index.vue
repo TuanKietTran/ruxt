@@ -3,14 +3,21 @@ import { PROFILE_SAVE_MODES, type ProfileSaveMode } from "@core/domain/preferenc
 
 // Preferences work without an account: they stay in this browser until the user signs in.
 definePageMeta({ public: true });
+useSeoMeta({ title: "Settings", ogTitle: "Settings" });
 
 const { preferences, source, signedIn, load, update } = usePreferences();
 const saving = ref(false);
 const status = ref("");
 const error = ref("");
+const preferencesLoaded = ref(false);
 
-onMounted(load);
-watch(signedIn, load);
+const loadPreferences = async () => {
+    preferencesLoaded.value = false;
+    await load();
+    preferencesLoaded.value = true;
+};
+onMounted(loadPreferences);
+watch(signedIn, loadPreferences);
 
 const modeCopy: Record<ProfileSaveMode, { title: string; detail: string }> = {
     auto: {
@@ -45,9 +52,13 @@ async function setSaveMode(mode: ProfileSaveMode) {
             <p class="eyebrow">Settings</p>
             <h1>Preferences</h1>
             <p>
-                {{ source === "account"
-                    ? "Signed in: these settings are saved to your account and follow you across devices."
-                    : "These settings are saved in this browser only. Sign in to keep them with your account." }}
+                {{ !preferencesLoaded
+                    ? "Loading your preferences…"
+                    : source === "account"
+                        ? "Signed in: these settings are saved to your account and follow you across devices."
+                        : signedIn
+                            ? "Your account preferences are unavailable right now; changes are saved in this browser."
+                            : "These settings are saved in this browser only. Sign in to keep them with your account." }}
             </p>
         </header>
 
