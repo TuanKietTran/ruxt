@@ -51,7 +51,7 @@ const fromBase64Url = (value: string) => {
 const deriveKey = async (passphrase: string, salt: Uint8Array, iterations: number, usage: KeyUsage) => {
     const material = await crypto.subtle.importKey("raw", encoder.encode(passphrase), "PBKDF2", false, ["deriveKey"]);
     return crypto.subtle.deriveKey(
-        { name: "PBKDF2", hash: "SHA-256", salt, iterations },
+        { name: "PBKDF2", hash: "SHA-256", salt: new Uint8Array(salt), iterations },
         material,
         { name: "AES-GCM", length: 256 },
         false,

@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { chromium, type Browser } from "playwright-core";
 
 const base = process.env.SMOKE_BASE_URL?.replace(/\/$/, "");
+if (base && !["localhost", "127.0.0.1", "[::1]"].includes(new URL(base).hostname)) throw new Error("Generator browser tests require a local server");
 const executablePath = process.env.CHROMIUM_PATH ?? "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser";
 const ui = base && existsSync(executablePath) ? describe : describe.skip;
 let browser: Browser;

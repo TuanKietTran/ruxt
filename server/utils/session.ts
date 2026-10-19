@@ -1,4 +1,4 @@
-import type { H3Event } from "h3";
+import { useSession, type H3Event } from "h3";
 
 export interface AuthSessionData {
    userId?: string;
