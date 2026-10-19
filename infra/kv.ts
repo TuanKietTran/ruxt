@@ -2,7 +2,7 @@ type KvKey = readonly unknown[];
 
 type KvEntry<T> = {
    key: KvKey;
-   value: T | null;
+   value: T;
 };
 
 type KvAtomic = {
@@ -12,7 +12,8 @@ type KvAtomic = {
 };
 
 type Kv = {
-   get<T>(key: KvKey): Promise<KvEntry<T>>;
+   // Reads may miss; list() yields only existing entries, as in Deno KV.
+   get<T>(key: KvKey): Promise<KvEntry<T | null>>;
    set(key: KvKey, value: unknown): Promise<unknown>;
    delete(key: KvKey): Promise<void>;
    list<T>(selector: { prefix: KvKey }): AsyncIterable<KvEntry<T>>;
