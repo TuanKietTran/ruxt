@@ -151,6 +151,10 @@ const loading = computed(
 
 // ── Add subscription panel ────────────────────────────────────────────────────
 const showPanel = ref(false);
+const cancelError = ref("");
+const cancelErrorDialog = ref(false);
+const cancelErrorDismissButton = ref<HTMLButtonElement | null>(null);
+let cancelErrorReturnFocus: HTMLElement | null = null;
 
 // Step: 'sub' = pick existing plan | 'plan' = create new plan first
 const panelStep = ref<"sub" | "plan">("sub");
@@ -300,7 +304,26 @@ async function cancelSub(id: string) {
         await $fetch(`/api/subscriptions/${id}/cancel`, { method: "POST" });
         await refreshSubs();
     } catch (e: any) {
-        alert(e?.data?.message ?? "Failed to cancel.");
+        cancelError.value = e?.data?.message ?? "Failed to cancel.";
+        cancelErrorReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        cancelErrorDialog.value = true;
+        await nextTick();
+        cancelErrorDismissButton.value?.focus();
+    }
+}
+
+function dismissCancelError() {
+    cancelErrorDialog.value = false;
+    nextTick(() => cancelErrorReturnFocus?.focus());
+}
+
+function handleCancelErrorKeydown(event: KeyboardEvent) {
+    if (event.key === "Escape") {
+        event.preventDefault();
+        dismissCancelError();
+    } else if (event.key === "Tab") {
+        event.preventDefault();
+        cancelErrorDismissButton.value?.focus();
     }
 }
 
@@ -683,6 +706,27 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     <!-- backdrop: tablet only (mobile panel is full screen, desktop has no overlay) -->
     <Teleport to="body">
         <div v-if="showPanel" class="panel-backdrop" @click="closePanel" />
+    </Teleport>
+
+    <!-- Cancellation failure dialog -->
+    <Teleport to="body">
+        <div v-if="cancelErrorDialog" class="cancel-error-backdrop" @click.self="dismissCancelError">
+            <section
+                class="cancel-error-dialog"
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="cancel-error-title"
+                aria-describedby="cancel-error-message"
+                @keydown="handleCancelErrorKeydown"
+            >
+                <div class="tm-icon" aria-hidden="true">⚠</div>
+                <h2 id="cancel-error-title" class="tm-title">Cancellation failed</h2>
+                <p id="cancel-error-message" class="tm-body">{{ cancelError }}</p>
+                <div class="tm-footer">
+                    <button ref="cancelErrorDismissButton" type="button" class="tm-btn-cancel" @click="dismissCancelError">Dismiss</button>
+                </div>
+            </section>
+        </div>
     </Teleport>
 
     <!-- Terminate confirmation dialog -->
@@ -1186,6 +1230,30 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     background: color-mix(in srgb, var(--mauve) 15%, transparent);
     color: var(--mauve);
     border-color: var(--mauve);
+}
+
+/* ── Cancellation error dialog ─────────────────────────────────────────────── */
+.cancel-error-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 310;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.7);
+}
+.cancel-error-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-sizing: border-box;
+    width: min(100%, 480px);
+    padding: 32px;
+    border: 1px solid var(--red);
+    border-radius: var(--radius-lg);
+    background: var(--bg-base);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent), 0 24px 64px rgba(0, 0, 0, 0.5);
 }
 
 /* ── Terminate dialog ──────────────────────────────────────────────────────── */
