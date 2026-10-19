@@ -11,6 +11,8 @@ import type { ProfileSaveMode } from "@core/domain/preferences";
 const props = withDefaults(defineProps<{
     label: string;
     modelValue: string;
+    /** Render-time ownership guard: old fields must not emit into a replaced form. */
+    isCurrent?: () => boolean;
     mode: ProfileSaveMode;
     multiline?: boolean;
     placeholder?: string;
@@ -24,6 +26,7 @@ const props = withDefaults(defineProps<{
     optional?: boolean;
 }>(), { optional: false, multiline: false, placeholder: "", options: undefined, saved: false, error: undefined, startEditing: false, maxlength: undefined, autocomplete: "off" });
 const emit = defineEmits<{ commit: [value: string]; dirty: [dirty: boolean] }>();
+const emitCommit = (value: string) => { if (props.isCurrent?.() !== false) emit("commit", value); };
 
 const AUTO_SAVE_DELAY = 700;
 const id = useId();
@@ -59,13 +62,13 @@ const stopTimer = () => { clearTimeout(timer); timer = undefined; };
 const save = (refocus = false) => {
     stopTimer();
     editing.value = false;
-    emit("commit", buffer.value);
+    emitCommit(buffer.value);
     if (refocus) nextTick(() => display()?.focus());
 };
 const cancel = () => {
     stopTimer();
     editing.value = false;
-    if (props.mode === "auto" && props.modelValue !== original) emit("commit", original);
+    if (props.mode === "auto" && props.modelValue !== original) emitCommit(original);
     buffer.value = original;
     nextTick(() => display()?.focus());
 };
@@ -73,7 +76,7 @@ const onInput = (value: string) => {
     buffer.value = value;
     if (props.mode !== "auto") return;
     stopTimer();
-    timer = setTimeout(() => { timer = undefined; emit("commit", buffer.value); }, AUTO_SAVE_DELAY);
+    timer = setTimeout(() => { timer = undefined; emitCommit(buffer.value); }, AUTO_SAVE_DELAY);
 };
 const onSelect = (event: Event) => {
     buffer.value = (event.target as HTMLSelectElement).value;
@@ -94,15 +97,14 @@ const onFocusOut = (event: FocusEvent) => {
     else if (!dirty.value) editing.value = false;
 };
 // A page unload never blurs the field, so commit what auto mode has not flushed yet.
-const flushOnHide = () => { if (editing.value && props.mode === "auto" && timer) { stopTimer(); emit("commit", buffer.value); } };
-
+const flushOnHide = () => { if (editing.value && props.mode === "auto" && timer) { stopTimer(); emitCommit(buffer.value); } };
 watch(() => props.startEditing, value => { if (value) startEdit(); });
 onMounted(() => {
     window.addEventListener("pagehide", flushOnHide);
     if (props.startEditing) startEdit();
 });
 onBeforeUnmount(() => {
-    flushOnHide();
+    stopTimer();
     window.removeEventListener("pagehide", flushOnHide);
     if (dirty.value) emit("dirty", false);
 });
