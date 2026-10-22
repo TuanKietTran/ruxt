@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { setCloudDataConsentCommand } from "@ruxt/core/handlers/set-cloud-data-consent";
 
 export default defineEventHandler(async (event) => {

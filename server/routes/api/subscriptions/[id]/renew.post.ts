@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { renewSubscriptionCommand } from "@ruxt/core/handlers/renew-subscription";
 
 export default defineEventHandler(async (event) => {

@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { loginUserCommand } from "@ruxt/core/handlers/login-user";
 
 export default defineEventHandler(async (event) => {

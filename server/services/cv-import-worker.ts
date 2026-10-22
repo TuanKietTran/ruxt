@@ -1,5 +1,5 @@
-import { CvConcept, CvProfile } from "@ruxt/core/domain/cv/concept";
-import type { CvContact, CvContactKind } from "@ruxt/core/domain/cv/concept";
+import { CvConcept, CvProfile } from "@ruxt/shared/cv";
+import type { CvContact, CvContactKind } from "@ruxt/shared/cv";
 import { CvImportJob } from "@ruxt/core/domain/cv/import";
 import type { CvImportJobProps } from "@ruxt/core/domain/cv/import";
 import { cvPipelineExtractor } from "../adapters/cv/pipeline-extractor";

@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { commitCvImportCommand } from "@ruxt/core/handlers/commit-cv-import";
 import { requireCvOwner } from "../../../../utils/cv-owner";
 

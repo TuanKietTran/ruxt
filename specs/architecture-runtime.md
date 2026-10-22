@@ -1,6 +1,6 @@
 # Architecture And Runtime
 
-Last updated: fix/ruxt-core-refactor@344904d | 2026-10-22
+Last updated: feat/ruxt-core-split@4dd5c27 | 2026-10-22
 
 ## Scope
 
@@ -9,8 +9,8 @@ This spec covers:
 - root configuration in `package.json`, `pnpm-workspace.yaml`, `nuxt.config.ts`, and `tsconfig.json`;
 - Nuxt application entry and routing under `app/`;
 - Nitro plugins and routes under `server/`;
-- CQRS dispatch in `core/cqrs.ts` and registration in `infra/registry.ts`;
-- CV domain and transport types under `core/domain/cv/`;
+- generic CQRS dispatch in `shared/cqrs.ts`, private compatibility exports and registration in `infra/registry.ts`;
+- public CV presentation contracts under `shared/domain/cv/`, private import/application types and use cases under `core/`;
 - the `infra` workspace package, shared-package migration boundary, and top-level source ownership.
 
 ## Runtime Shape
@@ -21,7 +21,8 @@ Current top-level ownership is:
 
 - `app/`: Vue pages, layouts, components, composables, themes, editor data, browser export utilities, and browser workers;
 - `server/`: Nitro startup, HTTP route adaptation, session helpers, CV persistence/realtime, the Python pipeline adapter/worker, and MCP;
-- `@ruxt/core` (package from the `ruxt-core` repository; exact local packed artifact during refactor): framework-free CV/profile/template/application domains, value objects, CQRS handlers, repository ports, and shared feature-policy exports under `shared/`. This repository no longer carries a `core/` copy; specs that cite `core/<path>` mean `<path>` inside that package;
+- `@ruxt/shared` (canonical source `ruxt-core/packages/shared`, public): generic value objects/time/email/phone, CQRS/saga, feature evaluation, analytics primitives, preferences schema and pure CV presentation/profile/document/transform/revision/recovery contracts;
+- `@ruxt/core` (private root of the `ruxt-core` workspace): payment, commercial lifecycle/catalog, IAM/auth/password policy, cloud consent, CV import/application implementations and wire/state contracts, all business handlers and repository ports. Private legacy paths may re-export shared code; shared never imports/re-exports private. There is no application-local `core/` copy;
 - `infra/`: scrypt, SQLite/Deno KV adapters, deployment strategy selection, and handler registration;
 - the private `ruxt-admin` repository: separately served Nuxt dashboard with independent GitHub OAuth, analytics readers, and template administration;
 - `scripts/`: standalone automation, currently headless PDF rendering.
@@ -33,19 +34,21 @@ Current top-level ownership is:
 The intended application dependency direction is:
 
 ```text
-app -----------------------> core (public domain types only)
-  |                            ^
-  v                            |
-server -> core handlers <- infra adapters
+app ----------------------------> public shared/editor
+ |                                     ^
+ v                                     |
+server -> private core handlers <--- infra adapters
+                 |                     |
+                 +----> public shared <-+
 ```
 
-`core` does not import Nuxt, Nitro, Vue, database, or transport modules. Cross-runtime feature policy is exposed through the `@ruxt/core/shared` package barrel; app and server adapters do not import its internal modules. Repository interfaces in `core/repos/` are ports implemented by `infra/deploy/*` or Nitro-owned adapters. The app, server, and unit tests resolve documented package exports from the installed exact packed `@ruxt/core` artifact, never through an alias into sibling source. The local workflow builds and packs before installing; it does not publish or bump a release version. The legacy `core/` folder remains removed. Since 0.2.0 that includes the user-preferences contract (`domain/preferences`, `repos/user-preferences.repo`, get/set handlers registered in `infra/registry.ts`) and the CV session-backup rules (`domain/cv/session-backup`). HTTP routes adapt requests to CQRS handlers. CV REST and MCP independently dispatch document handlers; import routes dispatch one-purpose import handlers and use server adapters for multipart bytes and subprocess execution.
+`core` does not import Nuxt, Nitro, Vue, database, or transport modules. Cross-runtime feature evaluation is exposed through `@ruxt/shared/features`; app and server adapters do not import its internal modules. Browser app code cannot import private core, even type-only; HTTP-facing commercial/import DTOs are app-owned adapters composed from public presentation contracts, not private policy implementations. Repository interfaces in `core/repos/` are ports implemented by `infra/deploy/*` or Nitro-owned adapters. The app, server, and unit tests resolve documented package exports from installed exact packed shared/core/editor artifacts, never through an alias into sibling source. The local workflow builds and packs before installing; it does not publish or bump a release version. The legacy `core/` folder remains removed. Preferences schema/defaults and local CV backup reconciliation are public shared; account preferences get/set handlers and repository ports remain private core, registered in `infra/registry.ts`. Cloud consent/retention and import/application workflow rules remain private, not in the shared recovery helper. HTTP routes adapt requests to CQRS handlers. CV REST and MCP independently dispatch document handlers; import routes dispatch one-purpose import handlers and use server adapters for multipart bytes and subprocess execution.
 
-Browser and Nitro code import CV contracts from `core/domain/cv/`; the retired `shared/types/cv.ts` forwarding layer no longer exists. App-local copies of core CV/profile contracts are forbidden: UI-only persistence metadata may be expressed as intersections with exported core types.
+Browser and Nitro code import reusable CV contracts through `@ruxt/shared/cv`; private server adapters additionally use core import/application contracts. The canonical presentation source is `shared/domain/cv/`;  the retired `shared/types/cv.ts` forwarding layer no longer exists. App-local copies of core CV/profile contracts are forbidden: UI-only persistence metadata may be expressed as intersections with exported core types.
 
 ## CQRS And Boot
 
-`core/cqrs.ts` owns one process-global `Mediator`. `mountVendor()` creates it once. Handlers are keyed by string `requestName`; command lookup is attempted before query lookup. `createHandler()` converts thrown handler/domain errors into `{ success: false, error }`, and `Mediator.send()` throws that error to callers.
+`shared/cqrs.ts` owns one process-global `Mediator`; private `core/cqrs.ts` re-exports the same implementation, not a duplicate singleton. `mountVendor()` creates it once. Handlers are keyed by string `requestName`; command lookup is attempted before query lookup. `createHandler()` converts thrown handler/domain errors into `{ success: false, error }`, and `Mediator.send()` throws that error to callers.
 
 Nitro boot is split between:
 
@@ -91,7 +94,7 @@ From this contract onward, every newly introduced HTTP API that permits unauthen
 
 ### Feature Route Policy
 
-`core/shared` publishes the framework-free feature strategy and authenticated-feature rule factory; it contains no deployment host or route values. Both global browser middleware and Nitro middleware construct and evaluate the same rule from runtime configuration. `NUXT_PUBLIC_FEATURE_FLAGS_AUTH_DISABLED_HOSTS` supplies comma-separated exact or wildcard hosts, while `NUXT_PUBLIC_FEATURE_FLAGS_AUTH_ROUTES` supplies comma-separated exact or `/**` prefix routes. Deno configuration sets these to `*.deno.net` and the authenticated browser/API routes, causing those routes to return 404 and suppressing authentication, import, and authenticated-template controls while public/local editor routes remain enabled. Empty values enable the feature on every host and assign no routes. Host controls are deployment segmentation, not a substitute for authorization.
+`@ruxt/shared/features` exposes the framework-free feature strategy and authenticated-feature rule factory; it contains no deployment host or route values. Both global browser middleware and Nitro middleware construct and evaluate the same rule from runtime configuration. `NUXT_PUBLIC_FEATURE_FLAGS_AUTH_DISABLED_HOSTS` supplies comma-separated exact or wildcard hosts, while `NUXT_PUBLIC_FEATURE_FLAGS_AUTH_ROUTES` supplies comma-separated exact or `/**` prefix routes. Deno configuration sets these to `*.deno.net` and the authenticated browser/API routes, causing those routes to return 404 and suppressing authentication, import, and authenticated-template controls while public/local editor routes remain enabled. Empty values enable the feature on every host and assign no routes. Host controls are deployment segmentation, not a substitute for authorization.
 
 ## Runtime State
 

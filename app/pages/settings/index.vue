@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PROFILE_SAVE_MODES, type ProfileSaveMode } from "@ruxt/core/domain/preferences";
+import { PROFILE_SAVE_MODES, type ProfileSaveMode } from "@ruxt/shared/preferences";
 import { usePreferencesDescription } from "~/composables/usePreferencesDescription";
 
 // Preferences work without an account: they stay in this browser until the user signs in.

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createSaveCvTemplateHandler, saveCvTemplateCommand } from "@ruxt/core/handlers/save-cv-template";
 import { createCloneCvTemplateHandler } from "@ruxt/core/handlers/clone-cv-template";
-import type { CvTemplate } from "@ruxt/core/domain/cv/template";
+import type { CvTemplate } from "@ruxt/shared/cv";
 import { InMemoryCvTemplateRepo, makeTemplate } from "../helpers/fakes";
 
 const options = { now: () => "2026-09-20T00:00:00.000Z", createId: () => "local-fixed" };

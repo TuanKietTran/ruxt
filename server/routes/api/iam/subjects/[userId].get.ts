@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { getSubjectQuery } from "@ruxt/core/handlers/get-subject";
 
 export default defineEventHandler(async (event) => {

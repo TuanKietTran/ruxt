@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { cancelSubscriptionCommand } from "@ruxt/core/handlers/cancel-subscription";
 
 export default defineEventHandler(async (event) => {

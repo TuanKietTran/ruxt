@@ -1,8 +1,8 @@
-import { mountVendor, useMediator } from "@ruxt/core/cqrs";
-import { CvTemplate } from "@ruxt/core/domain/cv/template";
+import { mountVendor, useMediator } from "@ruxt/shared/cqrs";
+import { CvTemplate } from "@ruxt/shared/cv";
 import type { CvTemplateRepository } from "@ruxt/core/repos/cv-template.repo";
 import type { CvApplication } from "@ruxt/core/domain/cv/application";
-import { assertExpectedRevision } from "@ruxt/core/domain/cv/version";
+import { assertExpectedRevision } from "@ruxt/shared/cv";
 import type { CvApplicationRepository } from "@ruxt/core/repos/cv-application.repo";
 import type {
    CvDocumentPort,

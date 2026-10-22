@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { deletePlanCommand } from "@ruxt/core/handlers/delete-plan";
 
 export default defineEventHandler(async (event) => {

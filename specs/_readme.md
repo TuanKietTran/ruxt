@@ -1,6 +1,6 @@
 # Specs DocumentMap
 
-Last updated: fix/ruxt-core-refactor@344904d | 2026-10-22
+Last updated: feat/ruxt-core-split@4dd5c27 | 2026-10-22
 
 This folder is the compact implementation-truth map for humans and coding agents working on `cv-sv`. Read this file first, then open only the subsystem specs relevant to the work.
 
@@ -29,7 +29,8 @@ If source and specs disagree, source is ground truth. During ordinary implementa
 
 ## Working Rules
 
-- Paths written as `core/<path>` refer to `<path>` inside `@ruxt/core` (source in the separate `ruxt-core` repository); this repository has no `core/` folder. Code imports documented `@ruxt/core/...` exports, not sibling-source aliases. During the local nonpublishing refactor, build/pack core/editor first and consume their exact `file:` tarballs under the work area's `package-artifacts/phase3/`; publication, release versions and remote pushes are not part of that workflow.
+- Paths written as `core/<path>` refer to `<path>` in private `@ruxt/core` (the separate `ruxt-core` repository root); there is no local `core/` folder here. Paths written as `shared/<path>` denote public `@ruxt/shared` (canonical source `ruxt-core/packages/shared`), not an application copy. Historical `core/` paths for generic primitives/presentation may now be thin private compatibility re-exports; their canonical implementation belongs to shared. Browser code imports only public shared/editor contracts or app-owned HTTP DTOs; private handlers, ports and business/security policy are server/infra-only.
+- Consumers use finite package exports, never sibling-source aliases. For local nonpublishing validation, build shared/core/editor first and consume the exact `file:` tarballs under the work area's `package-artifacts/phase4/`, including one shared artifact for the private core dependency. Publication, existing release-version bumps and remote pushes are not part of this workflow; new shared `0.0.0` is a development snapshot.
 
 - Start here before substantial work and read the owning subsystem spec before editing that area.
 - For cross-cutting work, also read architecture/runtime, auth/security, persistence/deployment, and testing/devops as applicable.

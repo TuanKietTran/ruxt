@@ -7,7 +7,7 @@ import {
    recordSample,
    recentHourKeys,
    summarizeBuckets,
-} from "@ruxt/core/domain/analytics";
+} from "@ruxt/shared/analytics";
 
 describe("analytics metrics", () => {
    it("normalizes dynamic path segments without changing stable slugs", () => {

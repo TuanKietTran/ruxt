@@ -5,7 +5,7 @@ import type {
     PlansResponse,
     SubscriptionsResponse,
 } from "~/types/api";
-import type { StatusCode, BillingPeriod, CurrencyCode } from "@ruxt/core/domain";
+import type { StatusCode, BillingPeriod, CurrencyCode } from "~/types/api";
 import { calculateMonthlyAmount, formatMajorMoney, formatMoney, minorUnitsFor } from "~/utils/money";
 
 const route = useRoute();

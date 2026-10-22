@@ -2,6 +2,7 @@ packages:
   - "infra"
 overrides:
   '@codemirror/state': 6.7.3
+  '@ruxt/shared': file:../package-artifacts/phase4/ruxt-shared-0.0.0.tgz
 allowBuilds:
   '@parcel/watcher': true
   better-sqlite3: true

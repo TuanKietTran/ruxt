@@ -1,6 +1,6 @@
 # Testing And Devops
 
-Last updated: fix/ruxt-core-refactor@95cd2e5 | 2026-10-22
+Last updated: feat/ruxt-core-split@4dd5c27 | 2026-10-22
 
 ## Scope
 
@@ -134,7 +134,11 @@ Issue and PR templates request layer classification, acceptance criteria, local 
 
 ## Local packed-package workflow
 
-This refactor does not publish. Build `ruxt-core`, pack core and editor into the work area's `package-artifacts/phase3/`, then install the exact `file:` dependencies in Ruxt. Preserve package versions; remove sibling `link:` overrides. The core artifact contains compiled ESM and declarations with a finite export map; editor remains a Nuxt source layer, including all internal relative utilities but excluding tests. Standard Node runtime/declaration consumer checks and the Nuxt app build/typecheck validate different contracts. Tarballs are local build artifacts outside the app repository; regenerate them before a fresh local install. Do not infer independent registry/release availability from this local validation.
+This refactor does not publish. Build the `ruxt-core` workspace shared-first, pack shared/private core/editor into the work area's `package-artifacts/phase4/`, then install the exact three `file:` dependencies in Ruxt. Existing core/editor versions remain unchanged; new shared `0.0.0` is a development snapshot. No sibling `link:` overrides or source-directory aliases are allowed. Core/shared artifacts contain compiled ESM and declarations with finite export maps; editor remains a Nuxt source layer, including internal relative utilities but excluding tests. Private core must resolve the same installed shared artifact as the consumer, preserving value-object and mediator identity.
+
+Standard Node22 runtime/all-declaration strict NodeNext checks (without `skipLibCheck`) and the Nuxt app build/typecheck validate different contracts. Tests assert blocked sensitive/internal deep paths and public package omission of private domain/handler/port code. Tarballs are local build artifacts outside the app repository; regenerate them before a fresh local install. A same-path repack needs a lock/artifact refresh and byte comparison of installed declaration witnesses, not an assumption that pnpm discarded its cached artifact. Do not infer registry/release availability or remote privacy from this local validation.
+
+Root core has a local `private:true` publication guard and restricted access metadata; shared/editor are public. Core workspace publishing is manually confirmed/main-only/public-directories-only, skips shared development version0.0.0 and does not upload private core tarballs as public artifacts. Workflow definitions were statically parsed/tested locally; no remote workflow or publication was executed.
 
 ## Refactor baseline verification
 
@@ -160,7 +164,7 @@ Build success covers Nuxt compilation and some TypeScript integration but does n
 ## Current Gaps
 
 - There is no format or dedicated type-check package script. The checked-in `lint` script enforces focused architecture contracts but is not a general TypeScript/Vue/style linter.
-- CI is disabled and therefore does not run the test suites or enforce frozen install, build, security checks, or artifact validation.
+- Remote CI status was not checked or executed in this local refactor. Checked-in workflow definitions and local gates are not proof of a successful remote CI run.
 - Executable coverage exists for domain transitions/validators, IAM policy, CV split/template handlers, and CV document revision/patch handlers. It does not yet cover the real Nitro document store, repository parity, SQLite migration, Deno KV indexes, SSE streams, import cancellation/recovery, Markdown sanitization, CodeMirror, responsive UI, or export output.
 - The smoke suite asserts status codes and coarse shapes only; it does not authenticate, so authenticated CV, template-save, import, subscription, and IAM routes have no end-to-end coverage.
 - Browser-level opt-in suites now exist under `tests/smoke/` (auth UI, profile safety, content activity, generator rendering and alert-dialog behavior as well as HTTP). They are skipped without their explicit fixture settings; the hermetic suite is not rendered live Clerk coverage. The prior auth-disabled local fixture produced four auth UI failures, not a green authenticated run. There is still no configured general Vue component-test environment or exhaustive responsive/export coverage.

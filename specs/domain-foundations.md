@@ -1,17 +1,16 @@
 # Domain Foundations
 
-Last updated: fix/ruxt-core-refactor@95cd2e5 | 2026-10-22
+Last updated: feat/ruxt-core-split@4dd5c27 | 2026-10-22
 
 ## Scope
 
 This spec covers reusable primitives under:
 
-- `core/domain/value-object.ts`;
-- `core/domain/datetime/`;
-- canonical email under `core/domain/email/` and password primitives under `core/domain/iam/`;
-- `core/domain/phone/`;
-- `core/domain/payment/`;
-- barrel exports in `core/domain/index.ts` and subsystem `index.ts` files.
+- public `shared/domain/value-object.ts`, `shared/domain/datetime/`, `shared/domain/email/`, and `shared/domain/phone/`;
+- private password primitives under `core/domain/iam/` and private `core/domain/payment/`;
+- finite `@ruxt/shared/{value-object,datetime,email,phone}` exports and private core domain compatibility re-exports.
+
+The specs index defines `shared/` as the canonical public package source and `core/` as the private package root. Public code never imports private core; account/password/payment policy is not distributed in shared.
 
 Subscription/catalog and IAM policy behavior belong to their owning specs.
 
@@ -31,7 +30,7 @@ The freeze is shallow: nested objects and arrays must be frozen or treated immut
 
 ## Email And Password
 
-The canonical `Email` is `core/domain/email/email.ts`, exported by its subsystem barrel: it trims, lowercases, requires a nonempty basic `local@domain.tld` shape, and exposes canonical `value`. There is no second IAM Email implementation in the inspected checkout.
+The canonical `Email` is `shared/domain/email/email.ts`, exported through `@ruxt/shared/email` (private legacy core paths re-export it): it trims, lowercases, requires a nonempty basic `local@domain.tld` shape, and exposes canonical `value`. There is no second IAM Email implementation in the inspected checkout.
 
 Password types distinguish plaintext from persistent hashes and redact string/JSON conversion. `PasswordValidator` composes rules and reports all failures; available rules cover minimum length, uppercase, digit, special character, and exact-match common-password sets. Hashing is an injected `PasswordHasher` interface implemented in infrastructure.
 
@@ -49,7 +48,7 @@ Stored `PhoneNumber.value` is digits-only. `internationalValue` and `toString()`
 
 `BillingAddress` trims and requires line 1, city, and postal code while retaining an ISO country code and optional line 2/state. `Billing` requires a trimmed full name and combines address with optional email/phone. Billing deliberately excludes card data.
 
-Payment and phone types are exported from `core/domain/index.ts` but currently have no handler, API route, repository, schema, or frontend call site.
+Payment types remain private core; phone primitives are public shared. Legacy private domain barrels may re-export shared primitives, but never the reverse. Payment/phone types currently have no dedicated handler, API route, repository, schema, or frontend feature integration. The browser dashboard uses app-owned HTTP money/currency/status DTOs; it does not import private commercial policy.
 
 ## Current Gaps
 

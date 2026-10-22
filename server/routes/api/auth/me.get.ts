@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { getUserQuery } from "@ruxt/core/handlers/get-user";
 import { clerkClient } from "@clerk/nuxt/server";
 

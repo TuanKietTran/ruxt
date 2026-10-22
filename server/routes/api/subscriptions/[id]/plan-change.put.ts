@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { schedulePlanChangeCommand } from "@ruxt/core/handlers/schedule-plan-change";
 
 export default defineEventHandler(async (event) => {

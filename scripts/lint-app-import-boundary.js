@@ -3,7 +3,7 @@ import { extname, join, relative } from "node:path";
 import ts from "typescript";
 
 const SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx", ".vue"]);
-const FORBIDDEN_IMPORTS = ["@core/handlers", "@ruxt/core/handlers"];
+const FORBIDDEN_IMPORTS = ["@core", "@ruxt/core"];
 
 function walkSources(directory) {
     const files = [];
@@ -36,16 +36,16 @@ function isForbidden(specifier) {
 
 function moduleSpecifier(node) {
     if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
-        return node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier) ? node.moduleSpecifier : undefined;
+        return node.moduleSpecifier && ts.isStringLiteralLike(node.moduleSpecifier) ? node.moduleSpecifier : undefined;
     }
-    if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) {
+    if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteralLike(node.argument.literal)) {
         return node.argument.literal;
     }
     if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)
-        && node.moduleReference.expression && ts.isStringLiteral(node.moduleReference.expression)) {
+        && node.moduleReference.expression && ts.isStringLiteralLike(node.moduleReference.expression)) {
         return node.moduleReference.expression;
     }
-    if (ts.isCallExpression(node) && node.arguments.length === 1 && ts.isStringLiteral(node.arguments[0])) {
+    if (ts.isCallExpression(node) && node.arguments.length === 1 && ts.isStringLiteralLike(node.arguments[0])) {
         const expression = node.expression;
         if (expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(expression) && expression.text === "require")) {
             return node.arguments[0];

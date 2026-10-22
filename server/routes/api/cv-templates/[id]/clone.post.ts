@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { cloneCvTemplateCommand } from "@ruxt/core/handlers/clone-cv-template";
 import { requireCvOwner } from "../../../../utils/cv-owner";
 

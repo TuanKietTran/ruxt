@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { Email } from "@ruxt/core/domain/email/email";
-import { Instant } from "@ruxt/core/domain/datetime/instant";
-import { Duration } from "@ruxt/core/domain/datetime/duration";
-import { SocialDate } from "@ruxt/core/domain/datetime/social";
+import { Email } from "@ruxt/shared/email";
+import { Instant } from "@ruxt/shared/datetime";
+import { Duration } from "@ruxt/shared/datetime";
+import { SocialDate } from "@ruxt/shared/datetime";
 import { Money } from "@ruxt/core/domain/subscription/money";
 import { BillingCycle } from "@ruxt/core/domain/subscription/billing-cycle";
 import { SubscriptionStatus } from "@ruxt/core/domain/subscription/subscription-status";

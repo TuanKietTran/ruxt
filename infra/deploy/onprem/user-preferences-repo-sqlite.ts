@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { UserPreferencesRepository } from "@ruxt/core/repos/user-preferences.repo";
-import { normalizeUserPreferences, type UserPreferencesRecord } from "@ruxt/core/domain/preferences";
+import { normalizeUserPreferences, type UserPreferencesRecord } from "@ruxt/shared/preferences";
 import { userPreferences } from "@infra/db/schema";
 import { getSqliteDb } from "@infra/db/sqlite";
 

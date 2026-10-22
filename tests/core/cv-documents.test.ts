@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createCvDocumentHandler } from "@ruxt/core/handlers/create-cv-document";
 import { createSaveCvSourceHandler } from "@ruxt/core/handlers/save-cv-source";
 import { createPatchCvSourceHandler } from "@ruxt/core/handlers/patch-cv-source";
-import { CvDocument } from "@ruxt/core/domain/cv/document";
-import { CvRevisionConflict, assertExpectedRevision } from "@ruxt/core/domain/cv/version";
+import { CvDocument } from "@ruxt/shared/cv";
+import { CvRevisionConflict, assertExpectedRevision } from "@ruxt/shared/cv";
 import type { CvDocumentRecord } from "@ruxt/core/repos/cv-document.repo";
 import { InMemoryCvDocumentRepo } from "../helpers/fakes";
 

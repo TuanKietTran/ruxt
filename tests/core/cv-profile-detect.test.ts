@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { composeCvMarkdown, normalizeCvProfile } from "@ruxt/core/domain/cv/compose";
-import { detectCvProfile, mergeCvProfileSections } from "@ruxt/core/domain/cv/detect";
-import { extractCvProfile, toCvTemplateSkeleton } from "@ruxt/core/domain/cv/split";
-import type { CvProfileProps } from "@ruxt/core/domain/cv/types";
-import type { Handler } from "@ruxt/core/cqrs";
+import { composeCvMarkdown, normalizeCvProfile } from "@ruxt/shared/cv";
+import { detectCvProfile, mergeCvProfileSections } from "@ruxt/shared/cv";
+import { extractCvProfile, toCvTemplateSkeleton } from "@ruxt/shared/cv";
+import type { CvProfileProps } from "@ruxt/shared/cv";
+import type { Handler } from "@ruxt/shared/cqrs";
 import { createApplyCvProfileHandler, type ApplyCvProfileOutput } from "@ruxt/core/handlers/apply-cv-profile";
 import { createComposeCvProfileHandler } from "@ruxt/core/handlers/compose-cv-profile";
 import { createDetectCvProfileHandler } from "@ruxt/core/handlers/detect-cv-profile";

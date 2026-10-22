@@ -1,4 +1,4 @@
-import type { BillingPeriod, CurrencyCode } from "@ruxt/core/domain";
+import type { BillingPeriod, CurrencyCode } from "~/types/api";
 
 export const MINOR_UNITS: Readonly<Record<CurrencyCode, number>> = {
     USD: 100, EUR: 100, GBP: 100, AUD: 100,

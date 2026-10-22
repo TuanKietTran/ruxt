@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { upsertSubjectCommand } from "@ruxt/core/handlers/upsert-subject";
 
 export default defineEventHandler(async (event) => {

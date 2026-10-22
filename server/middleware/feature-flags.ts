@@ -2,7 +2,7 @@ import {
    createAuthenticatedFeature,
    isRouteEnabled,
    parsePatterns,
-} from "@ruxt/core/shared";
+} from "@ruxt/shared/features";
 
 /** Enforce deployment-owned host feature policy before a feature route is handled. */
 export default defineEventHandler((event) => {

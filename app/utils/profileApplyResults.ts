@@ -1,4 +1,4 @@
-import type { CvDocumentProps } from "@ruxt/core/domain/cv";
+import type { CvDocumentProps } from "@ruxt/shared/cv";
 
 export type ProfileApplyResult =
     | { documentId: string; ok: true; document: CvDocumentProps }

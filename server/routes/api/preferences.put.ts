@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { setUserPreferencesCommand } from "@ruxt/core/handlers/set-user-preferences";
 
 export default defineEventHandler(async (event) => {

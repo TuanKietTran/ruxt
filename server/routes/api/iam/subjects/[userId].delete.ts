@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { deleteSubjectCommand } from "@ruxt/core/handlers/delete-subject";
 
 export default defineEventHandler(async (event) => {

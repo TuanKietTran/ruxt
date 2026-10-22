@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { createCvDocumentCommand } from "@ruxt/core/handlers/create-cv-document";
 import { assertCvId } from "../../../adapters/cv/document-store";
 

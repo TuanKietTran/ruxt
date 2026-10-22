@@ -15,6 +15,18 @@ A full-stack CV workspace and subscription platform built on [Nuxt 4](https://nu
 
 ## Quick Start
 
+For this local, nonpublishing package split, first regenerate the exact tarballs referenced by `package.json` (from the `ruxt-work` directory):
+
+```bash
+pnpm --dir ruxt-core install --frozen-lockfile
+pnpm --dir ruxt-core build
+pnpm --dir ruxt-core/packages/shared pack --pack-destination ../../../package-artifacts/phase4
+pnpm --dir ruxt-core pack --pack-destination ../package-artifacts/phase4
+pnpm --dir ruxt-core/packages/editor pack --pack-destination ../../../package-artifacts/phase4
+```
+
+Then, from this frontend repository:
+
 ```bash
 pnpm install
 pnpm cv:pipeline:setup  # Python extraction/OCR dependencies
@@ -57,7 +69,7 @@ pnpm dev                # http://localhost:3000
 ```
 ruxt/
 ├── app/          # Vue 3 frontend (pages, components, composables)
-├── packages/     # Application-local package integration (not a core source copy)
+├── packages/     # Legacy editor snapshot; active layer resolves from the installed package
 ├── infra/        # Adapters: DB, crypto, deploy strategies
 │   ├── deploy/   # Deno KV and SQLite repo implementations
 │   ├── db/       # Drizzle schema + SQLite connection
@@ -66,12 +78,12 @@ ruxt/
 │   ├── plugins/  # Boot: mount mediator, bootstrap infra
 │   ├── routes/   # REST API, CV event streams, and MCP transport
 │   └── utils/    # CV document store, API errors, sessions, MCP tools
-├── specs/        # Implementation contracts; CV contracts come from @ruxt/core
+├── specs/        # Implementation contracts and public/private ownership map
 ├── scripts/      # Headless CV rendering automation
 └── docs/         # Architecture and extension guides
 ```
 
-Framework-free domain models, handlers, CQRS and repository ports live in the separate `ruxt-core` repository/package, not a local `core/` directory. The `@ruxt/editor` package supplies the route-free editor layer. See the specs index for package-consumption rules and known validation limits.
+The separate `ruxt-core` workspace supplies public `@ruxt/shared` primitives/presentation and private `@ruxt/core` business/security handlers, domains and ports; no local `core/` directory is used. Public `@ruxt/editor` supplies the route-free Nuxt layer. All resolve through finite package exports from installed local tarballs, not sibling-source aliases or the legacy editor snapshot. Browser code cannot import private core. See the specs index for contracts and validation limits; local metadata does not change remote registry/repository privacy or grant a license.
 
 ## API Overview
 

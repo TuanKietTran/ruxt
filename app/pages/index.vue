@@ -2,7 +2,7 @@
 import referenceCvCss from "~/data/reference-cv.css?raw";
 import { exportCvImages, type CvImageExportOptions, type CvImageFormat } from "~/utils/exportCvImage";
 import type { EditorStats, MarkdownFormat } from "@ruxt/editor/composables/useCodeMirror";
-import type { CvDocument } from "@ruxt/core/domain/cv";
+import type { CvDocument } from "@ruxt/shared/cv";
 import { clearCvNewSessionDraft, readCvNewSessionDraft, writeCvNewSessionDraft } from "~/utils/cvSessionBackup";
 
 definePageMeta({ layout: false, editorContext: "cv" });

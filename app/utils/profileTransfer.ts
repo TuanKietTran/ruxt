@@ -1,4 +1,4 @@
-import { normalizeCvProfile, type CvProfileProps } from "@ruxt/core/domain/cv";
+import { normalizeCvProfile, type CvProfileProps } from "@ruxt/shared/cv";
 
 /**
  * Passphrase-encrypted transport for local CV profiles.

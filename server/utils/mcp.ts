@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { listCvDocumentsQuery } from "@ruxt/core/handlers/list-cv-documents";
 import { getCvDocumentQuery } from "@ruxt/core/handlers/get-cv-document";
 import { saveCvSourceCommand } from "@ruxt/core/handlers/save-cv-source";

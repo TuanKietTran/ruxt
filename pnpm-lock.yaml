@@ -6,6 +6,7 @@ settings:
 
 overrides:
   '@codemirror/state': 6.7.3
+  '@ruxt/shared': file:../package-artifacts/phase4/ruxt-shared-0.0.0.tgz
 
 importers:
 
@@ -54,11 +55,14 @@ importers:
         specifier: ^2.5.1
         version: 2.5.1(magic-string@1.4.3)(magicast@0.5.2)(rolldown@1.2.13)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.13)(rollup@4.64.5)(vite@8.3.4(@types/node@25.6.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.1)(yaml@2.8.3)))(vite@8.3.4(@types/node@25.6.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.1)(yaml@2.8.3))(vue@3.5.32(typescript@6.0.3))
       '@ruxt/core':
-        specifier: file:../package-artifacts/phase3/ruxt-core-0.2.0.tgz
-        version: file:../package-artifacts/phase3/ruxt-core-0.2.0.tgz
+        specifier: file:../package-artifacts/phase4/ruxt-core-0.2.0.tgz
+        version: file:../package-artifacts/phase4/ruxt-core-0.2.0.tgz
       '@ruxt/editor':
-        specifier: file:../package-artifacts/phase3/ruxt-editor-0.1.1.tgz
-        version: file:../package-artifacts/phase3/ruxt-editor-0.1.1.tgz(239093d1ff790d7bff81bb399d9565e9)
+        specifier: file:../package-artifacts/phase4/ruxt-editor-0.1.1.tgz
+        version: file:../package-artifacts/phase4/ruxt-editor-0.1.1.tgz(239093d1ff790d7bff81bb399d9565e9)
+      '@ruxt/shared':
+        specifier: file:../package-artifacts/phase4/ruxt-shared-0.0.0.tgz
+        version: file:../package-artifacts/phase4/ruxt-shared-0.0.0.tgz
       docx:
         specifier: ^9.1.1
         version: 9.7.1
@@ -1330,13 +1334,13 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@ruxt/core@file:../package-artifacts/phase3/ruxt-core-0.2.0.tgz':
-    resolution: {integrity: sha512-IAUaMhAKorF9Ivgp4H1ZfdTX281tDhcbBaFM2hGsy/QByLAJREx2545eqQRhBesTkvNEX3SFJrqOj86bIDSP5A==, tarball: file:../package-artifacts/phase3/ruxt-core-0.2.0.tgz}
+  '@ruxt/core@file:../package-artifacts/phase4/ruxt-core-0.2.0.tgz':
+    resolution: {integrity: sha512-yvTwD9jBNok1urwKLJOEz/3e9tlTZO/VWq3ELV7/Pu4rk2YtGw881fxyBpmw6MInvIkJ0ILqEMqsFH1lcrTbhw==, tarball: file:../package-artifacts/phase4/ruxt-core-0.2.0.tgz}
     version: 0.2.0
     engines: {node: '>=22'}
 
-  '@ruxt/editor@file:../package-artifacts/phase3/ruxt-editor-0.1.1.tgz':
-    resolution: {integrity: sha512-GDDCN8D2tKOIe9PGIm+p5JoqmR0zJBzc1h5DBNo7vFnYVlR4hQvrwWeWN+QJ5JqoHoKQPJQtYHQFL3yQGYdJEg==, tarball: file:../package-artifacts/phase3/ruxt-editor-0.1.1.tgz}
+  '@ruxt/editor@file:../package-artifacts/phase4/ruxt-editor-0.1.1.tgz':
+    resolution: {integrity: sha512-GDDCN8D2tKOIe9PGIm+p5JoqmR0zJBzc1h5DBNo7vFnYVlR4hQvrwWeWN+QJ5JqoHoKQPJQtYHQFL3yQGYdJEg==, tarball: file:../package-artifacts/phase4/ruxt-editor-0.1.1.tgz}
     version: 0.1.1
     peerDependencies:
       '@codemirror/commands': ^6.11.0
@@ -1349,6 +1353,11 @@ packages:
       '@codemirror/view': ^6.43.11
       '@lezer/highlight': ^1.2.3
       nuxt: ^4.4.2
+
+  '@ruxt/shared@file:../package-artifacts/phase4/ruxt-shared-0.0.0.tgz':
+    resolution: {integrity: sha512-abgUTjV68GfSV1Z0V0CasLAOXF4DAwWtNTyF9j7aLwFk3q+N4nmvCz4h9XkQ1puQsJOmnmnkJwMmsLaIjefnfg==, tarball: file:../package-artifacts/phase4/ruxt-shared-0.0.0.tgz}
+    version: 0.0.0
+    engines: {node: '>=22'}
 
   '@simple-git/args-pathspec@1.0.3':
     resolution: {integrity: sha512-ngJMaHlsWDTfjyq9F3VIQ8b7NXbBLq5j9i5bJ6XLYtD6qlDXT7fdKY2KscWWUF8t18xx052Y/PUO1K1TRc9yKA==}
@@ -4986,7 +4995,7 @@ snapshots:
   '@babel/helpers@7.29.2':
     dependencies:
       '@babel/template': 7.28.6
-      '@babel/types': 7.29.0
+      '@babel/types': 7.29.8
 
   '@babel/parser@7.29.2':
     dependencies:
@@ -5025,7 +5034,7 @@ snapshots:
     dependencies:
       '@babel/code-frame': 7.29.0
       '@babel/parser': 7.29.9
-      '@babel/types': 7.29.0
+      '@babel/types': 7.29.8
 
   '@babel/template@7.29.7':
     dependencies:
@@ -5040,7 +5049,7 @@ snapshots:
       '@babel/helper-globals': 7.28.0
       '@babel/parser': 7.29.9
       '@babel/template': 7.28.6
-      '@babel/types': 7.29.0
+      '@babel/types': 7.29.8
       debug: 4.4.3(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
@@ -6513,9 +6522,11 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.64.5':
     optional: true
 
-  '@ruxt/core@file:../package-artifacts/phase3/ruxt-core-0.2.0.tgz': {}
+  '@ruxt/core@file:../package-artifacts/phase4/ruxt-core-0.2.0.tgz':
+    dependencies:
+      '@ruxt/shared': file:../package-artifacts/phase4/ruxt-shared-0.0.0.tgz
 
-  '@ruxt/editor@file:../package-artifacts/phase3/ruxt-editor-0.1.1.tgz(239093d1ff790d7bff81bb399d9565e9)':
+  '@ruxt/editor@file:../package-artifacts/phase4/ruxt-editor-0.1.1.tgz(239093d1ff790d7bff81bb399d9565e9)':
     dependencies:
       '@codemirror/commands': 6.11.0
       '@codemirror/lang-css': 6.3.1
@@ -6541,6 +6552,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - typescript
+
+  '@ruxt/shared@file:../package-artifacts/phase4/ruxt-shared-0.0.0.tgz': {}
 
   '@simple-git/args-pathspec@1.0.3': {}
 

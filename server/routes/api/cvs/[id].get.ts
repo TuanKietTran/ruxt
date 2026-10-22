@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { getCvDocumentQuery } from "@ruxt/core/handlers/get-cv-document";
 import { assertCvId } from "../../../adapters/cv/document-store";
 

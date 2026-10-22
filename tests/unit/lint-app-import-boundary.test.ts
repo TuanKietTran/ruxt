@@ -15,31 +15,34 @@ afterEach(() => {
 });
 
 describe("frontend import boundary", () => {
-    it("finds handler imports and re-exports including type-only imports", () => {
+    it("rejects every private package path, including type-only imports and re-exports", () => {
         const root = appRoot();
         mkdirSync(join(root, "nested"));
-        writeFileSync(join(root, "nested", "consumer.ts"), 'import type { Result } from "@core/handlers/apply";\n');
-        writeFileSync(join(root, "nested", "barrel.ts"), 'export type { Result } from "@ruxt/core/handlers/apply";\n');
+        writeFileSync(join(root, "nested", "consumer.ts"), 'import type { Result } from "@core/domain/iam";\n');
+        writeFileSync(join(root, "nested", "barrel.ts"), 'export type { Result } from "@ruxt/core/domain/cv";\n');
+        writeFileSync(join(root, "nested", "root.ts"), 'import "@ruxt/core";\n');
         expect(findForbiddenAppImports(root)).toEqual([
-            { file: "nested/barrel.ts", line: 1, specifier: "@ruxt/core/handlers/apply" },
-            { file: "nested/consumer.ts", line: 1, specifier: "@core/handlers/apply" },
+            { file: "nested/barrel.ts", line: 1, specifier: "@ruxt/core/domain/cv" },
+            { file: "nested/consumer.ts", line: 1, specifier: "@core/domain/iam" },
+            { file: "nested/root.ts", line: 1, specifier: "@ruxt/core" },
         ]);
     });
 
-    it("parses Vue script blocks, dynamic imports and import types without matching plain strings", () => {
+    it("parses Vue scripts, import types, dynamic and require calls, and backtick module literals", () => {
         const root = appRoot();
-        writeFileSync(join(root, "page.vue"), `<template><p>import type is visible text</p></template>\n<script setup lang="ts">\nconst example = "@core/handlers/not-an-import";\nimport type { Result } from "@core/handlers/apply";\ntype Handler = typeof import("@core/handlers/apply");\nconst load = () => import("@ruxt/core/handlers/apply");\n</script>\n`);
+        writeFileSync(join(root, "page.vue"), `<template><p>import type is visible text</p></template>\n<script setup lang="ts">\nconst example = "@core/handlers/not-an-import";\nimport type { Result } from "@core/domain/iam";\ntype Contract = import("@ruxt/core/domain/cv").CvProfileProps;\nconst load = () => import(\`@ruxt/core/domain/preferences\`);\nconst legacy = require("@core/shared");\n</script>\n`);
         expect(findForbiddenAppImports(root)).toEqual([
-            { file: "page.vue", line: 4, specifier: "@core/handlers/apply" },
-            { file: "page.vue", line: 5, specifier: "@core/handlers/apply" },
-            { file: "page.vue", line: 6, specifier: "@ruxt/core/handlers/apply" },
+            { file: "page.vue", line: 4, specifier: "@core/domain/iam" },
+            { file: "page.vue", line: 5, specifier: "@ruxt/core/domain/cv" },
+            { file: "page.vue", line: 6, specifier: "@ruxt/core/domain/preferences" },
+            { file: "page.vue", line: 7, specifier: "@core/shared" },
         ]);
     });
 
-    it("accepts domain contracts and paths that merely share a prefix", () => {
+    it("allows public shared imports and non-package paths that merely share a prefix", () => {
         const root = appRoot();
-        writeFileSync(join(root, "allowed.ts"), 'import type { CvDocumentProps } from "@core/domain/cv";\nconst example = "@core/handlers/foo";\n');
-        writeFileSync(join(root, "also-allowed.js"), 'import { handler } from "@core/handlers-not-a-module";\n');
+        writeFileSync(join(root, "allowed.ts"), 'import type { CvProfileProps } from "@ruxt/shared/cv";\nimport { Email } from "@ruxt/shared/email";\nconst example = "@core/domain/iam";\n');
+        writeFileSync(join(root, "also-allowed.js"), 'import { handler } from "@ruxt/coreish/domain";\n');
         expect(findForbiddenAppImports(root)).toEqual([]);
     });
 });

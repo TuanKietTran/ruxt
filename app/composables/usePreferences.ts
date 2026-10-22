@@ -3,7 +3,7 @@ import {
    normalizeUserPreferences,
    type UserPreferences,
    type UserPreferencesView,
-} from "@ruxt/core/domain/preferences";
+} from "@ruxt/shared/preferences";
 
 export const LOCAL_PREFERENCES_KEY = "cv-sv:preferences:v1";
 

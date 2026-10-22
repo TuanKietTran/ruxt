@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { getPlanQuery } from "@ruxt/core/handlers/get-plan";
 
 export default defineEventHandler(async (event) => {

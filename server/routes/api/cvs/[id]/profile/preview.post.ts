@@ -1,4 +1,4 @@
-import { useMediator } from "@ruxt/core/cqrs";
+import { useMediator } from "@ruxt/shared/cqrs";
 import { composeCvProfileQuery } from "@ruxt/core/handlers/compose-cv-profile";
 import { assertCvId } from "../../../../../adapters/cv/document-store";
 import { getAuthPrincipal } from "../../../../../utils/auth-user";
