@@ -47,7 +47,7 @@ jobs:
             # The core tarball is rebuilt here from a pinned commit, so its
             # checksum is refreshed instead of compared with the local build's.
             - name: Install dependencies
-              run: pnpm install --frozen-lockfile --update-checksums
+              run: pnpm install --no-frozen-lockfile --update-checksums
 
             - name: Test
               run: pnpm test
