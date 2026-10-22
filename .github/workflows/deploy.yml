@@ -44,8 +44,10 @@ jobs:
                   mkdir -p ../package-artifacts/phase4
                   pnpm --dir ../ruxt-core pack --pack-destination ../package-artifacts/phase4
 
+            # The core tarball is rebuilt here from a pinned commit, so its
+            # checksum is refreshed instead of compared with the local build's.
             - name: Install dependencies
-              run: pnpm install --frozen-lockfile
+              run: pnpm install --frozen-lockfile --update-checksums
 
             - name: Test
               run: pnpm test
