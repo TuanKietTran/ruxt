@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { listCvDocumentsQuery } from "@core/handlers/list-cv-documents";
+import { useMediator } from "@ruxt/core/cqrs";
+import { listCvDocumentsQuery } from "@ruxt/core/handlers/list-cv-documents";
 
 export default defineEventHandler(async () => ({
     documents: await sendApiRequest(useMediator(), listCvDocumentsQuery()),

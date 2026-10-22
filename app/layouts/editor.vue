@@ -2,8 +2,8 @@
 import { computed } from "vue";
 import { useTheme, type ThemeId } from "~/composables/useTheme";
 import type { EditorStats } from "@ruxt/editor/composables/useCodeMirror";
-import type { CvDocumentSummary, CvTemplate } from "@core/domain/cv";
-import { cvSessionsToRecover, mergeCvSessions, type CvSessionBackupEntry } from "@core/domain/cv";
+import type { CvDocumentSummary, CvTemplate } from "@ruxt/core/domain/cv";
+import { cvSessionsToRecover, mergeCvSessions, type CvSessionBackupEntry } from "@ruxt/core/domain/cv";
 import { clearCvSessionBackup, listCvSessionBackups } from "~/utils/cvSessionBackup";
 import { hasEditorFeature, listEditorContexts, resolveEditorContext, type EditorContext, type EditorFeature } from "~/utils/editorContexts";
 

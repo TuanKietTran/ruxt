@@ -1,5 +1,5 @@
 import { getKv } from "@infra/kv";
-import type { UserRepository, StoredUser } from "@core/repos/user.repo";
+import type { UserRepository, StoredUser } from "@ruxt/core/repos/user.repo";
 
 // key schema:
 //   ["user", id]           → StoredUser (primary)

@@ -1,15 +1,15 @@
-import { mountVendor, useMediator } from "@core/cqrs";
-import { CvTemplate } from "@core/domain/cv/template";
-import type { CvTemplateRepository } from "@core/repos/cv-template.repo";
-import type { CvApplication } from "@core/domain/cv/application";
-import { assertExpectedRevision } from "@core/domain/cv/version";
-import type { CvApplicationRepository } from "@core/repos/cv-application.repo";
+import { mountVendor, useMediator } from "@ruxt/core/cqrs";
+import { CvTemplate } from "@ruxt/core/domain/cv/template";
+import type { CvTemplateRepository } from "@ruxt/core/repos/cv-template.repo";
+import type { CvApplication } from "@ruxt/core/domain/cv/application";
+import { assertExpectedRevision } from "@ruxt/core/domain/cv/version";
+import type { CvApplicationRepository } from "@ruxt/core/repos/cv-application.repo";
 import type {
    CvDocumentPort,
    CvDocumentRecord,
    CvDocumentSummary,
    UpdateCvDocumentInput,
-} from "@core/repos/cv-document.repo";
+} from "@ruxt/core/repos/cv-document.repo";
 
 /** The mediator is a process singleton; tests reuse the one instance. */
 export function testMediator() {

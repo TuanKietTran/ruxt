@@ -1,14 +1,14 @@
 import { createHash } from "node:crypto";
 import referenceMarkdown from "../../../app/data/reference-cv.md?raw";
 import referenceCss from "../../../app/data/reference-cv.css?raw";
-import { CvDocument } from "@core/domain/cv/document";
+import { CvDocument } from "@ruxt/core/domain/cv/document";
 import { migrateCvIndicatorSources } from "./source-migration";
 import type {
     CvDocumentProps,
     CvDocumentSummary,
     CvUpdateEvent,
     UpdateCvDocumentInput,
-} from "@core/domain/cv";
+} from "@ruxt/core/domain/cv";
 
 type Listener = (update: CvUpdateEvent) => void;
 

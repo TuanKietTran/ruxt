@@ -5,7 +5,7 @@ import {
    plainCvText,
    splitCvApplication,
    toCvTemplateSkeleton,
-} from "@core/domain/cv/split";
+} from "@ruxt/core/domain/cv/split";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 

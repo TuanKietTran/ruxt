@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createLoginUserHandler } from "@core/handlers/login-user";
-import { createRegisterUserHandler } from "@core/handlers/register-user";
-import { HashedPassword, type PasswordHasher, type PlainPassword } from "@core/domain/iam/password";
-import type { StoredUser, UserRepository } from "@core/repos/user.repo";
+import { createLoginUserHandler } from "@ruxt/core/handlers/login-user";
+import { createRegisterUserHandler } from "@ruxt/core/handlers/register-user";
+import { HashedPassword, type PasswordHasher, type PlainPassword } from "@ruxt/core/domain/iam/password";
+import type { StoredUser, UserRepository } from "@ruxt/core/repos/user.repo";
 import { safeAuthRedirect } from "../../app/utils/auth-redirect";
 
 class InMemoryUsers implements UserRepository {

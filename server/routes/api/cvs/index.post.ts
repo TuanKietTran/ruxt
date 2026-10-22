@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { createCvDocumentCommand } from "@core/handlers/create-cv-document";
+import { useMediator } from "@ruxt/core/cqrs";
+import { createCvDocumentCommand } from "@ruxt/core/handlers/create-cv-document";
 import { assertCvId } from "../../../adapters/cv/document-store";
 
 export default defineEventHandler(async (event) => {

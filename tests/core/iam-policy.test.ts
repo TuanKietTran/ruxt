@@ -4,12 +4,12 @@ import {
    PolicyEvaluator,
    SameOrgPolicy,
    ServiceAccountReadOnlyPolicy,
-} from "@core/domain/iam/policy";
-import { AccessRequest } from "@core/domain/iam/access-request";
-import { SubjectAttributes } from "@core/domain/iam/subject-attributes";
-import { ResourceAttributes } from "@core/domain/iam/resource-attributes";
-import { Action } from "@core/domain/iam/action";
-import type { ActionCode } from "@core/domain/iam/types";
+} from "@ruxt/core/domain/iam/policy";
+import { AccessRequest } from "@ruxt/core/domain/iam/access-request";
+import { SubjectAttributes } from "@ruxt/core/domain/iam/subject-attributes";
+import { ResourceAttributes } from "@ruxt/core/domain/iam/resource-attributes";
+import { Action } from "@ruxt/core/domain/iam/action";
+import type { ActionCode } from "@ruxt/core/domain/iam/types";
 
 const evaluator = new PolicyEvaluator([OwnerFullAccessPolicy, ServiceAccountReadOnlyPolicy, SameOrgPolicy]);
 

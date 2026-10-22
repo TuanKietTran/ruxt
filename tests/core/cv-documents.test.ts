@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createCvDocumentHandler } from "@core/handlers/create-cv-document";
-import { createSaveCvSourceHandler } from "@core/handlers/save-cv-source";
-import { createPatchCvSourceHandler } from "@core/handlers/patch-cv-source";
-import { CvDocument } from "@core/domain/cv/document";
-import { CvRevisionConflict, assertExpectedRevision } from "@core/domain/cv/version";
-import type { CvDocumentRecord } from "@core/repos/cv-document.repo";
+import { createCvDocumentHandler } from "@ruxt/core/handlers/create-cv-document";
+import { createSaveCvSourceHandler } from "@ruxt/core/handlers/save-cv-source";
+import { createPatchCvSourceHandler } from "@ruxt/core/handlers/patch-cv-source";
+import { CvDocument } from "@ruxt/core/domain/cv/document";
+import { CvRevisionConflict, assertExpectedRevision } from "@ruxt/core/domain/cv/version";
+import type { CvDocumentRecord } from "@ruxt/core/repos/cv-document.repo";
 import { InMemoryCvDocumentRepo } from "../helpers/fakes";
 
 const data = <T>(result: { success: boolean } & Record<string, unknown>) => (result as { data: T }).data;

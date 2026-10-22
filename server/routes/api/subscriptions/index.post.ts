@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { createSubscriptionCommand } from "@core/handlers/create-subscription";
+import { useMediator } from "@ruxt/core/cqrs";
+import { createSubscriptionCommand } from "@ruxt/core/handlers/create-subscription";
 
 export default defineEventHandler(async (event) => {
    const body = await readBody(event);

@@ -1,5 +1,5 @@
-import type { CvDocument, CvDocumentSummary, CvTemplate } from "@core/domain/cv";
-import type { CvSessionBackupEntry } from "@core/domain/cv";
+import type { CvDocument, CvDocumentSummary, CvTemplate } from "@ruxt/core/domain/cv";
+import type { CvSessionBackupEntry } from "@ruxt/core/domain/cv";
 import { clearCvSessionBackup, readCvSessionBackup, writeCvSessionBackup } from "~/utils/cvSessionBackup";
 
 const CV_SESSION_DELTA_WINDOW_MS = 5 * 60 * 1000;

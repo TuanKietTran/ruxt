@@ -1,6 +1,6 @@
-import { useMediator } from "@core/cqrs";
-import { saveCvTemplateCommand } from "@core/handlers/save-cv-template";
-import type { CvTemplate } from "@core/domain/cv";
+import { useMediator } from "@ruxt/core/cqrs";
+import { saveCvTemplateCommand } from "@ruxt/core/handlers/save-cv-template";
+import type { CvTemplate } from "@ruxt/core/domain/cv";
 import { requireCvOwner } from "../../../utils/cv-owner";
 
 export default defineEventHandler(async (event) => {

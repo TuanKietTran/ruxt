@@ -1,8 +1,8 @@
 import { eq, and } from "drizzle-orm";
 import { getSqliteDb } from "@infra/db/sqlite";
 import { plans } from "@infra/db/schema";
-import { Plan, PlanId } from "@core/domain/catalog";
-import type { PlanRepository } from "@core/repos/plan.repo";
+import { Plan, PlanId } from "@ruxt/core/domain/catalog";
+import type { PlanRepository } from "@ruxt/core/repos/plan.repo";
 
 export class SqlitePlanRepo implements PlanRepository {
    private get db() { return getSqliteDb(); }

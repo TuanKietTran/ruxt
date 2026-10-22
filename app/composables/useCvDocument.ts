@@ -1,5 +1,5 @@
-import type { CvDocumentProps as CvDocument, CvUpdateEvent } from "@core/domain/cv";
-import { shouldRestoreCvBackup } from "@core/domain/cv";
+import type { CvDocumentProps as CvDocument, CvUpdateEvent } from "@ruxt/core/domain/cv";
+import { shouldRestoreCvBackup } from "@ruxt/core/domain/cv";
 import { readCvSessionBackup, writeCvSessionBackup } from "~/utils/cvSessionBackup";
 
 export type CvSaveState = "saved" | "saving" | "conflict" | "offline";

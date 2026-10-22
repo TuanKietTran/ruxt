@@ -1,8 +1,8 @@
-import { useMediator } from "@core/cqrs";
-import { createCvImportCommand } from "@core/handlers/create-cv-import";
-import { getCvCapabilitiesQuery } from "@core/handlers/get-cv-capabilities";
-import { getCvTemplateQuery } from "@core/handlers/get-cv-template";
-import type { CvPipelineCapabilities } from "@core/domain/cv/import";
+import { useMediator } from "@ruxt/core/cqrs";
+import { createCvImportCommand } from "@ruxt/core/handlers/create-cv-import";
+import { getCvCapabilitiesQuery } from "@ruxt/core/handlers/get-cv-capabilities";
+import { getCvTemplateQuery } from "@ruxt/core/handlers/get-cv-template";
+import type { CvPipelineCapabilities } from "@ruxt/core/domain/cv/import";
 import { cvArtifactRepo } from "../../../adapters/cv/pipeline-repos";
 import { runCvImport } from "../../../services/cv-import-worker";
 import { requireCvOwner } from "../../../utils/cv-owner";

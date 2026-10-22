@@ -6,7 +6,7 @@ import {
    isRouteEnabled,
    parsePatterns,
    routeMatches,
-} from "@core/shared";
+} from "@ruxt/core/shared";
 
 const authenticatedFeature = createAuthenticatedFeature(
    ["/login", "/api/auth/**", "/api/cv-capabilities"],

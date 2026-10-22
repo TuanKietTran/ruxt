@@ -1,5 +1,5 @@
-import type { UserPreferencesRepository } from "@core/repos/user-preferences.repo";
-import { normalizeUserPreferences, type UserPreferencesRecord } from "@core/domain/preferences";
+import type { UserPreferencesRepository } from "@ruxt/core/repos/user-preferences.repo";
+import { normalizeUserPreferences, type UserPreferencesRecord } from "@ruxt/core/domain/preferences";
 import { getKv } from "@infra/kv";
 
 export class DenoKvUserPreferencesRepo implements UserPreferencesRepository {

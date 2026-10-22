@@ -91,7 +91,7 @@ Server imports require Python plus `pdfplumber`, `pytesseract`, and Pillow; `pnp
 
 ## Automated Test Suites
 
-`vitest` (dev dependency, Node environment) is the runner. `vitest.config.ts` re-declares the `@core` and `@infra` aliases that `nuxt.config.ts` owns, because Vitest does not read Nuxt configuration, and it includes only `tests/**/*.test.ts`.
+`vitest` (dev dependency, Node environment) is the runner. `vitest.config.ts` repeats the application `@infra` alias because Vitest does not read Nuxt configuration, and includes `tests/**/*.test.ts`. Core imports use installed package exports directly, without a source-directory alias.
 
 Suites are layered by what they can assert without a server:
 
@@ -131,6 +131,10 @@ Deno environment variables are runtime context configuration, not repository or 
 The names are `NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NUXT_CLERK_SECRET_KEY`, and `NUXT_SESSION_SECRET`. They are not needed in Deno's Build context. Deno configuration also sets `NUXT_PUBLIC_FEATURE_FLAGS_AUTH_DISABLED_HOSTS=*.deno.net` and `NUXT_PUBLIC_FEATURE_FLAGS_AUTH_ROUTES` to the authenticated route list shown in `.env.example`. Both are comma-separated runtime policy and have empty application defaults, so no deployment rule is hard-coded; custom application domains retain authentication. `server/plugins/validate-deployment-env.ts` uses `DENO_TIMELINE` to reject absent keys, test keys in Production, live keys in non-production timelines, or a weak/missing session secret. Clerk production must allow the production application domain; preview OAuth remains isolated in Clerk Development and must not be used for real accounts or data.
 
 Issue and PR templates request layer classification, acceptance criteria, local `pnpm dev` testing, and screenshots/logs, but they do not execute checks.
+
+## Local packed-package workflow
+
+This refactor does not publish. Build `ruxt-core`, pack core and editor into the work area's `package-artifacts/phase3/`, then install the exact `file:` dependencies in Ruxt. Preserve package versions; remove sibling `link:` overrides. The core artifact contains compiled ESM and declarations with a finite export map; editor remains a Nuxt source layer, including all internal relative utilities but excluding tests. Standard Node runtime/declaration consumer checks and the Nuxt app build/typecheck validate different contracts. Tarballs are local build artifacts outside the app repository; regenerate them before a fresh local install. Do not infer independent registry/release availability from this local validation.
 
 ## Refactor baseline verification
 

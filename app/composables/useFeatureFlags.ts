@@ -1,4 +1,4 @@
-import { createAuthenticatedFeature, isFeatureEnabled, parsePatterns } from "@core/shared";
+import { createAuthenticatedFeature, isFeatureEnabled, parsePatterns } from "@ruxt/core/shared";
 
 export function useFeatureFlags() {
    const config = useRuntimeConfig();

@@ -2,8 +2,8 @@
 import {
     CV_PROFILE_SECTIONS, mergeCvProfileSections,
     type CvDetectedField, type CvProfileDetection, type CvProfileProps, type CvProfileSection,
-} from "@core/domain/cv";
-import { normalizeCvProfile } from "@core/domain/cv/compose";
+} from "@ruxt/core/domain/cv";
+import { normalizeCvProfile } from "@ruxt/core/domain/cv/compose";
 import { localProfileLabel, readLocalProfiles, saveLocalProfile, type LocalProfile } from "~/utils/localProfiles";
 
 const props = defineProps<{

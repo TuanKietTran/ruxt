@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mapProfileApplyResults, profileApplyErrorMessage, type ProfileApplyResponse } from "../../app/utils/profileApplyResults";
-import type { CvDocumentProps } from "@core/domain/cv";
+import type { CvDocumentProps } from "@ruxt/core/domain/cv";
 
 const document: CvDocumentProps = {
     id: "session-1", title: "Example", markdown: "placeholder", css: "", revision: 2, updatedAt: "2026-01-01T00:00:00.000Z",

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { findForbiddenAppImports } from "./lint-app-import-boundary.js";
+import { packedPackagePolicyFailures } from "./lint-packed-package-policy.js";
 
 const failures = [];
 for (const finding of findForbiddenAppImports("app")) {
@@ -17,7 +18,7 @@ if (existsSync("app/types/profile.ts")) {
 }
 
 requireText("app/pages/profiles.vue", [
-  [/@core\/domain\/cv/, "profile editor must consume the shared core CV profile contract"],
+  [/@ruxt\/core\/domain\/cv/, "profile editor must consume the shared core CV profile contract"],
   [/definePageMeta\(\{[^}]*public:\s*true/s, "local profile editor must remain explicitly unauthenticated"],
   [/<NuxtLayout\s+name="editor"/, "product editors must reuse the editor layout"],
   [/<template\s+#workspace>/, "non-CV editor surfaces must use the editor layout workspace slot"],
@@ -65,10 +66,14 @@ requireText("nuxt.config.ts", [
   [/extends:\s*\["@ruxt\/editor"\]/, "ruxt must consume the published @ruxt/editor Nuxt layer"],
 ]);
 
-requireText("package.json", [
-  [/"@ruxt\/editor":\s*"\d+\.\d+\.\d+"/, "@ruxt/editor must be a pinned registry release, not a workspace or path reference"],
-  [/"@ruxt\/core":\s*"\d+\.\d+\.\d+"/, "@ruxt/core must be a pinned registry release, not a workspace or path reference"],
-]);
+const packageManifest = JSON.parse(readFileSync("package.json", "utf8"));
+const workspaceConfig = readFileSync("pnpm-workspace.yaml", "utf8");
+failures.push(...packedPackagePolicyFailures(packageManifest, workspaceConfig));
+for (const file of ["nuxt.config.ts", "vitest.config.ts", "tsconfig.json", "infra/tsconfig.json"]) {
+  if (/[\"']@core(?:\/\*)?[\"']\s*:/.test(readFileSync(file, "utf8"))) {
+    failures.push(`${file}: resolve @ruxt/core through package exports; do not alias a source directory`);
+  }
+}
 if (failures.length) {
   console.error(`Architecture lint failed:\n- ${failures.join("\n- ")}`);
   process.exit(1);

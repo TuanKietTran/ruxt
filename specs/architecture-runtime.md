@@ -1,6 +1,6 @@
 # Architecture And Runtime
 
-Last updated: main@6c64d4f | 2026-09-20
+Last updated: fix/ruxt-core-refactor@344904d | 2026-10-22
 
 ## Scope
 
@@ -21,12 +21,12 @@ Current top-level ownership is:
 
 - `app/`: Vue pages, layouts, components, composables, themes, editor data, browser export utilities, and browser workers;
 - `server/`: Nitro startup, HTTP route adaptation, session helpers, CV persistence/realtime, the Python pipeline adapter/worker, and MCP;
-- `@ruxt/core` (pinned npm package from the `ruxt-core` repository, aliased `@core`): framework-free CV/profile/template/application domains, value objects, CQRS handlers, repository ports, and shared feature-policy exports under `shared/`. This repository no longer carries a `core/` copy; specs that cite `core/<path>` mean `<path>` inside that package;
+- `@ruxt/core` (package from the `ruxt-core` repository; exact local packed artifact during refactor): framework-free CV/profile/template/application domains, value objects, CQRS handlers, repository ports, and shared feature-policy exports under `shared/`. This repository no longer carries a `core/` copy; specs that cite `core/<path>` mean `<path>` inside that package;
 - `infra/`: scrypt, SQLite/Deno KV adapters, deployment strategy selection, and handler registration;
 - the private `ruxt-admin` repository: separately served Nuxt dashboard with independent GitHub OAuth, analytics readers, and template administration;
 - `scripts/`: standalone automation, currently headless PDF rendering.
 
-`@core` and `@infra` aliases are configured for Vite and Nitro. `nuxt.config.ts` also adds a Nitro Rollup loader for first-party `?raw` imports so Markdown and CSS seed assets can be imported by server code.
+`@infra` remains an application workspace alias. Core imports use documented `@ruxt/core/...` package exports directly; Nuxt/Vite/Nitro/TypeScript/Vitest do not alias its source directory. `nuxt.config.ts` also adds a Nitro Rollup loader for first-party `?raw` imports so Markdown and CSS seed assets can be imported by server code.
 
 ## Dependency Direction
 
@@ -39,7 +39,7 @@ app -----------------------> core (public domain types only)
 server -> core handlers <- infra adapters
 ```
 
-`core` does not import Nuxt, Nitro, Vue, database, or transport modules. Cross-runtime feature policy is published only through the `@core/shared` package barrel; app and server adapters do not import its internal modules. Repository interfaces in `core/repos/` are ports implemented by `infra/deploy/*` or Nitro-owned adapters. The app, server, and unit tests all resolve `@core` to the pinned `@ruxt/core` release (`nuxt.config.ts` and `vitest.config.ts`), never to a local copy (the legacy `core/` folder was removed); a contract the app needs must be published in `@ruxt/core` first. Since 0.2.0 that includes the user-preferences contract (`domain/preferences`, `repos/user-preferences.repo`, get/set handlers registered in `infra/registry.ts`) and the CV session-backup rules (`domain/cv/session-backup`). HTTP routes adapt requests to CQRS handlers. CV REST and MCP independently dispatch document handlers; import routes dispatch one-purpose import handlers and use server adapters for multipart bytes and subprocess execution.
+`core` does not import Nuxt, Nitro, Vue, database, or transport modules. Cross-runtime feature policy is exposed through the `@ruxt/core/shared` package barrel; app and server adapters do not import its internal modules. Repository interfaces in `core/repos/` are ports implemented by `infra/deploy/*` or Nitro-owned adapters. The app, server, and unit tests resolve documented package exports from the installed exact packed `@ruxt/core` artifact, never through an alias into sibling source. The local workflow builds and packs before installing; it does not publish or bump a release version. The legacy `core/` folder remains removed. Since 0.2.0 that includes the user-preferences contract (`domain/preferences`, `repos/user-preferences.repo`, get/set handlers registered in `infra/registry.ts`) and the CV session-backup rules (`domain/cv/session-backup`). HTTP routes adapt requests to CQRS handlers. CV REST and MCP independently dispatch document handlers; import routes dispatch one-purpose import handlers and use server adapters for multipart bytes and subprocess execution.
 
 Browser and Nitro code import CV contracts from `core/domain/cv/`; the retired `shared/types/cv.ts` forwarding layer no longer exists. App-local copies of core CV/profile contracts are forbidden: UI-only persistence metadata may be expressed as intersections with exported core types.
 
@@ -95,7 +95,7 @@ From this contract onward, every newly introduced HTTP API that permits unauthen
 
 ## Runtime State
 
-`nuxt.config.ts` is the only alias authority at runtime. `vitest.config.ts` re-declares `@core` and `@infra` for the test runner because Vitest does not read Nuxt configuration; the two must be kept in sync when an alias changes.
+`nuxt.config.ts` owns application runtime aliases; `vitest.config.ts` repeats `@infra` because Vitest does not read Nuxt configuration. Neither may restore a source-directory `@core` alias. Package boundaries and types resolve through installed package export metadata.
 
 The mediator, deployment strategy registry, SQLite connection, Deno KV connection, CV listener sets, per-document write queues, and pending analytics accumulator are process-local singletons. Clerk owns broker sessions; normalized browser auth and theme state use Nuxt `useState`; theme preference is persisted in `localStorage`; editor preferences use `localStorage` when signed out and the owner-keyed preference store when signed in. Canonical imported CV profiles exist as versioned snapshots inside CV applications. The separate `/p` convenience editor stores lightweight profile drafts only in browser `localStorage`; it has no server repository or canonical-application status. CV documents and subscription data use separate persistence systems.
 

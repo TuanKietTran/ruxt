@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { toRaw } from "vue";
-import type { CvContactKind, CvDocumentSummary, CvProfileProps, CvTemplate } from "@core/domain/cv";
+import type { CvContactKind, CvDocumentSummary, CvProfileProps, CvTemplate } from "@ruxt/core/domain/cv";
 import { mapProfileApplyResults, profileApplyErrorMessage, type ProfileApplyResponse, type ProfileApplyStatus } from "~/utils/profileApplyResults";
-import { normalizeCvProfile } from "@core/domain/cv/compose";
+import { normalizeCvProfile } from "@ruxt/core/domain/cv/compose";
 import { type LocalProfile, newLocalProfileId, readLocalProfiles, saveLocalProfile, writeLocalProfiles } from "~/utils/localProfiles";
 import { downloadBlob, safeFilename } from "~/utils/exportCvImage";
 import {

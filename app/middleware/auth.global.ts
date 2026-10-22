@@ -2,7 +2,7 @@ import {
   createAuthenticatedFeature,
   isRouteEnabled,
   parsePatterns,
-} from "@core/shared";
+} from "@ruxt/core/shared";
 
 const PROTECTED = ["/d", "/settings"];
 

@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { detectCvProfileQuery } from "@core/handlers/detect-cv-profile";
+import { useMediator } from "@ruxt/core/cqrs";
+import { detectCvProfileQuery } from "@ruxt/core/handlers/detect-cv-profile";
 import { assertCvId } from "../../../../../adapters/cv/document-store";
 
 /** Report the profile values found in the session and where they appear. */

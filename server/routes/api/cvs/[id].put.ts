@@ -1,6 +1,6 @@
-import { useMediator } from "@core/cqrs";
-import { saveCvSourceCommand } from "@core/handlers/save-cv-source";
-import type { UpdateCvDocumentInput } from "@core/domain/cv";
+import { useMediator } from "@ruxt/core/cqrs";
+import { saveCvSourceCommand } from "@ruxt/core/handlers/save-cv-source";
+import type { UpdateCvDocumentInput } from "@ruxt/core/domain/cv";
 import { assertCvId } from "../../../adapters/cv/document-store";
 
 export default defineEventHandler(async (event) => {

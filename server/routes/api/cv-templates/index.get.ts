@@ -1,6 +1,6 @@
-import { useMediator } from "@core/cqrs";
-import { listCvTemplatesQuery } from "@core/handlers/list-cv-templates";
-import type { CvTemplate } from "@core/domain/cv";
+import { useMediator } from "@ruxt/core/cqrs";
+import { listCvTemplatesQuery } from "@ruxt/core/handlers/list-cv-templates";
+import type { CvTemplate } from "@ruxt/core/domain/cv";
 import { requireCvOwner } from "../../../utils/cv-owner";
 import { isCatalogTemplate } from "../../../adapters/cv/template-repo";
 

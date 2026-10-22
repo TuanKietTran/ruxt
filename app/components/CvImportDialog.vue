@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CvImportJobProps, CvImportPreview, CvPipelineCapabilities, CvTemplate } from "@core/domain/cv";
+import type { CvImportJobProps, CvImportPreview, CvPipelineCapabilities, CvTemplate } from "@ruxt/core/domain/cv";
 
 const emit = defineEmits<{ close: []; committed: [documentId: string] }>();
 const { openAuthDialog } = useAuthDialog();

@@ -1,13 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { useMediator } from "@core/cqrs";
-import { listCvDocumentsQuery } from "@core/handlers/list-cv-documents";
-import { getCvDocumentQuery } from "@core/handlers/get-cv-document";
-import { saveCvSourceCommand } from "@core/handlers/save-cv-source";
-import { patchCvSourceCommand } from "@core/handlers/patch-cv-source";
-import { switchCvProfileCommand } from "@core/handlers/switch-cv-profile";
-import { detectCvProfileQuery } from "@core/handlers/detect-cv-profile";
-import { applyCvProfileCommand, MAX_CV_PROFILE_APPLY_TARGETS } from "@core/handlers/apply-cv-profile";
+import { useMediator } from "@ruxt/core/cqrs";
+import { listCvDocumentsQuery } from "@ruxt/core/handlers/list-cv-documents";
+import { getCvDocumentQuery } from "@ruxt/core/handlers/get-cv-document";
+import { saveCvSourceCommand } from "@ruxt/core/handlers/save-cv-source";
+import { patchCvSourceCommand } from "@ruxt/core/handlers/patch-cv-source";
+import { switchCvProfileCommand } from "@ruxt/core/handlers/switch-cv-profile";
+import { detectCvProfileQuery } from "@ruxt/core/handlers/detect-cv-profile";
+import { applyCvProfileCommand, MAX_CV_PROFILE_APPLY_TARGETS } from "@ruxt/core/handlers/apply-cv-profile";
 
 const textResult = (value: unknown) => ({
     content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],

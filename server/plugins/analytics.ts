@@ -1,5 +1,5 @@
 import type { H3Event } from "h3";
-import { setMediatorObserver } from "@core/cqrs";
+import { setMediatorObserver } from "@ruxt/core/cqrs";
 import { normalizeRoutePath } from "@ruxt/core/domain/analytics";
 
 const FLUSH_INTERVAL_MS = 30_000;

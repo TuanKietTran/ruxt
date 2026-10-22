@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { getCloudDataConsentQuery } from "@core/handlers/get-cloud-data-consent";
+import { useMediator } from "@ruxt/core/cqrs";
+import { getCloudDataConsentQuery } from "@ruxt/core/handlers/get-cloud-data-consent";
 
 export default defineEventHandler(async (event) => {
    const userId = await requireAuthUser(event);

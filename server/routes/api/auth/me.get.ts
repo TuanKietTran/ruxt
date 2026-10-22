@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { getUserQuery } from "@core/handlers/get-user";
+import { useMediator } from "@ruxt/core/cqrs";
+import { getUserQuery } from "@ruxt/core/handlers/get-user";
 import { clerkClient } from "@clerk/nuxt/server";
 
 export default defineEventHandler(async (event) => {

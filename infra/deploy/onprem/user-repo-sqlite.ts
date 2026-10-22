@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getSqliteDb } from "@infra/db/sqlite";
 import { users } from "@infra/db/schema";
-import type { UserRepository, StoredUser } from "@core/repos/user.repo";
+import type { UserRepository, StoredUser } from "@ruxt/core/repos/user.repo";
 
 export class SqliteUserRepo implements UserRepository {
   private get db() { return getSqliteDb(); }

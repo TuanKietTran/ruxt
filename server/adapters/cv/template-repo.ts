@@ -1,8 +1,8 @@
 import harvardTemplateData from "../../data/cv-templates/harvard.v1.json";
 import pipelineTemplateData from "../../data/cv-templates/pipeline-default.v1.json";
-import type { CvTemplateRepository } from "@core/repos/cv-template.repo";
-import { CvTemplate } from "@core/domain/cv/template";
-import type { CvTemplateProps } from "@core/domain/cv/types";
+import type { CvTemplateRepository } from "@ruxt/core/repos/cv-template.repo";
+import { CvTemplate } from "@ruxt/core/domain/cv/template";
+import type { CvTemplateProps } from "@ruxt/core/domain/cv/types";
 import { migrateCvIndicatorSources } from "./source-migration";
 
 // Metadata such as visibility tags intentionally lives in these data blobs. The

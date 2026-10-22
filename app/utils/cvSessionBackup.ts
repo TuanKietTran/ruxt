@@ -3,7 +3,7 @@ import {
     parseCvSessionBackup,
     type CvSessionBackup,
     type CvSessionBackupEntry,
-} from "@core/domain/cv";
+} from "@ruxt/core/domain/cv";
 
 /**
  * Browser storage for CV session backups. The rules (when a backup wins, which sessions to re-create,

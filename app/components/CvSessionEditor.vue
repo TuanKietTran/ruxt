@@ -4,7 +4,7 @@ import referenceCvCss from "~/data/reference-cv.css?raw";
 import { exportCvImages, type CvImageExportOptions, type CvImageFormat } from "~/utils/exportCvImage";
 import { exportCvBundle, type CvDocumentExportFormat } from "~/utils/exportCvDocument";
 import type { CodeMirrorHighlight, EditorStats, MarkdownFormat } from "@ruxt/editor/composables/useCodeMirror";
-import { detectCvProfile, type CvDetectedField, type CvDocumentProps as CvDocument, type CvProfileDetection, type CvTemplate } from "@core/domain/cv";
+import { detectCvProfile, type CvDetectedField, type CvDocumentProps as CvDocument, type CvProfileDetection, type CvTemplate } from "@ruxt/core/domain/cv";
 import { localProfileLabel, readLocalProfiles as loadLocalProfiles, type LocalProfile } from "~/utils/localProfiles";
 
 const props = defineProps<{ documentId: string }>();

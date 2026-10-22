@@ -1,11 +1,7 @@
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ICONS } from "./app/utils/icons";
 
-const require = createRequire(import.meta.url);
-const corePath = dirname(require.resolve("@ruxt/core/package.json"));
 const infraPath = fileURLToPath(new URL("./infra", import.meta.url));
 const chunkedDenoKvDriver = fileURLToPath(new URL("./server/storage/chunked-deno-kv.ts", import.meta.url));
 // Deno's native Nuxt builder uses the lightweight `deno-server` preset. The
@@ -53,7 +49,6 @@ export default defineNuxtConfig({
    css: ['~/assets/theme/themes.css'],
 
    alias: {
-      "@core": corePath,
       "@infra": infraPath,
    },
 
@@ -85,9 +80,6 @@ export default defineNuxtConfig({
    },
 
    nitro: {
-      externals: {
-         inline: [corePath],
-      },
       experimental: {
          tasks: true,
       },
@@ -108,9 +100,6 @@ export default defineNuxtConfig({
       esbuild: {
          options: {
             target: "es2022",
-            // @ruxt/core intentionally publishes framework-free TypeScript source.
-            // Keep other dependencies excluded while allowing Nitro to transpile it.
-            exclude: /node_modules\/(?!\.pnpm\/@ruxt\+core@|@ruxt\/core)/,
          },
       },
       rollupConfig: {
@@ -123,14 +112,12 @@ export default defineNuxtConfig({
          }],
       },
       alias: {
-         "@core": corePath,
          "@infra": infraPath,
       },
       typescript: {
          tsConfig: {
             compilerOptions: {
                paths: {
-                  "@core/*": [`${corePath}/*`],
                   "@infra/*": [`${infraPath}/*`],
                },
             },

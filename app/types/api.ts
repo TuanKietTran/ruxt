@@ -1,4 +1,4 @@
-import type { MoneyProps, BillingPeriod, StatusCode } from '@core/domain'
+import type { MoneyProps, BillingPeriod, StatusCode } from '@ruxt/core/domain'
 
 // ── Plan ─────────────────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
-import { normalizeCvProfile } from "@core/domain/cv/compose";
-import type { CvProfileProps } from "@core/domain/cv";
+import { normalizeCvProfile } from "@ruxt/core/domain/cv/compose";
+import type { CvProfileProps } from "@ruxt/core/domain/cv";
 
 /** Browser-only profiles shared by the profile editor and CV sessions. */
 export type LocalProfile = CvProfileProps & { id: string; createdAt: number; updatedAt: number };

@@ -1,6 +1,6 @@
 # Specs DocumentMap
 
-Last updated: main@ff295d9 | 2026-09-20
+Last updated: fix/ruxt-core-refactor@344904d | 2026-10-22
 
 This folder is the compact implementation-truth map for humans and coding agents working on `cv-sv`. Read this file first, then open only the subsystem specs relevant to the work.
 
@@ -29,7 +29,7 @@ If source and specs disagree, source is ground truth. During ordinary implementa
 
 ## Working Rules
 
-- Paths written as `core/<path>` refer to `<path>` inside the pinned `@ruxt/core` package (source in the `ruxt-core` repository, imported as `@core/...`); this repository has no `core/` folder. Change shared contracts there, publish, then bump the pin here.
+- Paths written as `core/<path>` refer to `<path>` inside `@ruxt/core` (source in the separate `ruxt-core` repository); this repository has no `core/` folder. Code imports documented `@ruxt/core/...` exports, not sibling-source aliases. During the local nonpublishing refactor, build/pack core/editor first and consume their exact `file:` tarballs under the work area's `package-artifacts/phase3/`; publication, release versions and remote pushes are not part of that workflow.
 
 - Start here before substantial work and read the owning subsystem spec before editing that area.
 - For cross-cutting work, also read architecture/runtime, auth/security, persistence/deployment, and testing/devops as applicable.

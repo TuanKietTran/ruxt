@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { applyCvProfileCommand } from "@core/handlers/apply-cv-profile";
+import { useMediator } from "@ruxt/core/cqrs";
+import { applyCvProfileCommand } from "@ruxt/core/handlers/apply-cv-profile";
 import { assertCvId } from "../../../adapters/cv/document-store";
 import { getAuthPrincipal } from "../../../utils/auth-user";
 
