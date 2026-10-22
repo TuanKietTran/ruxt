@@ -55,8 +55,8 @@ importers:
         specifier: ^2.5.1
         version: 2.5.1(magic-string@1.4.3)(magicast@0.5.2)(rolldown@1.2.13)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.13)(rollup@4.64.5)(vite@8.3.4(@types/node@25.6.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.1)(yaml@2.8.3)))(vite@8.3.4(@types/node@25.6.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.1)(yaml@2.8.3))(vue@3.5.32(typescript@6.0.3))
       '@ruxt/core':
-        specifier: file:../package-artifacts/phase4/ruxt-core-0.2.0.tgz
-        version: file:../package-artifacts/phase4/ruxt-core-0.2.0.tgz
+        specifier: file:../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz
+        version: '@tuankiettran/ruxt-core@file:../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz'
       '@ruxt/editor':
         specifier: 0.1.2
         version: 0.1.2(239093d1ff790d7bff81bb399d9565e9)
@@ -1334,11 +1334,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@ruxt/core@file:../package-artifacts/phase4/ruxt-core-0.2.0.tgz':
-    resolution: {integrity: sha512-yvTwD9jBNok1urwKLJOEz/3e9tlTZO/VWq3ELV7/Pu4rk2YtGw881fxyBpmw6MInvIkJ0ILqEMqsFH1lcrTbhw==, tarball: file:../package-artifacts/phase4/ruxt-core-0.2.0.tgz}
-    version: 0.2.0
-    engines: {node: '>=22'}
-
   '@ruxt/editor@0.1.2':
     resolution: {integrity: sha512-fH/SjZkocsKYV/FrUROqEifqZ6jdshWdN3z4wovm4QSqXhkjyVrSZ3UneYHdAYLpPqCXBwBbibDTHUZGqDV40w==}
     peerDependencies:
@@ -1379,6 +1374,11 @@ packages:
 
   '@tanstack/query-core@5.103.1':
     resolution: {integrity: sha512-rms8HqTGp6zA00dM+cUQ2eBcgzNJefuu5CAMB37i/6MiGT1zulPOytCFu2a0qjLqVR2n1jENPj9woqFQNuCzWA==}
+
+  '@tuankiettran/ruxt-core@file:../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz':
+    resolution: {integrity: sha512-sS5qmQBe/1E8H1Jitq+QoiQP0xdn7TOkBX+AuKbRlc/7CrfSPT9AhG2wCHsmXj3E6fKw/C6jTjR78ujMPBw9+Q==, tarball: file:../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz}
+    version: 0.3.0
+    engines: {node: '>=22'}
 
   '@types/better-sqlite3@7.6.13':
     resolution: {integrity: sha512-NMv9ASNARoKksWtsq/SHakpYAYnhBrQgGD8zkLYk/jaK8jUGn08CfEdTRgYhMypUQAfzSP8W6gNLe0q19/t4VA==}
@@ -6520,10 +6520,6 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.64.5':
     optional: true
 
-  '@ruxt/core@file:../package-artifacts/phase4/ruxt-core-0.2.0.tgz':
-    dependencies:
-      '@ruxt/shared': 0.1.0
-
   '@ruxt/editor@0.1.2(239093d1ff790d7bff81bb399d9565e9)':
     dependencies:
       '@codemirror/commands': 6.11.0
@@ -6568,6 +6564,10 @@ snapshots:
   '@stablelib/base64@1.0.1': {}
 
   '@tanstack/query-core@5.103.1': {}
+
+  '@tuankiettran/ruxt-core@file:../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz':
+    dependencies:
+      '@ruxt/shared': 0.1.0
 
   '@types/better-sqlite3@7.6.13':
     dependencies:
