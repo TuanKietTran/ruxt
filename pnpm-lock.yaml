@@ -6,7 +6,7 @@ settings:
 
 overrides:
   '@codemirror/state': 6.7.3
-  '@ruxt/shared': file:../package-artifacts/phase4/ruxt-shared-0.0.0.tgz
+  '@ruxt/shared': 0.1.0
 
 importers:
 
@@ -58,11 +58,11 @@ importers:
         specifier: file:../package-artifacts/phase4/ruxt-core-0.2.0.tgz
         version: file:../package-artifacts/phase4/ruxt-core-0.2.0.tgz
       '@ruxt/editor':
-        specifier: file:../package-artifacts/phase4/ruxt-editor-0.1.1.tgz
-        version: file:../package-artifacts/phase4/ruxt-editor-0.1.1.tgz(239093d1ff790d7bff81bb399d9565e9)
+        specifier: 0.1.2
+        version: 0.1.2(239093d1ff790d7bff81bb399d9565e9)
       '@ruxt/shared':
-        specifier: file:../package-artifacts/phase4/ruxt-shared-0.0.0.tgz
-        version: file:../package-artifacts/phase4/ruxt-shared-0.0.0.tgz
+        specifier: 0.1.0
+        version: 0.1.0
       docx:
         specifier: ^9.1.1
         version: 9.7.1
@@ -1339,9 +1339,8 @@ packages:
     version: 0.2.0
     engines: {node: '>=22'}
 
-  '@ruxt/editor@file:../package-artifacts/phase4/ruxt-editor-0.1.1.tgz':
-    resolution: {integrity: sha512-GDDCN8D2tKOIe9PGIm+p5JoqmR0zJBzc1h5DBNo7vFnYVlR4hQvrwWeWN+QJ5JqoHoKQPJQtYHQFL3yQGYdJEg==, tarball: file:../package-artifacts/phase4/ruxt-editor-0.1.1.tgz}
-    version: 0.1.1
+  '@ruxt/editor@0.1.2':
+    resolution: {integrity: sha512-fH/SjZkocsKYV/FrUROqEifqZ6jdshWdN3z4wovm4QSqXhkjyVrSZ3UneYHdAYLpPqCXBwBbibDTHUZGqDV40w==}
     peerDependencies:
       '@codemirror/commands': ^6.11.0
       '@codemirror/lang-css': ^6.3.1
@@ -1354,9 +1353,8 @@ packages:
       '@lezer/highlight': ^1.2.3
       nuxt: ^4.4.2
 
-  '@ruxt/shared@file:../package-artifacts/phase4/ruxt-shared-0.0.0.tgz':
-    resolution: {integrity: sha512-abgUTjV68GfSV1Z0V0CasLAOXF4DAwWtNTyF9j7aLwFk3q+N4nmvCz4h9XkQ1puQsJOmnmnkJwMmsLaIjefnfg==, tarball: file:../package-artifacts/phase4/ruxt-shared-0.0.0.tgz}
-    version: 0.0.0
+  '@ruxt/shared@0.1.0':
+    resolution: {integrity: sha512-rgMYUaxokj0bqvS5RWJ+DFi1Zg3mKQHuaElWozEUN9BEq9T18WeWXZkcFUSb15fc/b/U0sZRIXz/w47QtdCWFQ==}
     engines: {node: '>=22'}
 
   '@simple-git/args-pathspec@1.0.3':
@@ -6524,9 +6522,9 @@ snapshots:
 
   '@ruxt/core@file:../package-artifacts/phase4/ruxt-core-0.2.0.tgz':
     dependencies:
-      '@ruxt/shared': file:../package-artifacts/phase4/ruxt-shared-0.0.0.tgz
+      '@ruxt/shared': 0.1.0
 
-  '@ruxt/editor@file:../package-artifacts/phase4/ruxt-editor-0.1.1.tgz(239093d1ff790d7bff81bb399d9565e9)':
+  '@ruxt/editor@0.1.2(239093d1ff790d7bff81bb399d9565e9)':
     dependencies:
       '@codemirror/commands': 6.11.0
       '@codemirror/lang-css': 6.3.1
@@ -6553,7 +6551,7 @@ snapshots:
       - supports-color
       - typescript
 
-  '@ruxt/shared@file:../package-artifacts/phase4/ruxt-shared-0.0.0.tgz': {}
+  '@ruxt/shared@0.1.0': {}
 
   '@simple-git/args-pathspec@1.0.3': {}
 
@@ -6735,7 +6733,7 @@ snapshots:
 
   '@vue-macros/common@3.1.4(vue@3.5.43(typescript@6.0.3))':
     dependencies:
-      '@vue/compiler-sfc': 3.5.32
+      '@vue/compiler-sfc': 3.5.43
       ast-kit: 2.2.0
       local-pkg: 1.2.1
       magic-string-ast: 1.0.3

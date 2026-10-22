@@ -1,14 +1,27 @@
-export const PACKED_PACKAGE_DEPENDENCIES = Object.freeze({
-    "@ruxt/shared": "file:../package-artifacts/phase4/ruxt-shared-0.0.0.tgz",
+export const REGISTRY_PACKAGE_DEPENDENCIES = Object.freeze({
+    "@ruxt/shared": "0.1.0",
+    "@ruxt/editor": "0.1.2",
+});
+
+export const PRIVATE_PACKAGE_DEPENDENCIES = Object.freeze({
     "@ruxt/core": "file:../package-artifacts/phase4/ruxt-core-0.2.0.tgz",
-    "@ruxt/editor": "file:../package-artifacts/phase4/ruxt-editor-0.1.1.tgz",
+});
+
+export const PACKED_PACKAGE_DEPENDENCIES = Object.freeze({
+    ...REGISTRY_PACKAGE_DEPENDENCIES,
+    ...PRIVATE_PACKAGE_DEPENDENCIES,
 });
 
 const FORBIDDEN_OVERRIDES = Object.freeze(["@ruxt/core", "@ruxt/editor"]);
 
 export function packedPackagePolicyFailures(packageManifest, workspaceConfig) {
     const failures = [];
-    for (const [name, artifact] of Object.entries(PACKED_PACKAGE_DEPENDENCIES)) {
+    for (const [name, version] of Object.entries(REGISTRY_PACKAGE_DEPENDENCIES)) {
+        if (packageManifest.dependencies?.[name] !== version) {
+            failures.push(`package.json: ${name} must use the exact published version ${version}`);
+        }
+    }
+    for (const [name, artifact] of Object.entries(PRIVATE_PACKAGE_DEPENDENCIES)) {
         if (packageManifest.dependencies?.[name] !== artifact) {
             failures.push(`package.json: ${name} must use the exact local packed artifact ${artifact}`);
         }
@@ -19,9 +32,9 @@ export function packedPackagePolicyFailures(packageManifest, workspaceConfig) {
         }
     }
     const sharedOverride = workspaceConfig.match(/^\s*['"]?@ruxt\/shared['"]?:\s*(\S.*?)\s*$/m);
-    const sharedArtifact = PACKED_PACKAGE_DEPENDENCIES["@ruxt/shared"];
-    if (sharedOverride && sharedOverride[1] !== sharedArtifact) {
-        failures.push(`pnpm-workspace.yaml: @ruxt/shared override must use the exact local artifact ${sharedArtifact}`);
+    const sharedVersion = REGISTRY_PACKAGE_DEPENDENCIES["@ruxt/shared"];
+    if (sharedOverride && sharedOverride[1] !== sharedVersion) {
+        failures.push(`pnpm-workspace.yaml: @ruxt/shared override must use the exact published version ${sharedVersion}`);
     }
     return failures;
 }

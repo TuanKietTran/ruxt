@@ -15,14 +15,12 @@ A full-stack CV workspace and subscription platform built on [Nuxt 4](https://nu
 
 ## Quick Start
 
-For this local, nonpublishing package split, first regenerate the exact tarballs referenced by `package.json` (from the `ruxt-work` directory):
+`@ruxt/shared` and `@ruxt/editor` install from npm. The private `@ruxt/core` is a local tarball: first regenerate the artifact referenced by `package.json` (from the `ruxt-work` directory):
 
 ```bash
 pnpm --dir ruxt-core install --frozen-lockfile
 pnpm --dir ruxt-core build
-pnpm --dir ruxt-core/packages/shared pack --pack-destination ../../../package-artifacts/phase4
 pnpm --dir ruxt-core pack --pack-destination ../package-artifacts/phase4
-pnpm --dir ruxt-core/packages/editor pack --pack-destination ../../../package-artifacts/phase4
 ```
 
 Then, from this frontend repository:

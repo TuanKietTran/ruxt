@@ -30,7 +30,7 @@ If source and specs disagree, source is ground truth. During ordinary implementa
 ## Working Rules
 
 - Paths written as `core/<path>` refer to `<path>` in private `@ruxt/core` (the separate `ruxt-core` repository root); there is no local `core/` folder here. Paths written as `shared/<path>` denote public `@ruxt/shared` (canonical source `ruxt-core/packages/shared`), not an application copy. Historical `core/` paths for generic primitives/presentation may now be thin private compatibility re-exports; their canonical implementation belongs to shared. Browser code imports only public shared/editor contracts or app-owned HTTP DTOs; private handlers, ports and business/security policy are server/infra-only.
-- Consumers use finite package exports, never sibling-source aliases. For local nonpublishing validation, build shared/core/editor first and consume the exact `file:` tarballs under the work area's `package-artifacts/phase4/`, including one shared artifact for the private core dependency. Publication, existing release-version bumps and remote pushes are not part of this workflow; new shared `0.0.0` is a development snapshot.
+- Consumers use finite package exports, never sibling-source aliases. `@ruxt/shared` (0.1.0) and `@ruxt/editor` (0.1.2) are consumed as exact published npm versions. The private `@ruxt/core` is never published: build it and consume the exact `file:` tarball under the work area's `package-artifacts/phase4/` until a private registry is chosen (open decision; CI cannot resolve the tarball).
 
 - Start here before substantial work and read the owning subsystem spec before editing that area.
 - For cross-cutting work, also read architecture/runtime, auth/security, persistence/deployment, and testing/devops as applicable.
