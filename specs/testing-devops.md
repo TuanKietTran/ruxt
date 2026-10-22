@@ -1,6 +1,6 @@
 # Testing And Devops
 
-Last updated: main@aca87ed | 2026-10-10
+Last updated: fix/ruxt-core-refactor@95cd2e5 | 2026-10-22
 
 ## Scope
 
@@ -107,6 +107,8 @@ Handler suites construct handlers directly with fake repositories rather than bo
 
 Error-message assertions are deliberate: `server/utils/api-errors.ts` maps domain messages to HTTP status by text, so the suites pin the exact wording that produces 400/404/409/413.
 
+`tests/smoke/alert-dialog.test.ts` characterizes the themed dashboard alertdialog with a mocked browser fixture, including dismissal/focus behavior. Other browser suites cover selected safety/rendering/activity/auth cases; consult each file's opt-in settings. Their presence is not evidence of a live authenticated pass.
+
 `tests/smoke/http.test.ts` is opt-in and self-skipping. Without `SMOKE_BASE_URL` the whole suite is skipped so `pnpm test` stays hermetic; with it, the suite fails fast if no server answers `/api/health`. It covers health, CV capabilities in either available or degraded form, the unauthenticated `/api/public/templates` catalog, the 401 on unauthenticated `POST /api/cv-templates`, auth rejection paths, anonymous session inspection, MCP `initialize` over Streamable HTTP, and server-rendered `/` and `/p`.
 
 ## Artifacts And Sensitive Data
@@ -129,6 +131,10 @@ Deno environment variables are runtime context configuration, not repository or 
 The names are `NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NUXT_CLERK_SECRET_KEY`, and `NUXT_SESSION_SECRET`. They are not needed in Deno's Build context. Deno configuration also sets `NUXT_PUBLIC_FEATURE_FLAGS_AUTH_DISABLED_HOSTS=*.deno.net` and `NUXT_PUBLIC_FEATURE_FLAGS_AUTH_ROUTES` to the authenticated route list shown in `.env.example`. Both are comma-separated runtime policy and have empty application defaults, so no deployment rule is hard-coded; custom application domains retain authentication. `server/plugins/validate-deployment-env.ts` uses `DENO_TIMELINE` to reject absent keys, test keys in Production, live keys in non-production timelines, or a weak/missing session secret. Clerk production must allow the production application domain; preview OAuth remains isolated in Clerk Development and must not be used for real accounts or data.
 
 Issue and PR templates request layer classification, acceptance criteria, local `pnpm dev` testing, and screenshots/logs, but they do not execute checks.
+
+## Refactor baseline verification
+
+On `fix/ruxt-core-refactor` before frontend edits: frontend lint and hermetic tests passed (170 passed,38 opt-in skipped); separate core root141/editor9 passed. Manager serialized production build (15.5s), standard `pnpm exec nuxt typecheck --checker vue-tsc` and diffcheck passed. After core tokenizer/lint refactor, source-only core `pnpm typecheck`,154 root tests,9 editor tests and lint passed, followed by another frontend build/typecheck. These are bounded snapshots, not opt-in auth or deployment coverage.
 
 ## Validation Expectations
 
@@ -153,7 +159,7 @@ Build success covers Nuxt compilation and some TypeScript integration but does n
 - CI is disabled and therefore does not run the test suites or enforce frozen install, build, security checks, or artifact validation.
 - Executable coverage exists for domain transitions/validators, IAM policy, CV split/template handlers, and CV document revision/patch handlers. It does not yet cover the real Nitro document store, repository parity, SQLite migration, Deno KV indexes, SSE streams, import cancellation/recovery, Markdown sanitization, CodeMirror, responsive UI, or export output.
 - The smoke suite asserts status codes and coarse shapes only; it does not authenticate, so authenticated CV, template-save, import, subscription, and IAM routes have no end-to-end coverage.
-- No component or browser-level tests exist; `app/` is covered only indirectly through the architecture lint and the smoke suite's server-rendered page checks.
+- Browser-level opt-in suites now exist under `tests/smoke/` (auth UI, profile safety, content activity, generator rendering and alert-dialog behavior as well as HTTP). They are skipped without their explicit fixture settings; the hermetic suite is not rendered live Clerk coverage. The prior auth-disabled local fixture produced four auth UI failures, not a green authenticated run. There is still no configured general Vue component-test environment or exhaustive responsive/export coverage.
 - Headless PDF automation is not portable by default and has no package script or CI browser setup.
 - A keyless `nuxt dev` (no Clerk keys in `.env`) still creates an unclaimed Clerk development instance as an outbound side effect, and the resulting `.clerk/` holds that instance's secret key.
 - Three package scripts (`build`, `test:smoke`, `cv:pipeline:setup`) are POSIX-shell only, and the CV pipeline venv path is hard-coded to `bin/`, so none of them work natively on Windows.

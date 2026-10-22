@@ -6,6 +6,7 @@ import type {
     SubscriptionsResponse,
 } from "~/types/api";
 import type { StatusCode, BillingPeriod, CurrencyCode } from "@core/domain";
+import { calculateMonthlyAmount, formatMajorMoney, formatMoney, minorUnitsFor } from "~/utils/money";
 
 const route = useRoute();
 const userId = computed(() => (route.query.userId as string) || "demo");
@@ -42,16 +43,6 @@ const planMap = computed(() => {
     return m;
 });
 
-const MINOR_UNITS: Record<CurrencyCode, number> = {
-    USD: 100, EUR: 100, GBP: 100, AUD: 100,
-    CAD: 100, SGD: 100, JPY: 1,  VND: 1,
-};
-
-function formatMoney(amountMinor: number, currency: CurrencyCode): string {
-    const units = MINOR_UNITS[currency] ?? 100;
-    return `${(amountMinor / units).toFixed(units === 1 ? 0 : 2)} ${currency}`;
-}
-
 function formatPlanAmount(plan: UIPlan | undefined): string {
     if (!plan) return "—";
     return formatMoney(plan.price.amountMinor, plan.price.currency);
@@ -63,16 +54,11 @@ const activeSubs = computed(() =>
 
 const monthlySpendByCurrency = computed(() => {
     const totals: Record<string, number> = {};
-    const annualFreq: Record<BillingPeriod, number> = {
-        weekly: 52 / 12, monthly: 1, quarterly: 1 / 3,
-        biannual: 1 / 6, yearly: 1 / 12,
-    };
     for (const s of activeSubs.value) {
         const plan = planMap.value[s.planId];
         if (!plan) continue;
         const { currency } = plan.price;
-        const units = MINOR_UNITS[currency] ?? 100;
-        const monthly = (plan.price.amountMinor / units) * (annualFreq[plan.billingCycle] ?? 1);
+        const monthly = calculateMonthlyAmount(plan.price.amountMinor, currency, plan.billingCycle);
         totals[currency] = (totals[currency] ?? 0) + monthly;
     }
     return totals;
@@ -83,8 +69,7 @@ const monthlySpendDisplay = computed(() => {
     if (entries.length === 0) return "0.00 USD";
     return entries
         .map(([cur, amt]) => {
-            const units = MINOR_UNITS[cur as CurrencyCode] ?? 100;
-            return `${amt.toFixed(units === 1 ? 0 : 2)} ${cur}`;
+            return formatMajorMoney(amt, cur);
         })
         .join(" + ");
 });
@@ -257,7 +242,7 @@ async function submitPlanThenSub() {
     panelLoading.value = true;
     panelError.value = "";
     try {
-        const units = MINOR_UNITS[f.currency] ?? 100;
+        const units = minorUnitsFor(f.currency);
         const newId = crypto.randomUUID();
         await $fetch(`/api/plans/${newId}`, {
             method: "PUT",

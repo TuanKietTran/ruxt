@@ -6,7 +6,8 @@ A full-stack CV workspace and subscription platform built on [Nuxt 4](https://nu
 
 | Document | Description |
 |---|---|
-| [Architecture](./docs/architecture.md) | Layered architecture, module map, domain model, boot sequence |
+| [Specs index](./specs/_readme.md) | Current implementation contracts and subsystem ownership |
+| [Architecture](./docs/architecture.md) | Architecture guide (consult specs for current package boundaries) |
 | [Extending](./docs/extending.md) | How to add handlers, deploy strategies, policies, and API routes |
 | [CV Editor](./specs/cv-editor.md) | Editor routes, source/preview behavior, themes, and exports |
 | [CV Documents](./specs/cv-documents-realtime.md) | Persistence, revisions, autosave, and realtime synchronization |
@@ -56,11 +57,7 @@ pnpm dev                # http://localhost:3000
 ```
 ruxt/
 ├── app/          # Vue 3 frontend (pages, components, composables)
-├── core/         # Pure domain logic — framework-free
-│   ├── cqrs.ts   # Mediator, Handler, Command, Query types
-│   ├── domain/   # Value objects, entities, domain services
-│   ├── handlers/ # One file per use-case (command or query)
-│   └── repos/    # Repository interfaces (ports)
+├── packages/     # Application-local package integration (not a core source copy)
 ├── infra/        # Adapters: DB, crypto, deploy strategies
 │   ├── deploy/   # Deno KV and SQLite repo implementations
 │   ├── db/       # Drizzle schema + SQLite connection
@@ -69,11 +66,12 @@ ruxt/
 │   ├── plugins/  # Boot: mount mediator, bootstrap infra
 │   ├── routes/   # REST API, CV event streams, and MCP transport
 │   └── utils/    # CV document store, API errors, sessions, MCP tools
-├── shared/       # Browser/server CV transport types
+├── specs/        # Implementation contracts; CV contracts come from @ruxt/core
 ├── scripts/      # Headless CV rendering automation
-├── specs/        # Implementation-truth subsystem specifications
 └── docs/         # Architecture and extension guides
 ```
+
+Framework-free domain models, handlers, CQRS and repository ports live in the separate `ruxt-core` repository/package, not a local `core/` directory. The `@ruxt/editor` package supplies the route-free editor layer. See the specs index for package-consumption rules and known validation limits.
 
 ## API Overview
 

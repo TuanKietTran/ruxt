@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { toRaw } from "vue";
 import type { CvContactKind, CvDocumentSummary, CvProfileProps, CvTemplate } from "@core/domain/cv";
-import type { ApplyCvProfileOutput } from "@core/handlers/apply-cv-profile";
+import { mapProfileApplyResults, profileApplyErrorMessage, type ProfileApplyResponse, type ProfileApplyStatus } from "~/utils/profileApplyResults";
 import { normalizeCvProfile } from "@core/domain/cv/compose";
 import { type LocalProfile, newLocalProfileId, readLocalProfiles, saveLocalProfile, writeLocalProfiles } from "~/utils/localProfiles";
 import { downloadBlob, safeFilename } from "~/utils/exportCvImage";
@@ -287,7 +287,6 @@ const runTransfer = async () => {
     }
 };
 
-type ApplyStatus = { ok: boolean; message: string };
 const apply = reactive({
     open: false,
     profile: null as LocalProfile | null,
@@ -295,7 +294,7 @@ const apply = reactive({
     layout: "",
     busy: false,
     error: "",
-    results: {} as Record<string, ApplyStatus>,
+    results: {} as Record<string, ProfileApplyStatus>,
     confirmed: false,
     previews: {} as Record<string, { before: { markdown: string; css: string; revision: number }; after: { markdown: string; css: string } }>,
     previewProfile: null as LocalProfile | null,
@@ -358,7 +357,7 @@ const runApply = async () => {
     apply.error = "";
     apply.results = {};
     try {
-        const output = await $fetch<ApplyCvProfileOutput>("/api/cv-profiles/apply", {
+        const output = await $fetch<ProfileApplyResponse>("/api/cv-profiles/apply", {
             method: "POST",
             body: {
                 profile: toProfileProps(apply.previewProfile),
@@ -368,15 +367,13 @@ const runApply = async () => {
                 template: templateId ? { id: templateId, version: Number(templateVersion) } : undefined,
             },
         });
-        apply.results = Object.fromEntries(output.results.map(result => [result.documentId, result.ok
-            ? { ok: true, message: "Applied" }
-            : { ok: false, message: result.error }]));
+        apply.results = mapProfileApplyResults(output);
         for (const result of output.results) if (result.ok && apply.previews[result.documentId]) {
             apply.undoable[result.documentId] = { ...apply.previews[result.documentId]!.before, revision: result.document.revision };
         }
         await refreshNuxtData("editor-document-list");
     } catch (cause: any) {
-        apply.error = cause?.data?.statusMessage ?? cause?.message ?? "Apply failed.";
+        apply.error = profileApplyErrorMessage(cause);
     } finally {
         apply.busy = false;
     }

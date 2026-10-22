@@ -1,6 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
+import { findForbiddenAppImports } from "./lint-app-import-boundary.js";
 
 const failures = [];
+for (const finding of findForbiddenAppImports("app")) {
+  failures.push(`app/${finding.file}:${finding.line}: frontend source must not import core handlers (${finding.specifier})`);
+}
 const requireText = (file, patterns) => {
   const source = readFileSync(file, "utf8");
   for (const [pattern, message] of patterns) {

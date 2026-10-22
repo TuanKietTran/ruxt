@@ -51,6 +51,8 @@ If source and specs disagree, source is ground truth. During ordinary implementa
 - [domain-foundations.md](domain-foundations.md): shared value objects, date/time, email/password, phone, and payment primitives.
 - [persistence-deployment.md](persistence-deployment.md): SQLite and Deno KV adapters, CV filesystem storage, strategy selection, and deployment configuration.
 - [testing-devops.md](testing-devops.md): package commands, build/export prerequisites, CI status, generated artifacts, and validation gaps.
+- [cv-sv-ui-validation.md](cv-sv-ui-validation.md): historical editor/browser validation and its environment limits; not a current acceptance gate.
+- [TODO.md](TODO.md): verified deferred refactor and validation follow-ups.
 
 ## Cross-Cutting Spec Update Triggers
 
