@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { applyCvProfileCommand } from "@core/handlers/apply-cv-profile";
+import { useMediator } from "@ruxt/shared/cqrs";
+import { applyCvProfileCommand } from "@ruxt/core/handlers/apply-cv-profile";
 import { assertCvId } from "../../../adapters/cv/document-store";
 import { getAuthPrincipal } from "../../../utils/auth-user";
 
@@ -7,6 +7,7 @@ interface ApplyCvProfileBody {
     profile?: unknown;
     profileId?: string;
     documentIds?: unknown;
+    expectedRevisions?: Record<string, number>;
     template?: { id?: string; version?: number };
     sourceId?: string;
 }
@@ -20,6 +21,7 @@ export default defineEventHandler(async (event) => {
     const principal = await getAuthPrincipal(event);
     return sendApiRequest(useMediator(), applyCvProfileCommand({
         documentIds,
+        expectedRevisions: body.expectedRevisions,
         profile: body.profile,
         profileId: typeof body.profileId === "string" ? body.profileId : undefined,
         template: body.template?.id ? { id: body.template.id, version: body.template.version } : undefined,

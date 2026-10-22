@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { commitCvImportCommand } from "@core/handlers/commit-cv-import";
+import { useMediator } from "@ruxt/shared/cqrs";
+import { commitCvImportCommand } from "@ruxt/core/handlers/commit-cv-import";
 import { requireCvOwner } from "../../../../utils/cv-owner";
 
 export default defineEventHandler(async (event) => {

@@ -1,7 +1,7 @@
 import { scrypt, randomBytes, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
-import type { PasswordHasher } from "@core/domain/iam";
-import { HashedPassword, PlainPassword } from "@core/domain/iam";
+import type { PasswordHasher } from "@ruxt/core/domain/iam";
+import { HashedPassword, PlainPassword } from "@ruxt/core/domain/iam";
 
 type ScryptFn = (
    password: string | Buffer,

@@ -31,16 +31,36 @@ export async function exportCvImages(
     _css = "",
     options: CvImageExportOptions = {},
 ): Promise<void> {
-    await document.fonts?.ready;
-    const root = options.root ?? document;
-    const sheets = [...root.querySelectorAll<HTMLElement>(".cv-sheet")];
-    if (!sheets.length) throw new Error("No CV pages are available to export");
-
-    const previewPage = options.root?.closest<HTMLElement>(".preview-page") ?? options.root;
-    const previousZoom = previewPage?.style.zoom;
-    if (previewPage) previewPage.style.zoom = "1";
-
     const { default: html2canvas } = await import("html2canvas");
+    await document.fonts?.ready;
+    const root = options.root ?? document.querySelector<HTMLElement>(".code-preview");
+    if (!root) throw new Error("No CV pages are available to export");
+    await Promise.all([...root.querySelectorAll("img")].map(image => image.decode().catch(() => {})));
+    // Resource completion and preview zoom/layout can schedule pagination for the next frame.
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    if (!root.querySelector(".cv-sheet")) throw new Error("No CV pages are available to export");
+
+    // Capture an unzoomed snapshot. Changing live preview zoom invalidates pagination and can
+    // detach the sheet references while html2canvas imports/clones them, or between pages.
+    const snapshot = root.cloneNode(true) as HTMLElement;
+    // The snapshot lives outside the workspace. Resolve inherited theme variables and any
+    // ancestor-dependent selectors now so colours, typography and dimensions remain identical.
+    const originals = root.querySelectorAll<HTMLElement>(".cv-sheet, .cv-sheet *");
+    const copies = snapshot.querySelectorAll<HTMLElement>(".cv-sheet, .cv-sheet *");
+    originals.forEach((element, index) => {
+        const copy = copies[index];
+        if (!copy) return;
+        const style = getComputedStyle(element);
+        for (const property of style) copy.style.setProperty(property, style.getPropertyValue(property));
+    });
+    snapshot.querySelectorAll(".cv-pagination-measure").forEach(element => element.remove());
+    snapshot.style.zoom = "1";
+    const staging = document.createElement("div");
+    staging.setAttribute("aria-hidden", "true");
+    staging.style.cssText = "position:absolute;left:0;top:0;z-index:-2147483647;pointer-events:none;width:max-content;";
+    staging.append(snapshot);
+    document.body.append(staging);
+    const sheets = [...snapshot.querySelectorAll<HTMLElement>(".cv-sheet")];
     const extension = format === "png" ? "png" : "jpg";
     const base = safeFilename(name);
 
@@ -65,6 +85,6 @@ export async function exportCvImages(
             downloadBlob(blobs[0]!, `${base}.${extension}`);
         }
     } finally {
-        if (previewPage) previewPage.style.zoom = previousZoom ?? "";
+        staging.remove();
     }
 }

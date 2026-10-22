@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { retryCvImportCommand } from "@core/handlers/retry-cv-import";
+import { useMediator } from "@ruxt/shared/cqrs";
+import { retryCvImportCommand } from "@ruxt/core/handlers/retry-cv-import";
 import { runCvImport } from "../../../../services/cv-import-worker";
 import { requireCvOwner } from "../../../../utils/cv-owner";
 

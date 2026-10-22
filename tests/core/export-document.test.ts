@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toJsonResume } from "../../app/utils/exportCvDocument";
-import type { CvProfileProps } from "@core/domain/cv";
+import type { CvProfileProps } from "@ruxt/shared/cv";
 
 const profile: CvProfileProps = {
     version: 1,

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { toRaw } from "vue";
-import type { CvContactKind, CvDocumentSummary, CvProfileProps, CvTemplate } from "@core/domain/cv";
-import type { ApplyCvProfileOutput } from "@core/handlers/apply-cv-profile";
-import { normalizeCvProfile } from "@core/domain/cv/compose";
+import type { CvContactKind, CvDocumentSummary, CvProfileProps, CvTemplate } from "@ruxt/shared/cv";
+import { mapProfileApplyResults, profileApplyErrorMessage, type ProfileApplyResponse, type ProfileApplyStatus } from "~/utils/profileApplyResults";
+import { normalizeCvProfile } from "@ruxt/shared/cv";
 import { type LocalProfile, newLocalProfileId, readLocalProfiles, saveLocalProfile, writeLocalProfiles } from "~/utils/localProfiles";
 import { downloadBlob, safeFilename } from "~/utils/exportCvImage";
 import {
@@ -13,6 +13,7 @@ import {
 type LocalProfileInput = CvProfileProps;
 
 definePageMeta({ layout: false, public: true, path: "/p", editorContext: "profiles" });
+useSeoMeta({ title: "Profile editor", ogTitle: "Profile editor" });
 
 const profiles = ref<LocalProfile[]>([]);
 /** `null` = nothing open, `""` = a new profile that has not been stored yet. */
@@ -73,13 +74,21 @@ const pendingCount = computed(() => new Set(Object.keys(issues.value)
     .map(key => key.split(".").slice(0, 2).join("."))).size);
 
 /** Props for an `EditableField`: save mode, save flash, validation error once committed, and auto-open. */
-const field = (key: string) => ({
-    mode: saveMode.value,
-    saved: Boolean(savedFlash[key]),
-    error: touched.has(key) ? issues.value[key] : undefined,
-    startEditing: autoEditKey.value === key,
-    onDirty: (dirty: boolean) => { if (dirty) unsavedKeys.add(key); else unsavedKeys.delete(key); },
-});
+const field = (key: string) => {
+    // Capture this render's form, not the mutable selected ID. During DOM removal an old
+    // textarea can blur after startEdit has replaced both the selected ID and the draft.
+    const generation = formKey.value;
+    const owner = draft.value;
+    const isCurrent = () => generation === formKey.value && owner === draft.value;
+    return {
+        mode: saveMode.value,
+        saved: Boolean(savedFlash[key]),
+        error: touched.has(key) ? issues.value[key] : undefined,
+        startEditing: autoEditKey.value === key,
+        isCurrent,
+        onDirty: (dirty: boolean) => { if (!isCurrent()) return; if (dirty) unsavedKeys.add(key); else unsavedKeys.delete(key); },
+    };
+};
 
 /** The stored copy keeps complete entries only; incomplete ones stay in the form until finished. */
 const savableDraft = (): CvProfileProps => {
@@ -94,9 +103,9 @@ const savableDraft = (): CvProfileProps => {
     value.languages = value.languages.map(language => language.trim()).filter(Boolean);
     return value;
 };
-const persistDraft = (): boolean => {
-    if (editingId.value === null || blank(draft.value.identity.fullName)) return false;
-    const saved = saveLocalProfile(savableDraft(), editingId.value || undefined);
+const persistDraft = (ownerId = editingId.value): boolean => {
+    if (ownerId === null || ownerId !== editingId.value || blank(draft.value.identity.fullName)) return false;
+    const saved = saveLocalProfile(savableDraft(), ownerId || undefined);
     editingId.value = saved.id;
     lastSavedAt.value = saved.updatedAt;
     readProfiles();
@@ -108,8 +117,9 @@ const flash = (key: string) => {
     setTimeout(() => { if (savedFlash[key] === stamp) delete savedFlash[key]; }, 1800);
 };
 const commit = (key: string) => {
+    const ownerId = editingId.value;
     touched.add(key);
-    if (!persistDraft() || issues.value[key]) return;
+    if (!persistDraft(ownerId) || issues.value[key]) return;
     const [section, index] = key.split(".");
     if (/^\d+$/.test(index ?? "") && entryPending(section as EntrySection, Number(index))) return;
     flash(key);
@@ -154,6 +164,21 @@ const startEdit = (profile: LocalProfile) => {
     editingId.value = profile.id;
     lastSavedAt.value = updatedAt;
 };
+const duplicateName = (profile: LocalProfile) => profiles.value.some(item => item.id !== profile.id && item.identity.fullName.trim().toLocaleLowerCase() === profile.identity.fullName.trim().toLocaleLowerCase());
+const renameProfile = (profile: LocalProfile) => {
+    const name = prompt("Profile name", profile.identity.fullName)?.trim();
+    if (!name || name === profile.identity.fullName) return;
+    if (profiles.value.some(item => item.id !== profile.id && item.identity.fullName.trim().toLocaleLowerCase() === name.toLocaleLowerCase())
+        && !confirm(`Another profile is already named “${name}”. Keep this duplicate name?`)) return;
+    const updated = { ...profile, identity: { ...profile.identity, fullName: name }, updatedAt: Date.now() };
+    persist(profiles.value.map(item => item.id === profile.id ? updated : item));
+    if (editingId.value === profile.id) { draft.value.identity.fullName = name; lastSavedAt.value = updated.updatedAt; }
+};
+const duplicateProfile = (profile: LocalProfile) => {
+    const copy = saveLocalProfile(toProfileProps(profile));
+    readProfiles();
+    startEdit(copy);
+};
 const remove = (profile: LocalProfile) => {
     if (!confirm(`Delete ${profile.identity.fullName}'s profile?`)) return;
     persist(profiles.value.filter(item => item.id !== profile.id));
@@ -167,7 +192,7 @@ const newEntries = {
     contacts: () => ({ kind: "email" as CvContactKind, label: "", value: "" }),
     experiences: () => ({ title: "", company: "", location: "", start: "", end: "", highlights: [] }),
     skills: () => ({ name: "", skills: [] }),
-    certifications: () => ({ name: "" }),
+    certifications: () => ({ name: "", issuer: "", start: "", end: "" }),
     education: () => ({ school: "", degree: "", location: "", start: "", end: "", details: "" }),
     projects: () => ({ name: "", url: "", description: "", technologies: [] }),
     languages: () => "",
@@ -262,7 +287,6 @@ const runTransfer = async () => {
     }
 };
 
-type ApplyStatus = { ok: boolean; message: string };
 const apply = reactive({
     open: false,
     profile: null as LocalProfile | null,
@@ -270,7 +294,12 @@ const apply = reactive({
     layout: "",
     busy: false,
     error: "",
-    results: {} as Record<string, ApplyStatus>,
+    results: {} as Record<string, ProfileApplyStatus>,
+    confirmed: false,
+    previews: {} as Record<string, { before: { markdown: string; css: string; revision: number }; after: { markdown: string; css: string } }>,
+    previewProfile: null as LocalProfile | null,
+    undoable: {} as Record<string, { revision: number; markdown: string; css: string }>,
+
 });
 const { data: sessionIndex } = useNuxtData<{ documents: CvDocumentSummary[] }>("editor-document-list");
 const { data: templateIndex } = useNuxtData<{ templates: CvTemplate[] }>("editor-template-list");
@@ -278,37 +307,73 @@ const applySessions = computed(() => sessionIndex.value?.documents ?? []);
 const applyTemplates = computed(() => templateIndex.value?.templates ?? []);
 const sessionLabel = (session: CvDocumentSummary) => session.title?.trim() || session.id;
 const openApply = async (profile: LocalProfile) => {
-    Object.assign(apply, { open: true, profile, selected: [], layout: "", busy: false, error: "", results: {} });
+    Object.assign(apply, { open: true, profile, selected: [], layout: "", busy: false, error: "", results: {}, confirmed: false, previews: {}, undoable: {} });
     await refreshNuxtData("editor-document-list");
 };
 const closeApply = () => { if (!apply.busy) apply.open = false; };
 const toggleAllSessions = () => {
     apply.selected = apply.selected.length === applySessions.value.length ? [] : applySessions.value.map(session => session.id);
 };
+watch(() => [apply.selected.join("|"), apply.layout, apply.profile?.id].join(";"), () => {
+    apply.previews = {}; apply.previewProfile = null; apply.confirmed = false;
+});
+const previewApply = async () => {
+    if (!apply.profile || !apply.selected.length) { apply.error = "Choose at least one session."; return; }
+    const profileSnapshot = structuredClone(toRaw(apply.profile));
+    apply.previewProfile = profileSnapshot;
+    apply.busy = true; apply.error = ""; apply.previews = {}; apply.confirmed = false;
+    const [templateId, templateVersion] = apply.layout.split("@");
+    try {
+        for (const id of apply.selected) {
+            const [before, after] = await Promise.all([
+                $fetch<{ markdown: string; css: string; revision: number }>(`/api/cvs/${encodeURIComponent(id)}`),
+                $fetch<{ markdown: string; css: string; basedOnRevision?: number }>(`/api/cvs/${encodeURIComponent(id)}/profile/preview`, { method: "POST", body: { profile: toProfileProps(profileSnapshot), template: templateId ? { id: templateId, version: Number(templateVersion) } : undefined } }),
+            ]);
+            if (!templateId && after.basedOnRevision !== before.revision) throw new Error(`Session ${sessionLabel(applySessions.value.find(item => item.id === id) ?? { id, title: id, revision: before.revision, updatedAt: "" })} changed while the preview was being prepared. Retry the preview.`);
+            apply.previews[id] = { before, after };
+        }
+    } catch (cause: any) { apply.previews = {}; apply.previewProfile = null; apply.error = cause?.data?.statusMessage ?? cause?.message ?? "Preview failed."; }
+    finally { apply.busy = false; }
+};
+const undoApply = async (id: string) => {
+    const previous = apply.previews[id]?.before;
+    const currentRevision = apply.undoable[id]?.revision;
+    if (!previous || !currentRevision) return;
+    apply.busy = true;
+    try {
+        const restored = await $fetch<{ revision: number }>(`/api/cvs/${encodeURIComponent(id)}`, { method: "PUT", body: { markdown: previous.markdown, css: previous.css, expectedRevision: currentRevision } });
+        delete apply.undoable[id];
+        apply.results[id] = { ok: true, message: `Restored previous content (revision ${restored.revision})` };
+        await refreshNuxtData("editor-document-list");
+    } catch (cause: any) { apply.error = cause?.data?.statusMessage ?? cause?.message ?? "Undo failed."; }
+    finally { apply.busy = false; }
+};
 const runApply = async () => {
-    if (!apply.profile) return;
+    if (!apply.previewProfile) return;
     if (!apply.selected.length) { apply.error = "Choose at least one session."; return; }
-    if (!confirm(`Replace the personal content of ${apply.selected.length} session(s) with ${apply.profile.identity.fullName}'s profile?`)) return;
+    if (!apply.confirmed || apply.selected.some(id => !apply.previews[id])) { apply.error = "Review the preview and confirm the overwrite first."; return; }
     const [templateId, templateVersion] = apply.layout.split("@");
     apply.busy = true;
     apply.error = "";
     apply.results = {};
     try {
-        const output = await $fetch<ApplyCvProfileOutput>("/api/cv-profiles/apply", {
+        const output = await $fetch<ProfileApplyResponse>("/api/cv-profiles/apply", {
             method: "POST",
             body: {
-                profile: toProfileProps(apply.profile),
-                profileId: apply.profile.id,
+                profile: toProfileProps(apply.previewProfile),
+                profileId: apply.previewProfile.id,
                 documentIds: apply.selected,
+                expectedRevisions: Object.fromEntries(apply.selected.map(id => [id, apply.previews[id]!.before.revision])),
                 template: templateId ? { id: templateId, version: Number(templateVersion) } : undefined,
             },
         });
-        apply.results = Object.fromEntries(output.results.map(result => [result.documentId, result.ok
-            ? { ok: true, message: "Applied" }
-            : { ok: false, message: result.error }]));
+        apply.results = mapProfileApplyResults(output);
+        for (const result of output.results) if (result.ok && apply.previews[result.documentId]) {
+            apply.undoable[result.documentId] = { ...apply.previews[result.documentId]!.before, revision: result.document.revision };
+        }
         await refreshNuxtData("editor-document-list");
     } catch (cause: any) {
-        apply.error = cause?.data?.statusMessage ?? cause?.message ?? "Apply failed.";
+        apply.error = profileApplyErrorMessage(cause);
     } finally {
         apply.busy = false;
     }
@@ -326,10 +391,10 @@ const runApply = async () => {
                     <button type="button" :disabled="!profiles.length" @click="openTransfer('export', profiles)">Export all</button>
                 </div>
                 <p v-if="!profiles.length" class="profiles-empty">No local profiles yet.</p>
-                <button v-for="profile in profiles" :key="profile.id" class="profile-card" :class="{ active: editingId === profile.id }" type="button" @click="startEdit(profile)">
-                    <span><strong>{{ profile.identity.fullName }}</strong><small>{{ profile.identity.headline || "No headline" }}</small></span>
-                    <span class="profile-delete" role="button" tabindex="0" :aria-label="`Delete ${profile.identity.fullName}`" @click.stop="remove(profile)">×</span>
-                </button>
+                <article v-for="profile in profiles" :key="profile.id" class="profile-card" :class="{ active: editingId === profile.id }">
+                    <button class="profile-card__select" type="button" @click="startEdit(profile)"><strong>{{ profile.identity.fullName }} <em v-if="duplicateName(profile)" class="duplicate-warning">Duplicate name</em></strong><small>{{ profile.identity.headline || "No headline" }} · {{ profile.projects.length }} projects · {{ new Date(profile.updatedAt).toLocaleDateString() }} · {{ profile.id.slice(-8) }}</small></button>
+                    <div class="profile-card__actions"><button type="button" @click="renameProfile(profile)">Rename</button><button type="button" @click="duplicateProfile(profile)">Duplicate</button><button class="profile-delete" type="button" :aria-label="`Delete ${profile.identity.fullName}`" @click="remove(profile)">×</button></div>
+                </article>
             </nav>
         </template>
 
@@ -353,6 +418,7 @@ const runApply = async () => {
                             <button type="button" title="Copy this saved profile to the clipboard, encrypted" @click="openTransfer('copy', [currentProfile])">Copy encrypted</button>
                             <button type="button" title="Download this saved profile as an encrypted file" @click="openTransfer('export', [currentProfile])">Export</button>
                             <button type="button" title="Re-render CV sessions with this saved profile" @click="openApply(currentProfile)">Apply to sessions…</button>
+                            <button v-for="id in Object.keys(apply.undoable)" :key="id" type="button" :disabled="apply.busy" @click="undoApply(id)">Undo {{ sessionLabel(applySessions.find(item => item.id === id) ?? { id, title: id, revision: 0, updatedAt: "" }) }}</button>
                             <button type="button" class="profile-danger" @click="remove(currentProfile)">Delete</button>
                         </div>
                     </header>
@@ -445,9 +511,14 @@ const runApply = async () => {
                     <div class="profile-columns">
                         <section class="profile-section">
                             <div class="profile-section-heading"><h2>Certifications</h2><button type="button" @click="addEntry('certifications')">＋ Add</button></div>
-                            <div v-for="(certification, index) in draft.certifications" :key="index" class="entry-row single-row" :data-entry="`certifications-${index}`">
-                                <EditableField :label="`Certification ${index + 1}`" v-bind="field(`certifications.${index}.name`)" :model-value="certification.name" @commit="certification.name = $event; commit(`certifications.${index}.name`)" />
+                            <div v-for="(certification, index) in draft.certifications" :key="index" class="entry-card" :data-entry="`certifications-${index}`">
                                 <button type="button" class="entry-remove" aria-label="Remove certification" @click="removeEntry('certifications', index)">×</button>
+                                <div class="entry-grid">
+                                    <EditableField class="span-2" :label="`Certification ${index + 1}`" v-bind="field(`certifications.${index}.name`)" :model-value="certification.name" @commit="certification.name = $event; commit(`certifications.${index}.name`)" />
+                                    <EditableField class="span-2" label="Issuer" optional v-bind="field(`certifications.${index}.issuer`)" :model-value="certification.issuer || ''" @commit="certification.issuer = $event; commit(`certifications.${index}.issuer`)" />
+                                    <EditableField label="Start" optional v-bind="field(`certifications.${index}.start`)" :model-value="certification.start || ''" @commit="certification.start = $event; commit(`certifications.${index}.start`)" />
+                                    <EditableField label="End" optional v-bind="field(`certifications.${index}.end`)" :model-value="certification.end || ''" @commit="certification.end = $event; commit(`certifications.${index}.end`)" />
+                                </div>
                             </div>
                         </section>
                         <section class="profile-section">
@@ -490,7 +561,7 @@ const runApply = async () => {
                     <h2 id="apply-title">Apply {{ apply.profile?.identity.fullName }} to sessions</h2>
                     <p class="transfer-hint">Each selected session keeps its layout (or switches to the chosen template) and gets this profile's personal content. Sessions are updated independently.</p>
                     <label>Layout
-                        <select v-model="apply.layout" :disabled="apply.busy">
+                        <select v-model="apply.layout" :disabled="apply.busy || Object.keys(apply.results).length > 0">
                             <option value="">Keep each session's layout</option>
                             <option v-for="template in applyTemplates" :key="`${template.id}@${template.version}`" :value="`${template.id}@${template.version}`">{{ template.name }} v{{ template.version }}</option>
                         </select>
@@ -501,15 +572,24 @@ const runApply = async () => {
                         </button>
                         <p v-if="!applySessions.length" class="transfer-hint">No sessions yet.</p>
                         <label v-for="session in applySessions" :key="session.id" class="apply-session">
-                            <input v-model="apply.selected" type="checkbox" :value="session.id" :disabled="apply.busy">
+                            <input v-model="apply.selected" type="checkbox" :value="session.id" :disabled="apply.busy || Object.keys(apply.results).length > 0">
                             <span>{{ sessionLabel(session) }}</span>
                             <small v-if="apply.results[session.id]" :class="apply.results[session.id]!.ok ? 'transfer-status' : 'profile-error'">{{ apply.results[session.id]!.message }}</small>
                         </label>
                     </div>
+                    <section v-if="Object.keys(apply.previews).length" class="overwrite-preview" aria-label="Overwrite preview">
+                        <h3>Before / after preview</h3>
+                        <article v-for="id in apply.selected" :key="id"><strong>{{ applySessions.find(item => item.id === id)?.title || id }}</strong>
+                            <pre><strong>Before · Markdown</strong>\n{{ apply.previews[id]?.before.markdown }}\n\n<strong>After · Markdown</strong>\n{{ apply.previews[id]?.after.markdown }}\n\n<strong>Before · CSS</strong>\n{{ apply.previews[id]?.before.css }}\n\n<strong>After · CSS</strong>\n{{ apply.previews[id]?.after.css }}</pre>
+                            <button v-if="apply.undoable[id]" type="button" :disabled="apply.busy" @click="undoApply(id)">Undo this profile change</button>
+                        </article>
+                    </section>
+                    <label v-if="Object.keys(apply.previews).length" class="overwrite-confirm"><input v-model="apply.confirmed" type="checkbox"> I reviewed the before/after preview and understand this replaces session content.</label>
                     <p v-if="apply.error" class="profile-error" role="alert">{{ apply.error }}</p>
                     <footer>
                         <button type="button" :disabled="apply.busy" @click="closeApply">{{ Object.keys(apply.results).length ? "Done" : "Cancel" }}</button>
-                        <button class="profile-save" type="submit" :disabled="apply.busy || !apply.selected.length">{{ apply.busy ? "Applying…" : `Apply to ${apply.selected.length || ""} session${apply.selected.length === 1 ? "" : "s"}` }}</button>
+                        <button v-if="!Object.keys(apply.previews).length" type="button" class="profile-save" :disabled="apply.busy || !apply.selected.length" @click="previewApply">{{ apply.busy ? "Preparing preview…" : "Preview overwrite" }}</button>
+                        <button v-else class="profile-save" type="submit" :disabled="apply.busy || !apply.confirmed">{{ apply.busy ? "Applying…" : `Confirm & apply to ${apply.selected.length} session${apply.selected.length === 1 ? "" : "s"}` }}</button>
                     </footer>
                 </form>
             </div>
@@ -522,7 +602,11 @@ const runApply = async () => {
 .profiles-page { display: grid; grid-template-rows: minmax(0, 1fr); min-width: 0; min-height: 0; height: 100%; overflow: hidden; background: var(--bg-base, #111); color: var(--fg-text, #ddd); font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .profiles-list { box-sizing: border-box; height: 100%; padding: 14px 12px; overflow: auto; background: var(--bg-mantle, #171717); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .profiles-list__header { margin: 0 4px 12px; color: var(--fg-subtext0, #888); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
-.profiles-new, .profile-card { width: 100%; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.profiles-new, .profile-card { width: 100%; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: inherit; font: inherit; text-align: left; }
+.profile-card__select { display: grid; flex: 1; min-width: 0; gap: 4px; border: 0 !important; text-align: left !important; cursor: pointer; }
+.profile-card__actions { display: flex; gap: 3px; align-items: center; }
+.profile-card__actions button { padding: 4px 6px !important; font-size: 10px !important; }
+.duplicate-warning { color: var(--warning, #f9e2af); font-size: 10px; font-weight: 400; }
 .profiles-new { padding: 9px; margin-bottom: 12px; }
 .profiles-new:hover, .profile-card:hover, .profile-card.active { border-color: var(--accent, #89b4fa); background: var(--bg-surface0, #242424); }
 .profiles-empty { color: var(--fg-subtext0, #888); font-size: 11px; }
@@ -624,9 +708,14 @@ const runApply = async () => {
 .transfer-dialog footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .transfer-dialog footer .profile-save { border-color: var(--accent, #89b4fa); background: var(--accent, #89b4fa); color: #111; }
 .profile-error { color: var(--danger, #f38ba8); }
-.apply-dialog { width: min(520px, 100%); }
+.apply-dialog { width: min(760px, 100%); max-height: 90vh; overflow: auto; }
 .apply-dialog select { min-width: 0; padding: 8px; border: 1px solid var(--border, #333); border-radius: 3px; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; }
 .apply-sessions { display: grid; gap: 2px; max-height: 280px; margin-bottom: 12px; overflow: auto; }
+.overwrite-preview { max-height: 320px; overflow: auto; border: 1px solid var(--border, #333); padding: 10px; margin: 8px 0; }
+.overwrite-preview h3 { margin: 0 0 8px; font-size: 12px; }
+.overwrite-preview article + article { margin-top: 12px; border-top: 1px solid var(--border, #333); padding-top: 8px; }
+.overwrite-preview pre { max-height: 180px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 10px; }
+.overwrite-confirm { display: flex !important; grid-template-columns: auto 1fr !important; align-items: start; gap: 8px !important; }
 .apply-select-all { justify-self: start; margin-bottom: 6px; border: 1px solid var(--border, #333); border-radius: 3px; padding: 4px 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .transfer-dialog .apply-session { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; margin: 0; padding: 4px 2px; color: var(--fg-text, #ddd); font-size: 12px; }
 .apply-session span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

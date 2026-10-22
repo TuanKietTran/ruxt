@@ -30,8 +30,24 @@ jobs:
                   node-version: 22
                   cache: pnpm
 
+            # The private core is consumed as a packed tarball next to this repo.
+            # Build it from the pinned ruxt-core commit until a GitHub Packages
+            # read token is configured for this repository.
+            - name: Build private core tarball
+              env:
+                  RUXT_CORE_REF: ec01245
+              run: |
+                  git clone https://github.com/TuanKietTran/ruxt-core.git ../ruxt-core
+                  git -C ../ruxt-core checkout "$RUXT_CORE_REF"
+                  pnpm --dir ../ruxt-core install --frozen-lockfile --ignore-scripts
+                  pnpm --dir ../ruxt-core build
+                  mkdir -p ../package-artifacts/phase4
+                  pnpm --dir ../ruxt-core pack --pack-destination ../package-artifacts/phase4
+
+            # The core tarball is rebuilt here from a pinned commit, so its
+            # checksum is refreshed instead of compared with the local build's.
             - name: Install dependencies
-              run: pnpm install --frozen-lockfile
+              run: pnpm install --no-frozen-lockfile --update-checksums
 
             - name: Test
               run: pnpm test

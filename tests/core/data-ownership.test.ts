@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { CloudConsentCategoryState, CloudConsentEvent } from "@core/domain/cloud-data/consent";
-import { createGetCloudDataConsentHandler } from "@core/handlers/get-cloud-data-consent";
-import { createSetCloudDataConsentHandler } from "@core/handlers/set-cloud-data-consent";
-import type { CloudConsentRepository } from "@core/repos/cloud-consent.repo";
+import type { CloudConsentCategoryState, CloudConsentEvent } from "@ruxt/core/domain/cloud-data/consent";
+import { createGetCloudDataConsentHandler } from "@ruxt/core/handlers/get-cloud-data-consent";
+import { createSetCloudDataConsentHandler } from "@ruxt/core/handlers/set-cloud-data-consent";
+import type { CloudConsentRepository } from "@ruxt/core/repos/cloud-consent.repo";
 import { clerkOwnerId } from "../../server/utils/auth-user";
 
 class OwnerScopedConsentRepo implements CloudConsentRepository {

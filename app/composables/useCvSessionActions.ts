@@ -1,5 +1,5 @@
-import type { CvDocument, CvDocumentSummary, CvTemplate } from "@core/domain/cv";
-import type { CvSessionBackupEntry } from "@core/domain/cv";
+import type { CvDocument, CvDocumentSummary, CvTemplate } from "@ruxt/shared/cv";
+import type { CvSessionBackupEntry } from "@ruxt/shared/cv";
 import { clearCvSessionBackup, readCvSessionBackup, writeCvSessionBackup } from "~/utils/cvSessionBackup";
 
 const CV_SESSION_DELTA_WINDOW_MS = 5 * 60 * 1000;
@@ -76,7 +76,7 @@ export function useCvSessionActions() {
     const renameDocument = async (id: string, title: string) => {
         const trimmed = title.trim();
         const existing = cvIndex.value?.documents.find(document => document.id === id);
-        const optimistic = { id, title: trimmed, revision: existing?.revision ?? 0, updatedAt: new Date().toISOString() };
+        const optimistic = { id, title: trimmed, revision: existing?.revision ?? 0, updatedAt: existing?.updatedAt ?? new Date().toISOString() };
         upsertSummary(optimistic);
         try {
             const updated = await $fetch<CvDocument>(`/api/cvs/${encodeURIComponent(id)}`, {

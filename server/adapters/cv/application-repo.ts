@@ -1,8 +1,8 @@
-import type { CvApplicationRepository } from "@core/repos/cv-application.repo";
-import { CvApplication, type CvApplicationProps } from "@core/domain/cv/application";
-import { CvTemplate } from "@core/domain/cv/template";
-import { CvProfile } from "@core/domain/cv/concept";
-import { assertExpectedRevision } from "@core/domain/cv/version";
+import type { CvApplicationRepository } from "@ruxt/core/repos/cv-application.repo";
+import { CvApplication, type CvApplicationProps } from "@ruxt/core/domain/cv/application";
+import { CvTemplate } from "@ruxt/shared/cv";
+import { CvProfile } from "@ruxt/shared/cv";
+import { assertExpectedRevision } from "@ruxt/shared/cv";
 
 const key = (id: string) => `applications:${id}`;
 const writes = new Map<string, Promise<unknown>>();

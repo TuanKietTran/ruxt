@@ -1,6 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
+import { findForbiddenAppImports } from "./lint-app-import-boundary.js";
+import { packedPackagePolicyFailures } from "./lint-packed-package-policy.js";
 
 const failures = [];
+for (const finding of findForbiddenAppImports("app")) {
+  failures.push(`app/${finding.file}:${finding.line}: browser source must not import private @ruxt/core (@core) (${finding.specifier})`);
+}
 const requireText = (file, patterns) => {
   const source = readFileSync(file, "utf8");
   for (const [pattern, message] of patterns) {
@@ -9,11 +14,11 @@ const requireText = (file, patterns) => {
 };
 
 if (existsSync("app/types/profile.ts")) {
-  failures.push("app/types/profile.ts: CV profile contracts belong to @core/domain/cv, not app-local types");
+  failures.push("app/types/profile.ts: CV profile contracts belong to @ruxt/shared/cv, not app-local types");
 }
 
 requireText("app/pages/profiles.vue", [
-  [/@core\/domain\/cv/, "profile editor must consume the shared core CV profile contract"],
+  [/@ruxt\/shared\/cv(?:['"])/, "profile editor must consume the public @ruxt/shared CV profile contract"],
   [/definePageMeta\(\{[^}]*public:\s*true/s, "local profile editor must remain explicitly unauthenticated"],
   [/<NuxtLayout\s+name="editor"/, "product editors must reuse the editor layout"],
   [/<template\s+#workspace>/, "non-CV editor surfaces must use the editor layout workspace slot"],
@@ -61,10 +66,14 @@ requireText("nuxt.config.ts", [
   [/extends:\s*\["@ruxt\/editor"\]/, "ruxt must consume the published @ruxt/editor Nuxt layer"],
 ]);
 
-requireText("package.json", [
-  [/"@ruxt\/editor":\s*"\d+\.\d+\.\d+"/, "@ruxt/editor must be a pinned registry release, not a workspace or path reference"],
-  [/"@ruxt\/core":\s*"\d+\.\d+\.\d+"/, "@ruxt/core must be a pinned registry release, not a workspace or path reference"],
-]);
+const packageManifest = JSON.parse(readFileSync("package.json", "utf8"));
+const workspaceConfig = readFileSync("pnpm-workspace.yaml", "utf8");
+failures.push(...packedPackagePolicyFailures(packageManifest, workspaceConfig));
+for (const file of ["nuxt.config.ts", "vitest.config.ts", "tsconfig.json", "infra/tsconfig.json"]) {
+  if (/[\"'](?:@core|@ruxt\/(?:core|shared))(?:\/\*)?[\"']\s*:/.test(readFileSync(file, "utf8"))) {
+    failures.push(`${file}: resolve @ruxt/core and @ruxt/shared through package exports; do not alias source directories`);
+  }
+}
 if (failures.length) {
   console.error(`Architecture lint failed:\n- ${failures.join("\n- ")}`);
   process.exit(1);

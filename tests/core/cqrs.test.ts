@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createHandler } from "@core/cqrs";
+import { createHandler } from "@ruxt/shared/cqrs";
 import { testMediator } from "../helpers/fakes";
 
 describe("CQRS mediator", () => {

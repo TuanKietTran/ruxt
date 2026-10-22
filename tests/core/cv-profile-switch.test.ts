@@ -1,18 +1,18 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { composeCvMarkdown, normalizeCvProfile } from "@core/domain/cv/compose";
-import { extractCvProfile, toCvTemplateSkeleton } from "@core/domain/cv/split";
-import { CvApplication } from "@core/domain/cv/application";
-import { CvProfile } from "@core/domain/cv/concept";
-import type { CvProfileProps } from "@core/domain/cv/types";
-import type { Handler } from "@core/cqrs";
-import { runSaga, SagaError } from "@core/saga";
-import { createComposeCvProfileHandler } from "@core/handlers/compose-cv-profile";
-import { createGetCvDocumentHandler } from "@core/handlers/get-cv-document";
-import { createSaveCvSourceHandler } from "@core/handlers/save-cv-source";
-import { createUpdateCvApplicationProfileHandler } from "@core/handlers/update-cv-application-profile";
-import { createSwitchCvProfileHandler, type SwitchCvProfileOutput } from "@core/handlers/switch-cv-profile";
+import { composeCvMarkdown, normalizeCvProfile } from "@ruxt/shared/cv";
+import { extractCvProfile, toCvTemplateSkeleton } from "@ruxt/shared/cv";
+import { CvApplication } from "@ruxt/core/domain/cv/application";
+import { CvProfile } from "@ruxt/shared/cv";
+import type { CvProfileProps } from "@ruxt/shared/cv";
+import type { Handler } from "@ruxt/shared/cqrs";
+import { runSaga, SagaError } from "@ruxt/shared/saga";
+import { createComposeCvProfileHandler } from "@ruxt/core/handlers/compose-cv-profile";
+import { createGetCvDocumentHandler } from "@ruxt/core/handlers/get-cv-document";
+import { createSaveCvSourceHandler } from "@ruxt/core/handlers/save-cv-source";
+import { createUpdateCvApplicationProfileHandler } from "@ruxt/core/handlers/update-cv-application-profile";
+import { createSwitchCvProfileHandler, type SwitchCvProfileOutput } from "@ruxt/core/handlers/switch-cv-profile";
 import {
    InMemoryCvApplicationRepo,
    InMemoryCvDocumentRepo,

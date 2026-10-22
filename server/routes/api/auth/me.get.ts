@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { getUserQuery } from "@core/handlers/get-user";
+import { useMediator } from "@ruxt/shared/cqrs";
+import { getUserQuery } from "@ruxt/core/handlers/get-user";
 import { clerkClient } from "@clerk/nuxt/server";
 
 export default defineEventHandler(async (event) => {
@@ -10,7 +10,9 @@ export default defineEventHandler(async (event) => {
 
   if (principal.provider === "clerk") {
     try {
-      const user = await clerkClient(event).users.getUser(principal.providerUserId);
+      // Clerk's published declarations embed their own H3 types. Both use the
+      // same runtime event; bridge only this package boundary, not the response.
+      const user = await clerkClient(event as Parameters<typeof clerkClient>[0]).users.getUser(principal.providerUserId);
       const primary = user.emailAddresses.find(address => address.id === user.primaryEmailAddressId)
         ?? user.emailAddresses[0];
       if (!primary?.emailAddress) throw new Error("Clerk user has no email address");

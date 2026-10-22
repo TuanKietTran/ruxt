@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 import { getSqliteDb } from "@infra/db/sqlite";
 import { iamSubjects } from "@infra/db/schema";
-import { UserId } from "@core/domain/iam/user-id";
-import type { IamSubjectRepository, StoredSubject } from "@core/repos/iam.repo";
+import { UserId } from "@ruxt/core/domain/iam/user-id";
+import type { IamSubjectRepository, StoredSubject } from "@ruxt/core/repos/iam.repo";
 
 export class SqliteIamRepo implements IamSubjectRepository {
    private get db() { return getSqliteDb(); }

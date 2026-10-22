@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { Email } from "@core/domain/email/email";
-import { Instant } from "@core/domain/datetime/instant";
-import { Duration } from "@core/domain/datetime/duration";
-import { SocialDate } from "@core/domain/datetime/social";
-import { Money } from "@core/domain/subscription/money";
-import { BillingCycle } from "@core/domain/subscription/billing-cycle";
-import { SubscriptionStatus } from "@core/domain/subscription/subscription-status";
-import { Subscription } from "@core/domain/subscription/subscription";
-import { Plan } from "@core/domain/catalog/plan";
-import { PlanId } from "@core/domain/catalog/plan-id";
-import { CardNumber } from "@core/domain/payment/card-number";
+import { Email } from "@ruxt/shared/email";
+import { Instant } from "@ruxt/shared/datetime";
+import { Duration } from "@ruxt/shared/datetime";
+import { SocialDate } from "@ruxt/shared/datetime";
+import { Money } from "@ruxt/core/domain/subscription/money";
+import { BillingCycle } from "@ruxt/core/domain/subscription/billing-cycle";
+import { SubscriptionStatus } from "@ruxt/core/domain/subscription/subscription-status";
+import { Subscription } from "@ruxt/core/domain/subscription/subscription";
+import { Plan } from "@ruxt/core/domain/catalog/plan";
+import { PlanId } from "@ruxt/core/domain/catalog/plan-id";
+import { CardNumber } from "@ruxt/core/domain/payment/card-number";
 
 describe("Email", () => {
    it("normalizes case and surrounding whitespace", () => {

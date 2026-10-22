@@ -1,6 +1,6 @@
 # Testing And Devops
 
-Last updated: main@aca87ed | 2026-10-10
+Last updated: feat/ruxt-core-split@4dd5c27 | 2026-10-22
 
 ## Scope
 
@@ -91,7 +91,7 @@ Server imports require Python plus `pdfplumber`, `pytesseract`, and Pillow; `pnp
 
 ## Automated Test Suites
 
-`vitest` (dev dependency, Node environment) is the runner. `vitest.config.ts` re-declares the `@core` and `@infra` aliases that `nuxt.config.ts` owns, because Vitest does not read Nuxt configuration, and it includes only `tests/**/*.test.ts`.
+`vitest` (dev dependency, Node environment) is the runner. `vitest.config.ts` repeats the application `@infra` alias because Vitest does not read Nuxt configuration, and includes `tests/**/*.test.ts`. Core imports use installed package exports directly, without a source-directory alias.
 
 Suites are layered by what they can assert without a server:
 
@@ -106,6 +106,8 @@ Suites are layered by what they can assert without a server:
 Handler suites construct handlers directly with fake repositories rather than booting Nitro, so the singleton mediator and infra bootstrap are not required. `tests/helpers/fakes.ts` owns those fakes; the mediator helper calls `mountVendor()` once because the mediator is a process singleton.
 
 Error-message assertions are deliberate: `server/utils/api-errors.ts` maps domain messages to HTTP status by text, so the suites pin the exact wording that produces 400/404/409/413.
+
+`tests/smoke/alert-dialog.test.ts` characterizes the themed dashboard alertdialog with a mocked browser fixture, including dismissal/focus behavior. Other browser suites cover selected safety/rendering/activity/auth cases; consult each file's opt-in settings. Their presence is not evidence of a live authenticated pass.
 
 `tests/smoke/http.test.ts` is opt-in and self-skipping. Without `SMOKE_BASE_URL` the whole suite is skipped so `pnpm test` stays hermetic; with it, the suite fails fast if no server answers `/api/health`. It covers health, CV capabilities in either available or degraded form, the unauthenticated `/api/public/templates` catalog, the 401 on unauthenticated `POST /api/cv-templates`, auth rejection paths, anonymous session inspection, MCP `initialize` over Streamable HTTP, and server-rendered `/` and `/p`.
 
@@ -130,6 +132,18 @@ The names are `NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NUXT_CLERK_SECRET_KEY`, and 
 
 Issue and PR templates request layer classification, acceptance criteria, local `pnpm dev` testing, and screenshots/logs, but they do not execute checks.
 
+## Local packed-package workflow
+
+Public `@ruxt/shared@0.1.0` and `@ruxt/editor@0.1.2` are exact registry pins. Only the private core is local: build the `ruxt-core` workspace shared-first, pack core into the work area's `package-artifacts/phase4/`, then install the exact `file:` dependency in Ruxt. No sibling `link:` overrides or source-directory aliases are allowed. Core/shared artifacts contain compiled ESM and declarations with finite export maps; editor remains a Nuxt source layer, including internal relative utilities but excluding tests. Private core must resolve the same installed shared artifact as the consumer, preserving value-object and mediator identity.
+
+Standard Node22 runtime/all-declaration strict NodeNext checks (without `skipLibCheck`) and the Nuxt app build/typecheck validate different contracts. Tests assert blocked sensitive/internal deep paths and public package omission of private domain/handler/port code. Tarballs are local build artifacts outside the app repository; regenerate them before a fresh local install. A same-path repack needs a lock/artifact refresh and byte comparison of installed declaration witnesses, not an assumption that pnpm discarded its cached artifact. Do not infer registry/release availability or remote privacy from this local validation.
+
+Root core has a local `private:true` publication guard and restricted access metadata; shared/editor are public. Core workspace publishing is manually confirmed/main-only/public-directories-only, skips shared development version0.0.0 and does not upload private core tarballs as public artifacts. Workflow definitions were statically parsed/tested locally; no remote workflow or publication was executed.
+
+## Refactor baseline verification
+
+On `fix/ruxt-core-refactor` before frontend edits: frontend lint and hermetic tests passed (170 passed,38 opt-in skipped); separate core root141/editor9 passed. Manager serialized production build (15.5s), standard `pnpm exec nuxt typecheck --checker vue-tsc` and diffcheck passed. After core tokenizer/lint refactor, source-only core `pnpm typecheck`,154 root tests,9 editor tests and lint passed, followed by another frontend build/typecheck. These are bounded snapshots, not opt-in auth or deployment coverage.
+
 ## Validation Expectations
 
 For documentation-only spec changes, verify the DocumentMap has exactly one link for every non-index spec and no dead relative links.
@@ -150,10 +164,10 @@ Build success covers Nuxt compilation and some TypeScript integration but does n
 ## Current Gaps
 
 - There is no format or dedicated type-check package script. The checked-in `lint` script enforces focused architecture contracts but is not a general TypeScript/Vue/style linter.
-- CI is disabled and therefore does not run the test suites or enforce frozen install, build, security checks, or artifact validation.
+- Remote CI status was not checked or executed in this local refactor. Checked-in workflow definitions and local gates are not proof of a successful remote CI run.
 - Executable coverage exists for domain transitions/validators, IAM policy, CV split/template handlers, and CV document revision/patch handlers. It does not yet cover the real Nitro document store, repository parity, SQLite migration, Deno KV indexes, SSE streams, import cancellation/recovery, Markdown sanitization, CodeMirror, responsive UI, or export output.
 - The smoke suite asserts status codes and coarse shapes only; it does not authenticate, so authenticated CV, template-save, import, subscription, and IAM routes have no end-to-end coverage.
-- No component or browser-level tests exist; `app/` is covered only indirectly through the architecture lint and the smoke suite's server-rendered page checks.
+- Browser-level opt-in suites now exist under `tests/smoke/` (auth UI, profile safety, content activity, generator rendering and alert-dialog behavior as well as HTTP). They are skipped without their explicit fixture settings; the hermetic suite is not rendered live Clerk coverage. The prior auth-disabled local fixture produced four auth UI failures, not a green authenticated run. There is still no configured general Vue component-test environment or exhaustive responsive/export coverage.
 - Headless PDF automation is not portable by default and has no package script or CI browser setup.
 - A keyless `nuxt dev` (no Clerk keys in `.env`) still creates an unclaimed Clerk development instance as an outbound side effect, and the resulting `.clerk/` holds that instance's secret key.
 - Three package scripts (`build`, `test:smoke`, `cv:pipeline:setup`) are POSIX-shell only, and the CV pipeline venv path is hard-coded to `bin/`, so none of them work natively on Windows.

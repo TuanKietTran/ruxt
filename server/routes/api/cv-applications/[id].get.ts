@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { getCvApplicationQuery } from "@core/handlers/get-cv-application";
+import { useMediator } from "@ruxt/shared/cqrs";
+import { getCvApplicationQuery } from "@ruxt/core/handlers/get-cv-application";
 import { requireCvOwner } from "../../../utils/cv-owner";
 
 export default defineEventHandler(async (event) => {

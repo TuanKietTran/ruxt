@@ -4,10 +4,10 @@ import {
    projectCloudDataConsent,
    type CloudConsentCategoryState,
    type CloudConsentEvent,
-} from "@core/domain/cloud-data/consent";
-import { createGetCloudDataConsentHandler } from "@core/handlers/get-cloud-data-consent";
-import { createSetCloudDataConsentHandler } from "@core/handlers/set-cloud-data-consent";
-import type { CloudConsentRepository } from "@core/repos/cloud-consent.repo";
+} from "@ruxt/core/domain/cloud-data/consent";
+import { createGetCloudDataConsentHandler } from "@ruxt/core/handlers/get-cloud-data-consent";
+import { createSetCloudDataConsentHandler } from "@ruxt/core/handlers/set-cloud-data-consent";
+import type { CloudConsentRepository } from "@ruxt/core/repos/cloud-consent.repo";
 
 class InMemoryCloudConsentRepo implements CloudConsentRepository {
    readonly current = new Map<string, CloudConsentCategoryState>();

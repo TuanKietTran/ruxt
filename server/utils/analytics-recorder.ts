@@ -1,5 +1,5 @@
-import { MetricsRecorder, mergeBuckets } from "@ruxt/core/domain/analytics";
-import type { MetricBucket, MetricKind, MetricSample } from "@ruxt/core/domain/analytics";
+import { MetricsRecorder, mergeBuckets } from "@ruxt/shared/analytics";
+import type { MetricBucket, MetricKind, MetricSample } from "@ruxt/shared/analytics";
 import { metricStorageKey } from "@ruxt/core/repos/metric.repo";
 
 const recorder = new MetricsRecorder();

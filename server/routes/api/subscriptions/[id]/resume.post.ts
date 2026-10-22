@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { resumeSubscriptionCommand } from "@core/handlers/resume-subscription";
+import { useMediator } from "@ruxt/shared/cqrs";
+import { resumeSubscriptionCommand } from "@ruxt/core/handlers/resume-subscription";
 
 export default defineEventHandler(async (event) => {
    const id = getRouterParam(event, "id")!;

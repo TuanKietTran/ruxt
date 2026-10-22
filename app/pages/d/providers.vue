@@ -1,22 +1,12 @@
 <script setup lang="ts">
 import type { UIPlan, PlansResponse } from "~/types/api";
-import type { CurrencyCode } from "@core/domain";
+import { formatMoney } from "~/utils/money";
 
 const { data, status } = await useFetch<PlansResponse>("/api/plans", {
     query: { all: "true" },
 });
 
 const plans = computed<UIPlan[]>(() => data.value?.plans ?? []);
-
-const MINOR_UNITS: Record<CurrencyCode, number> = {
-    USD: 100, EUR: 100, GBP: 100, AUD: 100,
-    CAD: 100, SGD: 100, JPY: 1, VND: 1,
-};
-
-function formatMoney(amountMinor: number, currency: CurrencyCode): string {
-    const units = MINOR_UNITS[currency] ?? 100;
-    return `${(amountMinor / units).toFixed(units === 1 ? 0 : 2)} ${currency}`;
-}
 
 const search = ref("");
 

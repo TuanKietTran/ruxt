@@ -1,16 +1,25 @@
 <script setup lang="ts">
-import { PROFILE_SAVE_MODES, type ProfileSaveMode } from "@core/domain/preferences";
+import { PROFILE_SAVE_MODES, type ProfileSaveMode } from "@ruxt/shared/preferences";
+import { usePreferencesDescription } from "~/composables/usePreferencesDescription";
 
 // Preferences work without an account: they stay in this browser until the user signs in.
 definePageMeta({ public: true });
+useSeoMeta({ title: "Settings", ogTitle: "Settings" });
 
 const { preferences, source, signedIn, load, update } = usePreferences();
 const saving = ref(false);
 const status = ref("");
 const error = ref("");
+const preferencesLoaded = ref(false);
+const storageDescription = usePreferencesDescription({ signedIn, source, loaded: preferencesLoaded });
 
-onMounted(load);
-watch(signedIn, load);
+const loadPreferences = async () => {
+    preferencesLoaded.value = false;
+    await load();
+    preferencesLoaded.value = true;
+};
+onMounted(loadPreferences);
+watch(signedIn, loadPreferences);
 
 const modeCopy: Record<ProfileSaveMode, { title: string; detail: string }> = {
     auto: {
@@ -44,11 +53,7 @@ async function setSaveMode(mode: ProfileSaveMode) {
         <header class="page-header">
             <p class="eyebrow">Settings</p>
             <h1>Preferences</h1>
-            <p>
-                {{ source === "account"
-                    ? "Signed in: these settings are saved to your account and follow you across devices."
-                    : "These settings are saved in this browser only. Sign in to keep them with your account." }}
-            </p>
+            <p>{{ storageDescription }}</p>
         </header>
 
         <section class="settings-card" aria-labelledby="profile-save-title">

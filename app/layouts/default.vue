@@ -2,6 +2,11 @@
 import { useTheme, type ThemeId } from "~/composables/useTheme";
 
 const { current, themes, apply } = useTheme();
+const themeReady = ref(false);
+onMounted(() => {
+    useTheme().init();
+    themeReady.value = true;
+});
 const route = useRoute();
 
 const nav = [
@@ -40,6 +45,7 @@ const handleLogout = async () => {
 
                 <div class="header-actions">
                     <select
+                        v-if="themeReady"
                         class="theme-select"
                         :value="current"
                         aria-label="Select theme"

@@ -2,8 +2,8 @@
 import { computed } from "vue";
 import { useTheme, type ThemeId } from "~/composables/useTheme";
 import type { EditorStats } from "@ruxt/editor/composables/useCodeMirror";
-import type { CvDocumentSummary, CvTemplate } from "@core/domain/cv";
-import { cvSessionsToRecover, mergeCvSessions, type CvSessionBackupEntry } from "@core/domain/cv";
+import type { CvDocumentSummary, CvTemplate } from "@ruxt/shared/cv";
+import { cvSessionsToRecover, mergeCvSessions, type CvSessionBackupEntry } from "@ruxt/shared/cv";
 import { clearCvSessionBackup, listCvSessionBackups } from "~/utils/cvSessionBackup";
 import { hasEditorFeature, listEditorContexts, resolveEditorContext, type EditorContext, type EditorFeature } from "~/utils/editorContexts";
 
@@ -88,7 +88,19 @@ const sessionsLoading = computed(() => !cvIndex.value && cvIndexStatus.value !==
 // The sidebar lists what this browser has backed up as well as what the server returns, so a deployment
 // whose storage misses a session never hides it. Backups are read after mount to keep hydration stable.
 const localBackups = ref<CvSessionBackupEntry[]>([]);
-const sessions = computed(() => mergeCvSessions(cvIndex.value?.documents ?? [], localBackups.value));
+const sessionOrder = ref<"recent" | "name">("recent");
+const sessionOrderReady = ref(false);
+const persistSessionOrder = (event: Event) => {
+    sessionOrder.value = (event.target as HTMLSelectElement).value as "recent" | "name";
+    localStorage.setItem("editor-session-order", sessionOrder.value);
+};
+const sessions = computed(() => {
+    const documents = mergeCvSessions(cvIndex.value?.documents ?? [], localBackups.value);
+    if (sessionOrder.value === "name") {
+        return [...documents].sort((a, b) => documentLabel(a).localeCompare(documentLabel(b)) || a.id.localeCompare(b.id));
+    }
+    return documents;
+});
 const recovering = new Set<string>();
 /** Re-create sessions this browser has but the server does not, from their local backups. */
 const recoverLocalSessions = () => {
@@ -120,7 +132,7 @@ const showTemplateIndicators = ref(true);
 const templateStats = ref<EditorStats>({ line: 1, column: 1, words: 0 });
 const showBlankEditor = ref(false);
 const isHome = computed(() => !routeQueryValue(route.query.s) && !routeQueryValue(route.query.t));
-const showTemplatePicker = computed(() => isHome.value && !showBlankEditor.value);
+const showTemplatePicker = computed(() => hasFeature("templates") && isHome.value && !showBlankEditor.value);
 // The layout owns the template editor, so its status must come from that view rather than the page.
 const statusStats = computed<EditorStats>(() =>
     selectedTemplate.value
@@ -300,7 +312,40 @@ const isSidebarOpen = ref(true);
 const sidebarWidth = ref(232);
 const isSidebarResizing = ref(false);
 const previewZoom = ref(100);
-const isFitZoom = ref(false);
+const isFitZoom = ref(true);
+const zoomReady = ref(false);
+let zoomInteractionEpoch = 0;
+const previewDocumentKey = computed(() => {
+    const sessionId = routeQueryValue(route.query.s);
+    const templateId = routeQueryValue(route.query.t);
+    return sessionId ? `session:${sessionId}` : templateId ? `template:${templateId}:${routeQueryValue(route.query.v) ?? "latest"}` : "draft";
+});
+const zoomStorageKey = (key: string) => `cv-sv:preview-zoom:v1:${key}`;
+const saveZoom = () => {
+    if (!import.meta.client) return;
+    localStorage.setItem(zoomStorageKey(previewDocumentKey.value), JSON.stringify({ zoom: previewZoom.value, fit: isFitZoom.value }));
+};
+const restoreZoom = async () => {
+    zoomReady.value = false;
+    didFitInitialSheet = false;
+    const documentKey = previewDocumentKey.value;
+    const epoch = ++zoomInteractionEpoch;
+    let stored: { zoom?: number; fit?: boolean } | null = null;
+    try {
+        stored = JSON.parse(localStorage.getItem(zoomStorageKey(documentKey)) || "null");
+    } catch { /* Ignore malformed local preferences. */ }
+    if (stored && Number.isFinite(stored.zoom) && stored.zoom! >= 25 && stored.zoom! <= 200) {
+        previewZoom.value = stored.zoom!;
+        isFitZoom.value = Boolean(stored.fit);
+    } else {
+        previewZoom.value = 100;
+        isFitZoom.value = true;
+    }
+    if (isFitZoom.value) await fitPreview();
+    if (documentKey !== previewDocumentKey.value || epoch !== zoomInteractionEpoch) return;
+    zoomReady.value = true;
+    saveZoom();
+};
 const pageCount = ref(1);
 const isExportOpen = ref(false);
 const isImportOpen = ref(false);
@@ -326,6 +371,7 @@ const runExport = async () => {
 };
 let previewObserver: MutationObserver | undefined;
 let canvasObserver: ResizeObserver | undefined;
+let didFitInitialSheet = false;
 
 const layoutStyle = computed(() => ({
     "--sidebar-width": `${sidebarWidth.value}px`,
@@ -401,14 +447,21 @@ const formatFromSelect = (event: Event) => {
 };
 
 const setZoom = (zoom: number) => {
+    zoomInteractionEpoch += 1;
+    zoomReady.value = true;
     isFitZoom.value = false;
-    previewZoom.value = Math.min(200, Math.max(25, Math.round(zoom / 10) * 10));
+    previewZoom.value = zoom <= 25 ? 25 : Math.min(200, Math.max(25, Math.round(zoom / 10) * 10));
+    saveZoom();
 };
 
-const fitPreview = async () => {
+const fitPreview = async (fromUser = false) => {
+    if (fromUser) zoomInteractionEpoch += 1;
+    const documentKey = previewDocumentKey.value;
+    const epoch = zoomInteractionEpoch;
     isFitZoom.value = true;
     previewZoom.value = 100;
     await nextTick();
+    if (documentKey !== previewDocumentKey.value || epoch !== zoomInteractionEpoch || !isFitZoom.value) return;
     const canvas = previewCanvas.value;
     const sheet = previewContent.value?.querySelector<HTMLElement>(".cv-sheet");
     if (!canvas || !sheet) return;
@@ -418,10 +471,17 @@ const fitPreview = async () => {
         availableWidth / sheet.offsetWidth,
         availableHeight / sheet.offsetHeight,
     ) * 100)));
+    didFitInitialSheet = true;
+    if (zoomReady.value) saveZoom();
 };
 
+watch(previewDocumentKey, () => { void restoreZoom(); });
+
 const updatePageCount = () => {
-    pageCount.value = Math.max(1, previewContent.value?.querySelectorAll(".cv-sheet").length ?? 0);
+    const sheets = previewContent.value?.querySelectorAll(".cv-sheet").length ?? 0;
+    const firstSheetArrived = sheets > 0 && !didFitInitialSheet;
+    pageCount.value = Math.max(1, sheets);
+    if (zoomReady.value && isFitZoom.value && firstSheetArrived) void fitPreview();
 };
 
 onMounted(() => {
@@ -440,15 +500,18 @@ onMounted(() => {
     compactMedia.addEventListener("change", syncCompact);
     syncCompact();
     isSidebarOpen.value = localStorage.getItem("editor-sidebar-open") !== "false";
+    sessionOrder.value = localStorage.getItem("editor-session-order") === "name" ? "name" : "recent";
+    sessionOrderReady.value = true;
     const savedWidth = Number(localStorage.getItem("editor-sidebar-width"));
     if (Number.isFinite(savedWidth) && savedWidth >= 160 && savedWidth <= 420) sidebarWidth.value = savedWidth;
+    void restoreZoom();
     updatePageCount();
     if (previewContent.value) {
         previewObserver = new MutationObserver(updatePageCount);
         previewObserver.observe(previewContent.value, { childList: true, subtree: true });
     }
     if (previewCanvas.value) {
-        canvasObserver = new ResizeObserver(() => { if (isFitZoom.value) void fitPreview(); });
+        canvasObserver = new ResizeObserver(() => { if (zoomReady.value && isFitZoom.value) void fitPreview(); });
         canvasObserver.observe(previewCanvas.value);
     }
 });
@@ -530,8 +593,8 @@ const handleLogout = async () => {
                 >
                     <img class="editor-brand-icon" src="/favicon.ico" alt="" aria-hidden="true">
                 </button>
-                <strong class="editor-title">{{ editorTitle }}</strong>
-                <span class="app-badge">{{ appLabel }}</span>
+                <strong v-if="!showTemplatePicker" class="editor-title">{{ editorTitle }}</strong>
+                <span v-if="!showTemplatePicker" class="app-badge">{{ appLabel }}</span>
             </section>
 
             <nav v-if="hasFeature('formatting')" class="editor-header__tools" aria-label="Editor tools">
@@ -583,6 +646,8 @@ const handleLogout = async () => {
                     </button>
                     <button class="template-back-button" type="button" @click="closeTemplate">Back to CV</button>
                 </div>
+                <NuxtLink class="header-button" to="/settings">Settings</NuxtLink>
+                <button v-if="authenticated && user" class="header-button" type="button" @click="handleLogout">Logout</button>
                 <button v-if="authenticated && hasFeature('import')" class="header-button" type="button" @click="isImportOpen = true">Import</button>
                 <button v-if="hasFeature('export')" class="header-button header-button--primary" type="button" @click="isExportOpen = true">Export</button>
                 <select
@@ -637,6 +702,10 @@ const handleLogout = async () => {
                     <header class="document-group__header">
                         <h2>Sessions</h2>
                         <div>
+                            <select class="session-order" :value="sessionOrder" :disabled="!sessionOrderReady" aria-label="Order sessions" @input="persistSessionOrder" @change="persistSessionOrder">
+                                <option value="recent">Recent</option>
+                                <option value="name">Name</option>
+                            </select>
                             <button type="button" aria-label="New session" @click="createSession">＋</button>
                             <button type="button" aria-label="Refresh sessions" @click="refreshDocuments">↻</button>
                         </div>
@@ -707,7 +776,7 @@ const handleLogout = async () => {
             id="main-editor"
             ref="workspace"
             class="editor-workspace"
-            :class="{ 'editor-workspace--resizing': isResizing, 'editor-workspace--page': $slots.workspace }"
+            :class="{ 'editor-workspace--resizing': isResizing, 'editor-workspace--page': $slots.workspace, 'editor-workspace--picker': showTemplatePicker }"
             :style="workspaceStyle"
         >
             <slot v-if="$slots.workspace" name="workspace" />
@@ -792,7 +861,7 @@ const handleLogout = async () => {
                             <button type="button" aria-label="Zoom out" :disabled="previewZoom <= 25" @click="setZoom(previewZoom - 10)">−</button>
                             <button class="zoom-value" type="button" aria-label="Reset zoom" @click="setZoom(100)">{{ previewZoom }}%</button>
                             <button type="button" aria-label="Zoom in" :disabled="previewZoom >= 200" @click="setZoom(previewZoom + 10)">＋</button>
-                            <button type="button" :class="{ 'preview-tool--active': isFitZoom }" :aria-pressed="isFitZoom" @click="fitPreview">Fit</button>
+                            <button type="button" :class="{ 'preview-tool--active': isFitZoom }" :aria-pressed="isFitZoom" @click="fitPreview(true)">Fit</button>
                         </div>
                         <span>Read only · v{{ selectedTemplate.version }}</span>
                     </header>
@@ -843,7 +912,7 @@ const handleLogout = async () => {
                         <button type="button" aria-label="Zoom out" :disabled="previewZoom <= 25" @click="setZoom(previewZoom - 10)">−</button>
                         <button class="zoom-value" type="button" aria-label="Reset zoom" @click="setZoom(100)">{{ previewZoom }}%</button>
                         <button type="button" aria-label="Zoom in" :disabled="previewZoom >= 200" @click="setZoom(previewZoom + 10)">＋</button>
-                        <button type="button" :class="{ 'preview-tool--active': isFitZoom }" :aria-pressed="isFitZoom" @click="fitPreview">Fit</button>
+                        <button type="button" :class="{ 'preview-tool--active': isFitZoom }" :aria-pressed="isFitZoom" @click="fitPreview(true)">Fit</button>
                     </div>
                     <span>{{ pageCount }} {{ pageCount === 1 ? 'page' : 'pages' }}</span>
                 </header>
@@ -1074,7 +1143,9 @@ button {
 }
 
 .format-select {
-    width: 54px;
+    width: clamp(76px, 8vw, 88px);
+    min-width: 76px;
+    flex: 0 1 88px;
     height: 28px;
     padding: 0 3px;
     border: 0;
@@ -1231,6 +1302,15 @@ button {
     color: var(--fg-text);
 }
 
+.session-order {
+    max-width: 76px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-base);
+    color: var(--fg-subtext0);
+    font-size: 10px;
+}
+
 .document-group h2 {
     margin: 12px 12px 5px;
     color: var(--fg-subtext0);
@@ -1295,7 +1375,8 @@ button {
 }
 
 /* A page that provides its own workspace gets the whole area, not the source/preview split. */
-.editor-workspace--page {
+.editor-workspace--page,
+.editor-workspace--picker {
     grid-template-columns: minmax(0, 1fr);
 }
 
@@ -1324,6 +1405,16 @@ button {
     background: var(--bg-mantle);
 }
 
+/* Slotted session controls must not paint over the adjacent preview toolbar. */
+.source-tabs {
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.source-tabs > :deep(*) {
+    flex-shrink: 0;
+}
+
 .source-tab,
 .source-tabs :deep(.source-tab),
 .preview-toolbar button {
@@ -1344,8 +1435,11 @@ button {
 }
 
 .template-picker {
+    width: min(100%, 980px);
+    box-sizing: border-box;
+    justify-self: center;
     overflow: auto;
-    padding: clamp(32px, 6vw, 72px);
+    padding: clamp(24px, 6vw, 72px);
     background: var(--bg-base);
 }
 

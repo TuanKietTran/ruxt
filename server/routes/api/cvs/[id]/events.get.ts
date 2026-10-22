@@ -1,5 +1,5 @@
 import { assertCvId, getCvDocument, subscribeToCv } from "../../../../adapters/cv/document-store";
-import type { CvUpdateEvent } from "@core/domain/cv";
+import type { CvUpdateEvent } from "@ruxt/shared/cv";
 
 const encoder = new TextEncoder();
 const encodeEvent = (event: string, data: unknown) =>

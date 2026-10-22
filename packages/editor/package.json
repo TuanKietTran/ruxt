@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Route-free Nuxt editor layer shared by Ruxt applications.",
-  "private": false,
+  "private": true,
   "exports": {
     ".": "./nuxt.config.ts",
     "./components/CodeMirror.vue": "./app/components/CodeMirror.vue",

@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 import { getSqliteDb } from "@infra/db/sqlite";
 import { subscriptions } from "@infra/db/schema";
-import type { SubscriptionRepository } from "@core/repos/subscription.repo";
-import { Subscription, SubscriptionId } from "@core/domain/subscription/subscription";
+import type { SubscriptionRepository } from "@ruxt/core/repos/subscription.repo";
+import { Subscription, SubscriptionId } from "@ruxt/core/domain/subscription/subscription";
 
 export class SqliteSubscriptionRepo implements SubscriptionRepository {
    private get db() {

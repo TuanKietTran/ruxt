@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { cancelCvImportCommand } from "@core/handlers/cancel-cv-import";
+import { useMediator } from "@ruxt/shared/cqrs";
+import { cancelCvImportCommand } from "@ruxt/core/handlers/cancel-cv-import";
 import { requestActiveCvImportCancellation } from "../../../../services/cv-import-worker";
 import { requireCvOwner } from "../../../../utils/cv-owner";
 

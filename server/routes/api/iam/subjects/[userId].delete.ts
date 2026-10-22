@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { deleteSubjectCommand } from "@core/handlers/delete-subject";
+import { useMediator } from "@ruxt/shared/cqrs";
+import { deleteSubjectCommand } from "@ruxt/core/handlers/delete-subject";
 
 export default defineEventHandler(async (event) => {
    const userId = getRouterParam(event, "userId")!;

@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { schedulePlanChangeCommand } from "@core/handlers/schedule-plan-change";
+import { useMediator } from "@ruxt/shared/cqrs";
+import { schedulePlanChangeCommand } from "@ruxt/core/handlers/schedule-plan-change";
 
 export default defineEventHandler(async (event) => {
    const id = getRouterParam(event, "id")!;

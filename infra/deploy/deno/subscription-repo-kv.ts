@@ -1,6 +1,6 @@
 import { getKv } from "@infra/kv";
-import type { SubscriptionRepository } from "@core/repos/subscription.repo";
-import { Subscription, SubscriptionId } from "@core/domain/subscription/subscription";
+import type { SubscriptionRepository } from "@ruxt/core/repos/subscription.repo";
+import { Subscription, SubscriptionId } from "@ruxt/core/domain/subscription/subscription";
 
 // key schema:
 //   ["sub", id]              → Subscription JSON  (primary)

@@ -1,17 +1,17 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { composeCvMarkdown, normalizeCvProfile } from "@core/domain/cv/compose";
-import { detectCvProfile, mergeCvProfileSections } from "@core/domain/cv/detect";
-import { extractCvProfile, toCvTemplateSkeleton } from "@core/domain/cv/split";
-import type { CvProfileProps } from "@core/domain/cv/types";
-import type { Handler } from "@core/cqrs";
-import { createApplyCvProfileHandler, type ApplyCvProfileOutput } from "@core/handlers/apply-cv-profile";
-import { createComposeCvProfileHandler } from "@core/handlers/compose-cv-profile";
-import { createDetectCvProfileHandler } from "@core/handlers/detect-cv-profile";
-import { createGetCvDocumentHandler } from "@core/handlers/get-cv-document";
-import { createSaveCvSourceHandler } from "@core/handlers/save-cv-source";
-import { createSwitchCvProfileHandler } from "@core/handlers/switch-cv-profile";
+import { composeCvMarkdown, normalizeCvProfile } from "@ruxt/shared/cv";
+import { detectCvProfile, mergeCvProfileSections } from "@ruxt/shared/cv";
+import { extractCvProfile, toCvTemplateSkeleton } from "@ruxt/shared/cv";
+import type { CvProfileProps } from "@ruxt/shared/cv";
+import type { Handler } from "@ruxt/shared/cqrs";
+import { createApplyCvProfileHandler, type ApplyCvProfileOutput } from "@ruxt/core/handlers/apply-cv-profile";
+import { createComposeCvProfileHandler } from "@ruxt/core/handlers/compose-cv-profile";
+import { createDetectCvProfileHandler } from "@ruxt/core/handlers/detect-cv-profile";
+import { createGetCvDocumentHandler } from "@ruxt/core/handlers/get-cv-document";
+import { createSaveCvSourceHandler } from "@ruxt/core/handlers/save-cv-source";
+import { createSwitchCvProfileHandler } from "@ruxt/core/handlers/switch-cv-profile";
 import { InMemoryCvDocumentRepo, InMemoryCvTemplateRepo } from "../helpers/fakes";
 
 const harvard = JSON.parse(readFileSync(fileURLToPath(new URL("../../server/data/cv-templates/harvard.v1.json", import.meta.url)), "utf8"));

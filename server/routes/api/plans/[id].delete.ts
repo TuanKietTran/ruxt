@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { deletePlanCommand } from "@core/handlers/delete-plan";
+import { useMediator } from "@ruxt/shared/cqrs";
+import { deletePlanCommand } from "@ruxt/core/handlers/delete-plan";
 
 export default defineEventHandler(async (event) => {
    const id = getRouterParam(event, "id")!;

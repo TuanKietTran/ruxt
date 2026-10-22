@@ -1,6 +1,6 @@
 # Specs DocumentMap
 
-Last updated: main@ff295d9 | 2026-09-20
+Last updated: feat/ruxt-core-split@4dd5c27 | 2026-10-22
 
 This folder is the compact implementation-truth map for humans and coding agents working on `cv-sv`. Read this file first, then open only the subsystem specs relevant to the work.
 
@@ -29,7 +29,8 @@ If source and specs disagree, source is ground truth. During ordinary implementa
 
 ## Working Rules
 
-- Paths written as `core/<path>` refer to `<path>` inside the pinned `@ruxt/core` package (source in the `ruxt-core` repository, imported as `@core/...`); this repository has no `core/` folder. Change shared contracts there, publish, then bump the pin here.
+- Paths written as `core/<path>` refer to `<path>` in private `@ruxt/core` (the separate `ruxt-core` repository root); there is no local `core/` folder here. Paths written as `shared/<path>` denote public `@ruxt/shared` (canonical source `ruxt-core/packages/shared`), not an application copy. Historical `core/` paths for generic primitives/presentation may now be thin private compatibility re-exports; their canonical implementation belongs to shared. Browser code imports only public shared/editor contracts or app-owned HTTP DTOs; private handlers, ports and business/security policy are server/infra-only.
+- Consumers use finite package exports, never sibling-source aliases. `@ruxt/shared` (0.1.0) and `@ruxt/editor` (0.1.2) are consumed as exact published npm versions. The private `@ruxt/core` is never published: build it and consume the exact `file:` tarball under the work area's `package-artifacts/phase4/` until a private registry is chosen (open decision; CI cannot resolve the tarball).
 
 - Start here before substantial work and read the owning subsystem spec before editing that area.
 - For cross-cutting work, also read architecture/runtime, auth/security, persistence/deployment, and testing/devops as applicable.
@@ -51,6 +52,8 @@ If source and specs disagree, source is ground truth. During ordinary implementa
 - [domain-foundations.md](domain-foundations.md): shared value objects, date/time, email/password, phone, and payment primitives.
 - [persistence-deployment.md](persistence-deployment.md): SQLite and Deno KV adapters, CV filesystem storage, strategy selection, and deployment configuration.
 - [testing-devops.md](testing-devops.md): package commands, build/export prerequisites, CI status, generated artifacts, and validation gaps.
+- [cv-sv-ui-validation.md](cv-sv-ui-validation.md): historical editor/browser validation and its environment limits; not a current acceptance gate.
+- [TODO.md](TODO.md): verified deferred refactor and validation follow-ups.
 
 ## Cross-Cutting Spec Update Triggers
 

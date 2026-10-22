@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { CvArtifactRepository, CvImportRepository } from "@core/repos/cv-import.repo";
-import { CvImportJob } from "@core/domain/cv/import";
-import type { CvGeneratedArtifact, CvImportJobProps, CvSourceArtifact } from "@core/domain/cv/import";
+import type { CvArtifactRepository, CvImportRepository } from "@ruxt/core/repos/cv-import.repo";
+import { CvImportJob } from "@ruxt/core/domain/cv/import";
+import type { CvGeneratedArtifact, CvImportJobProps, CvSourceArtifact } from "@ruxt/core/domain/cv/import";
 
 const importKey = (id: string) => `imports:${id}`;
 const artifactMetaKey = (id: string) => `artifact-meta:${id}`;

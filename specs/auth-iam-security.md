@@ -1,6 +1,6 @@
 # Authentication, IAM, And Security
 
-Last updated: main@d1ae665 | 2026-09-13
+Last updated: feat/ruxt-core-split@4dd5c27 | 2026-10-22
 
 ## Scope
 
@@ -13,6 +13,10 @@ This spec covers:
 - `/api/auth/*` and `/api/iam/*` routes;
 - browser auth state, SSR plugin, global route middleware, login page, and auth controls in layouts;
 - auth and authorization boundaries for the rest of the repository.
+
+## Package ownership
+
+IAM/password/auth policy, account use cases, payment/commercial policy and cloud consent remain in private `@ruxt/core`; generic Email, feature host/route evaluation and presentation contracts live in public `@ruxt/shared`. The generic feature evaluator is deployment segmentation, not an authorization policy. Public shared/editor packages cannot import/re-export private core, including types; browser code uses shared presentation contracts and app-owned HTTP DTOs. Package privacy metadata is not API authorization, repository secrecy or a registry ACL change, and does not repair the existing route-enforcement gaps below.
 
 ## Account Authentication
 
@@ -73,7 +77,7 @@ Passwords and hashes must never be logged or serialized through API outputs. `Pl
 
 ## Verification
 
-`tests/core/auth-workflows.test.ts` covers canonical sign-up, duplicate accounts, successful and failed login, password non-exposure, and safe local redirects. `tests/core/auth-principal.test.ts` covers Clerk namespacing, legacy migration sessions, and anonymous rejection. The opt-in browser suite in `tests/smoke/auth-ui.test.ts` exercises protected-route entry, sign-in/sign-up mode switching, enabled social-provider presentation, dialog dismissal, authenticated settings access, and persisted consent.
+`tests/core/auth-workflows.test.ts` covers canonical sign-up, duplicate accounts, successful and failed login, password non-exposure, and safe local redirects. `tests/core/auth-principal.test.ts` covers Clerk namespacing, legacy migration sessions, and anonymous rejection. The opt-in browser suite in `tests/smoke/auth-ui.test.ts` defines protected-route, sign-in/sign-up, social-provider, dismissal, settings and consent cases. Its presence/skipping is not a passing live Clerk run: the prior auth-disabled local fixture produced four failures, and rendered authenticated coverage remains unverified. Hermetic workflow/principal tests and mocked settings checks are distinct evidence.
 
 ## Current Gaps
 

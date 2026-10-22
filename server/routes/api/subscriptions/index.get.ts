@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { listSubscriptionsQuery } from "@core/handlers/list-subscriptions";
+import { useMediator } from "@ruxt/shared/cqrs";
+import { listSubscriptionsQuery } from "@ruxt/core/handlers/list-subscriptions";
 
 export default defineEventHandler(async (event) => {
    const { userId } = getQuery(event);

@@ -6,13 +6,24 @@ A full-stack CV workspace and subscription platform built on [Nuxt 4](https://nu
 
 | Document | Description |
 |---|---|
-| [Architecture](./docs/architecture.md) | Layered architecture, module map, domain model, boot sequence |
+| [Specs index](./specs/_readme.md) | Current implementation contracts and subsystem ownership |
+| [Architecture](./docs/architecture.md) | Architecture guide (consult specs for current package boundaries) |
 | [Extending](./docs/extending.md) | How to add handlers, deploy strategies, policies, and API routes |
 | [CV Editor](./specs/cv-editor.md) | Editor routes, source/preview behavior, themes, and exports |
 | [CV Documents](./specs/cv-documents-realtime.md) | Persistence, revisions, autosave, and realtime synchronization |
 | [CV Server Workflows](./specs/cv-server-workflows.md) | Target CV workflows, MCP surface, core handlers, ports, and implementation order |
 
 ## Quick Start
+
+`@ruxt/shared` and `@ruxt/editor` install from npm. The private `@ruxt/core` is a local tarball: first regenerate the artifact referenced by `package.json` (from the `ruxt-work` directory):
+
+```bash
+pnpm --dir ruxt-core install --frozen-lockfile
+pnpm --dir ruxt-core build
+pnpm --dir ruxt-core pack --pack-destination ../package-artifacts/phase4
+```
+
+Then, from this frontend repository:
 
 ```bash
 pnpm install
@@ -56,11 +67,7 @@ pnpm dev                # http://localhost:3000
 ```
 ruxt/
 ├── app/          # Vue 3 frontend (pages, components, composables)
-├── core/         # Pure domain logic — framework-free
-│   ├── cqrs.ts   # Mediator, Handler, Command, Query types
-│   ├── domain/   # Value objects, entities, domain services
-│   ├── handlers/ # One file per use-case (command or query)
-│   └── repos/    # Repository interfaces (ports)
+├── packages/     # Legacy editor snapshot; active layer resolves from the installed package
 ├── infra/        # Adapters: DB, crypto, deploy strategies
 │   ├── deploy/   # Deno KV and SQLite repo implementations
 │   ├── db/       # Drizzle schema + SQLite connection
@@ -69,11 +76,12 @@ ruxt/
 │   ├── plugins/  # Boot: mount mediator, bootstrap infra
 │   ├── routes/   # REST API, CV event streams, and MCP transport
 │   └── utils/    # CV document store, API errors, sessions, MCP tools
-├── shared/       # Browser/server CV transport types
+├── specs/        # Implementation contracts and public/private ownership map
 ├── scripts/      # Headless CV rendering automation
-├── specs/        # Implementation-truth subsystem specifications
 └── docs/         # Architecture and extension guides
 ```
+
+The separate `ruxt-core` workspace supplies public `@ruxt/shared` primitives/presentation and private `@ruxt/core` business/security handlers, domains and ports; no local `core/` directory is used. Public `@ruxt/editor` supplies the route-free Nuxt layer. All resolve through finite package exports from installed local tarballs, not sibling-source aliases or the legacy editor snapshot. Browser code cannot import private core. See the specs index for contracts and validation limits; local metadata does not change remote registry/repository privacy or grant a license.
 
 ## API Overview
 

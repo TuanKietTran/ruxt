@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { cvSessionsToRecover, mergeCvSessions, shouldRestoreCvBackup } from "@core/domain/cv";
+import { cvSessionsToRecover, mergeCvSessions, shouldRestoreCvBackup } from "@ruxt/shared/cv";
 import {
    clearCvNewSessionDraft,
    clearCvSessionBackup,

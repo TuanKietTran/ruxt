@@ -1,14 +1,14 @@
 import { createHash } from "node:crypto";
 import referenceMarkdown from "../../../app/data/reference-cv.md?raw";
 import referenceCss from "../../../app/data/reference-cv.css?raw";
-import { CvDocument } from "@core/domain/cv/document";
+import { CvDocument } from "@ruxt/shared/cv";
 import { migrateCvIndicatorSources } from "./source-migration";
 import type {
     CvDocumentProps,
     CvDocumentSummary,
     CvUpdateEvent,
     UpdateCvDocumentInput,
-} from "@core/domain/cv";
+} from "@ruxt/shared/cv";
 
 type Listener = (update: CvUpdateEvent) => void;
 
@@ -123,15 +123,23 @@ export async function listCvDocuments(): Promise<CvDocumentSummary[]> {
 
 export async function renameCvDocument(id: string, title: string): Promise<CvDocument> {
     assertCvId(id);
-    const current = await readDocument(id);
-    if (!current || current.id === "master" || current.id.startsWith("template-")) {
-        throw createError({ statusCode: 400, statusMessage: "This document cannot be renamed" });
-    }
+    id = await migrateLegacyDocument(id);
     const normalizedTitle = title.trim().slice(0, 120);
     if (!normalizedTitle) throw createError({ statusCode: 400, statusMessage: "title is required" });
-    const renamed = CvDocument.create({ ...current.toJSON(), title: normalizedTitle, updatedAt: new Date().toISOString() });
-    await useStorage("cv").setItem(keyFor(current.id), renamed.toJSON());
-    return renamed;
+    const previousWrite = writes.get(id) ?? Promise.resolve();
+    const nextWrite = previousWrite.then(async () => {
+        const current = await readDocument(id);
+        if (!current || current.id === "master" || current.id.startsWith("template-")) {
+            throw createError({ statusCode: 400, statusMessage: "This document cannot be renamed" });
+        }
+        // Naming is metadata, not content activity. Serialize with source saves so a
+        // concurrent rename cannot restore a stale source/revision over an edit.
+        const renamed = CvDocument.create({ ...current.toJSON(), title: normalizedTitle });
+        await useStorage("cv").setItem(keyFor(current.id), renamed.toJSON());
+        return renamed;
+    });
+    writes.set(id, nextWrite.catch(() => undefined));
+    return nextWrite;
 }
 
 export async function forkCvDocument(id: string, nextId: string, title?: string): Promise<CvDocument> {

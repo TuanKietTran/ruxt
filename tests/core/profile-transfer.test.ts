@@ -8,7 +8,7 @@ import {
     envelopeToToken,
     parseEnvelope,
 } from "../../app/utils/profileTransfer";
-import type { CvProfileProps } from "@core/domain/cv";
+import type { CvProfileProps } from "@ruxt/shared/cv";
 
 const profile: CvProfileProps = {
     version: 1,

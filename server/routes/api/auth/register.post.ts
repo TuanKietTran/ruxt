@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { registerUserCommand } from "@core/handlers/register-user";
+import { useMediator } from "@ruxt/shared/cqrs";
+import { registerUserCommand } from "@ruxt/core/handlers/register-user";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);

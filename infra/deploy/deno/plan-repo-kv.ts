@@ -1,6 +1,6 @@
 import { getKv } from "@infra/kv";
-import { Plan, PlanId } from "@core/domain/catalog";
-import type { PlanRepository } from "@core/repos/plan.repo";
+import { Plan, PlanId } from "@ruxt/core/domain/catalog";
+import type { PlanRepository } from "@ruxt/core/repos/plan.repo";
 
 // key schema:
 //   ["plan", id]      → Plan JSON

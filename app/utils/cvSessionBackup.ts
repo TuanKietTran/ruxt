@@ -3,11 +3,11 @@ import {
     parseCvSessionBackup,
     type CvSessionBackup,
     type CvSessionBackupEntry,
-} from "@core/domain/cv";
+} from "@ruxt/shared/cv";
 
 /**
  * Browser storage for CV session backups. The rules (when a backup wins, which sessions to re-create,
- * the merged session list) live in `@ruxt/core` (`domain/cv/session-backup`); this module only reads
+ * the merged session list) live in `@ruxt/shared/cv`; this module only reads
  * and writes `localStorage`, so a deployment whose storage misses a session cannot make it disappear.
  */
 export const CV_SESSION_BACKUP_PREFIX = "cv-sv:session-backup:";

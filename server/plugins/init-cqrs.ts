@@ -1,4 +1,4 @@
-import { mountVendor } from "@core/cqrs";
+import { mountVendor } from "@ruxt/shared/cqrs";
 
 export default defineNitroPlugin(() => {
    mountVendor();

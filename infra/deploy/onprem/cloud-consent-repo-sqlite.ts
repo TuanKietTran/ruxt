@@ -1,6 +1,6 @@
 import { asc, eq } from "drizzle-orm";
-import type { CloudConsentRepository } from "@core/repos/cloud-consent.repo";
-import type { CloudConsentCategoryState, CloudConsentEvent } from "@core/domain/cloud-data/consent";
+import type { CloudConsentRepository } from "@ruxt/core/repos/cloud-consent.repo";
+import type { CloudConsentCategoryState, CloudConsentEvent } from "@ruxt/core/domain/cloud-data/consent";
 import { cloudConsentEvents, cloudConsentStates } from "@infra/db/schema";
 import { getSqliteDb } from "@infra/db/sqlite";
 

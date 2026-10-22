@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { upsertSubjectCommand } from "@core/handlers/upsert-subject";
+import { useMediator } from "@ruxt/shared/cqrs";
+import { upsertSubjectCommand } from "@ruxt/core/handlers/upsert-subject";
 
 export default defineEventHandler(async (event) => {
    const userId = getRouterParam(event, "userId")!;

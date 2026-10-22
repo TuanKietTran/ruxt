@@ -1,5 +1,5 @@
-import type { CloudConsentRepository } from "@core/repos/cloud-consent.repo";
-import { CLOUD_DATA_CATEGORIES, type CloudConsentCategoryState, type CloudConsentEvent } from "@core/domain/cloud-data/consent";
+import type { CloudConsentRepository } from "@ruxt/core/repos/cloud-consent.repo";
+import { CLOUD_DATA_CATEGORIES, type CloudConsentCategoryState, type CloudConsentEvent } from "@ruxt/core/domain/cloud-data/consent";
 import { getKv } from "@infra/kv";
 
 export class DenoKvCloudConsentRepo implements CloudConsentRepository {

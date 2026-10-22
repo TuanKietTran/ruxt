@@ -1,6 +1,6 @@
 # Subscriptions And Catalog
 
-Last updated: main@d1ae665 | 2026-09-13
+Last updated: feat/ruxt-core-split@4dd5c27 | 2026-10-22
 
 ## Scope
 
@@ -13,6 +13,10 @@ This spec covers:
 - retained browser surfaces `app/pages/d/index.vue`, `app/pages/d/providers.vue`, and `app/types/api.ts`; the plan-catalog page formerly at `/p` is retired and that path is now owned by the local profile editor.
 
 Authentication and authorization boundaries are specified in [auth-iam-security.md](auth-iam-security.md); backend storage is specified in [persistence-deployment.md](persistence-deployment.md).
+
+## Distribution boundary
+
+Catalog, subscription, money/currency/billing-cycle rules, related handlers and ports remain private `@ruxt/core`, depending on generic `@ruxt/shared` datetime/value objects rather than being copied into the public package. Dashboard HTTP DTOs and money presentation are app-owned; browser code does not import private core, even type-only. The shared formatter preserves the existing eight-currency minor-unit and nominal monthly-spend calculations. This package split does not alter lifecycle, rounding, authorization or API behavior.
 
 ## Catalog Model
 

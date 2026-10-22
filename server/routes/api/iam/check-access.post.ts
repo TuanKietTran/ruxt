@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { checkAccessQuery } from "@core/handlers/check-access";
+import { useMediator } from "@ruxt/shared/cqrs";
+import { checkAccessQuery } from "@ruxt/core/handlers/check-access";
 
 export default defineEventHandler(async (event) => {
    const body = await readBody(event);

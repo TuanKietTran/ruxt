@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { CvImportJobProps, CvImportPreview, CvPipelineCapabilities, CvTemplate } from "@core/domain/cv";
+import type { CvTemplate } from "@ruxt/shared/cv";
+import type { CvImportJobResponse, CvImportPreviewResponse, CvPipelineCapabilitiesResponse } from "~/types/api";
 
 const emit = defineEmits<{ close: []; committed: [documentId: string] }>();
 const { openAuthDialog } = useAuthDialog();
@@ -16,11 +17,11 @@ const dragging = ref(false);
 const busy = ref(false);
 const error = ref("");
 const authRequired = ref(false);
-const capabilities = ref<CvPipelineCapabilities | null>(null);
+const capabilities = ref<CvPipelineCapabilitiesResponse | null>(null);
 const templates = ref<CvTemplate[]>([]);
 const templateKey = ref("");
-const job = ref<CvImportJobProps | null>(null);
-const preview = ref<CvImportPreview | null>(null);
+const job = ref<CvImportJobResponse | null>(null);
+const preview = ref<CvImportPreviewResponse | null>(null);
 let pollTimer: ReturnType<typeof setTimeout> | undefined;
 const maxBytes = computed(() => Math.min(CLIENT_MAX_BYTES, capabilities.value?.maxUploadBytes ?? CLIENT_MAX_BYTES));
 const readableBytes = (bytes: number) => bytes < 1024 * 1024 ? `${Math.ceil(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -34,7 +35,7 @@ const signIn = () => openAuthDialog("login", route.fullPath);
 const loadSetup = async () => {
     try {
         const [caps, catalog] = await Promise.all([
-            $fetch<CvPipelineCapabilities>("/api/cv-capabilities"),
+            $fetch<CvPipelineCapabilitiesResponse>("/api/cv-capabilities"),
             $fetch<{ templates: CvTemplate[] }>("/api/public/templates"),
         ]);
         capabilities.value = caps;
@@ -61,7 +62,7 @@ const selectFile = (candidate?: File) => {
 const poll = async () => {
     if (!job.value || terminal.has(job.value.state)) return;
     try {
-        job.value = await $fetch<CvImportJobProps>(`/api/cv-imports/${encodeURIComponent(job.value.id)}`);
+        job.value = await $fetch<CvImportJobResponse>(`/api/cv-imports/${encodeURIComponent(job.value.id)}`);
         if (!terminal.has(job.value.state)) pollTimer = setTimeout(poll, 900);
     } catch (reason) { captureError(reason); }
 };
@@ -76,7 +77,7 @@ const triggerPipeline = async () => {
         body.append("file", file.value, file.value.name);
         body.append("templateId", templateKey.value.slice(0, separator));
         body.append("templateVersion", templateKey.value.slice(separator + 1));
-        job.value = await $fetch<CvImportJobProps>("/api/cv-imports", {
+        job.value = await $fetch<CvImportJobResponse>("/api/cv-imports", {
             method: "POST",
             body,
             headers: { "Idempotency-Key": `${file.value.name}:${file.value.size}:${file.value.lastModified}` },
@@ -90,19 +91,19 @@ const loadPreview = async () => {
     if (!job.value) return;
     busy.value = true;
     error.value = "";
-    try { preview.value = await $fetch<CvImportPreview>(`/api/cv-imports/${encodeURIComponent(job.value.id)}/preview`); }
+    try { preview.value = await $fetch<CvImportPreviewResponse>(`/api/cv-imports/${encodeURIComponent(job.value.id)}/preview`); }
     catch (reason) { captureError(reason); }
     finally { busy.value = false; }
 };
 const cancel = async () => {
     if (!job.value) return;
-    try { job.value = await $fetch<CvImportJobProps>(`/api/cv-imports/${encodeURIComponent(job.value.id)}/cancel`, { method: "POST" }); }
+    try { job.value = await $fetch<CvImportJobResponse>(`/api/cv-imports/${encodeURIComponent(job.value.id)}/cancel`, { method: "POST" }); }
     catch (reason) { captureError(reason); }
 };
 const retry = async () => {
     if (!job.value) return;
     try {
-        job.value = await $fetch<CvImportJobProps>(`/api/cv-imports/${encodeURIComponent(job.value.id)}/retry`, { method: "POST" });
+        job.value = await $fetch<CvImportJobResponse>(`/api/cv-imports/${encodeURIComponent(job.value.id)}/retry`, { method: "POST" });
         preview.value = null;
         pollTimer = setTimeout(poll, 500);
     } catch (reason) { captureError(reason); }

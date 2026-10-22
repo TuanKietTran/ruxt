@@ -1,5 +1,5 @@
-import { useMediator } from "@core/cqrs";
-import { upsertPlanCommand } from "@core/handlers/upsert-plan";
+import { useMediator } from "@ruxt/shared/cqrs";
+import { upsertPlanCommand } from "@ruxt/core/handlers/upsert-plan";
 
 export default defineEventHandler(async (event) => {
    const id = getRouterParam(event, "id")!;

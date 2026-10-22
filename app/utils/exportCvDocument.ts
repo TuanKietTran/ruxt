@@ -1,5 +1,5 @@
-import { extractCvProfile } from "@core/domain/cv";
-import type { CvProfileProps } from "@core/domain/cv";
+import { extractCvProfile } from "@ruxt/shared/cv";
+import type { CvProfileProps } from "@ruxt/shared/cv";
 import { renderCvMarkdownToHtml } from "@ruxt/editor/utils/cvMarkdown";
 import { safeFilename, downloadBlob } from "./exportCvImage";
 
