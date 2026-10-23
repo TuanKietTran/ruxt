@@ -6,12 +6,11 @@
 //
 // `export` only reads. A remote database needs DENO_KV_ACCESS_TOKEN in the environment.
 import { createHash } from "node:crypto";
+import { assertClassified, orderIamEntries, ownerDigest, sql, row, type Entry, type Part } from "./logic.ts";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-type Part = string | number | boolean | bigint | Uint8Array;
-interface Entry { key: Part[]; value: unknown; versionstamp: string }
 
 const CHUNKS = "__ruxt_chunks__";
 const FORMAT = "ruxt-chunked-json-v1";
@@ -63,15 +62,6 @@ async function exportKv(target: string, outDir: string) {
 }
 
 // ------------------------------------------------------------- transform
-const sql = (v: unknown): string => {
-   if (v === null || v === undefined) return "NULL";
-   if (typeof v === "number") return Number.isFinite(v) ? String(v) : "NULL";
-   if (typeof v === "boolean") return v ? "1" : "0";
-   return `'${String(v).replaceAll("'", "''")}'`;
-};
-const row = (table: string, columns: Record<string, unknown>) =>
-   `INSERT OR REPLACE INTO ${table}(${Object.keys(columns).join(",")}) VALUES(${Object.values(columns).map(sql).join(",")});`;
-
 function d1Row(prefix: string, key: Part[], v: any): { table: string; owner: string; sql: string } | null {
    switch (prefix) {
       case "user":
@@ -149,7 +139,7 @@ function transform(outDir: string) {
    const owners = new Map<string, string[]>();
    const indexIds = new Map<string, Set<string>>();
    // iam_subject first, iam_sub last so the newer repo's row replaces it.
-   const ordered = [...entries].sort((a, b) => Number(String(a.key[0]) === "iam_sub") - Number(String(b.key[0]) === "iam_sub"));
+   const ordered = orderIamEntries(entries);
    for (const e of ordered) {
       const prefix = String(e.key[0]);
       seen.set(prefix, (seen.get(prefix) ?? 0) + 1);
@@ -167,10 +157,7 @@ function transform(outDir: string) {
       }
       unclassified.push(prefix);
    }
-   if (unclassified.length) {
-      const names = [...new Set(unclassified)];
-      throw new Error(`unclassified Deno KV prefixes (decide per family before importing): ${names.join(", ")}`);
-   }
+   assertClassified(unclassified, []);
 
    const files: string[] = [];
    for (const table of Object.keys(d1)) {
@@ -210,7 +197,7 @@ function transform(outDir: string) {
       generatedAt: new Date().toISOString(),
       sourceEntries: entries.length,
       sourcePrefixes: Object.fromEntries(seen),
-      d1: { counts, checksums, files },
+      d1: { counts, checksums, files, ownerChecksums: ownerDigest(Object.entries(d1).flatMap(([table, rows]) => rows.map((r) => ({ owner: r.owner || "<unowned>", table, canonical: r.sql })))) },
       kv: { logicalItems: logical.length, physicalKeys: out.length, files: kvFiles, byBase: Object.fromEntries(STORAGE_BASES.map((b) => [b, logical.filter((l) => l.base === b).length])), checksum: sha256(logical.map((l) => `${l.base}:${l.name}:${sha256(l.json)}`).sort().join("\n")) },
       indexMismatches: mismatches,
       notes: ["Deno KV list() does not expose expireIn; expiry cannot be carried over, only unexpired entries exist in the export."],
@@ -239,14 +226,29 @@ function verify(outDir: string, local: boolean) {
    }
    const keys: string[] = [];
    let cursor: string | undefined;
-   const listed = JSON.parse(wrangler(["kv", "key", "list", "--binding", "RUXT_KV", mode]));
-   for (const k of listed) keys.push(k.name);
-   void cursor;
+   do {
+      const listArgs = ["kv", "key", "list", "--binding", "RUXT_KV", mode, "--json"];
+      if (cursor) listArgs.push("--cursor", cursor);
+      const listed = JSON.parse(wrangler(listArgs));
+      const batch = Array.isArray(listed) ? listed : listed.keys ?? [];
+      for (const k of batch) keys.push(k.name);
+      cursor = listed.cursor;
+      if (listed.list_complete === true || (!cursor && batch.length < 1000)) break;
+   } while (cursor);
    const expectedKeys = new Set<string>();
    for (const file of manifest.kv.files) for (const r of JSON.parse(readFileSync(join(outDir, file), "utf8"))) expectedKeys.add(r.key);
    const missing = [...expectedKeys].filter((k) => !keys.includes(k));
    if (missing.length) problems.push(`KV is missing ${missing.length} of ${expectedKeys.size} keys, e.g. ${missing.slice(0, 3).join(", ")}`);
    else console.log(`kv: all ${expectedKeys.size} physical keys present`);
+   const expectedRecords: any[] = [];
+   for (const file of manifest.kv.files) expectedRecords.push(...JSON.parse(readFileSync(join(outDir, file), "utf8")));
+   const sample = expectedRecords.sort(() => Math.random() - 0.5).slice(0, Math.min(20, expectedRecords.length));
+   for (const expected of sample) {
+      try {
+         const actual = wrangler(["kv", "key", "get", expected.key, "--binding", "RUXT_KV", mode, "--text"]);
+         if (sha256(actual.trim()) !== sha256(String(expected.value))) problems.push(`KV content mismatch: ${expected.key}`);
+      } catch { problems.push(`KV read failed: ${expected.key}`); }
+   }
    if (problems.length) { console.error(problems.join("\n")); (globalThis as any).Deno.exit(1); }
    console.log("verify ok");
 }
