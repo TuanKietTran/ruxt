@@ -11,6 +11,8 @@ export default defineConfig({
    test: {
       environment: "node",
       include: ["tests/**/*.test.ts"],
+      // Real-workerd contract tests run through vitest.workerd.config.ts (`pnpm test:workerd`).
+      exclude: ["**/node_modules/**", "tests/workerd/**"],
       reporters: "dot",
    },
 });

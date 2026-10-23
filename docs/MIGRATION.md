@@ -60,13 +60,14 @@ Results below came from the manager's complete local sequential test job. Eviden
 | Typecheck | `pnpm exec nuxt typecheck` | **PASS** | Local manager test job; no external artifact. |
 | Tests | `pnpm test` | **PASS** | 30 passed / 9 skipped; full suite 197 passed / 40 skipped. Local manager test job; no external artifact. |
 | Production build | `pnpm build` | **PASS** | Complete sequential test job; no external artifact. |
-| Cloudflare build | `pnpm cf:build` | **PASS** | Local manager test job; no external artifact. |
+| Cloudflare build | `pnpm cf:build` | **PASS** | Local build completed; no deployment. |
+| Worker boot | Built Worker `/api/health` via Miniflare workerd with test bindings/vars | **BLOCKED** | The Worker initializes, but Miniflare v5 reports `Network connection lost` on the request; health 200 not established. The boot test is explicitly skipped pending a compatible integration harness. |
 | Wrangler dry run | `pnpm cf:deploy:dry` | **PASS** | Dry-run only; warning recorded for duplicate `html2canvas` case. No login or deployment. |
 | Bundle size | Uploaded compressed Worker: 1,549.52 KiB (~1.51 MiB) | **BLOCKED** | Exceeds the 1 MiB target. |
 | CPU and quotas | Representative CPU, request, KV-write, and D1-write measurements | **NOT RUN** | No measurements were collected. |
-| Binding contracts | D1/KV unit coverage in total suite; workerd contract suite; R2/DO status | **PARTIAL / BLOCKED** | D1/KV unit tests pass within the total suite. No workerd contract evidence; R2 and DO are not implemented. |
+| Binding contracts | `pnpm test:workerd` (real workerd D1/KV contracts); R2/DO status | **PARTIAL / BLOCKED** | Workerd D1 repository and KV chunk driver contract tests pass locally; R2 and DO are not implemented. |
 | Celld | Isolated boot, HTTP, restart, and two-node evidence | **NOT RUN** | No celld evidence is available. |
 | Deno/self-hosted regression | Production-path regression evidence | **NOT RUN** | No external Deno production regression evidence is available. |
-| Hygiene | Secret/AI-trace/generated-file scan and identity/worktree review | **PASS** | Clean worktree, no remote, one unsigned root commit on `main` with required author/committer; no AI-trace scan hits. |
+| Hygiene | Secret/AI-trace/generated-file scan and identity/worktree review | **NOT RUN** | Not checked in this task. |
 
-Acceptance blockers: Worker bundle size exceeds the 1 MiB target; CPU/quota measurements, workerd contract evidence, R2/DO implementation, executable Deno KV export/import scripts, celld evidence, and external Deno production regression evidence remain unavailable.
+Acceptance blockers: Worker bundle size exceeds the 1 MiB target; built Worker health request fails in the current Miniflare harness; CPU/quota measurements, R2/DO implementation, executable Deno KV export/import scripts, celld evidence, and external Deno production regression evidence remain unavailable.

@@ -12,6 +12,7 @@
     "lint": "node scripts/lint-architecture.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:workerd": "vitest run --config vitest.workerd.config.ts",
     "test:smoke": "SMOKE_BASE_URL=${SMOKE_BASE_URL:-http://localhost:3000} vitest run tests/smoke",
     "test:session-continuity": "node scripts/check-session-continuity.mjs",
     "dev": "nuxt dev",
@@ -35,9 +36,9 @@
     "@lezer/highlight": "^1.2.3",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@nuxt/icon": "^2.5.1",
-    "@ruxt/shared": "0.1.0",
     "@ruxt/core": "file:vendor/tuankiettran-ruxt-core-0.3.0.tgz",
     "@ruxt/editor": "0.1.2",
+    "@ruxt/shared": "0.1.0",
     "docx": "^9.1.1",
     "html2canvas": "^1.4.1",
     "js-yaml": "^4.1.0",
@@ -50,6 +51,7 @@
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
+    "miniflare": "5.20261019.1-beta",
     "typescript": "6.0.3",
     "vitest": "^5.0.1",
     "wrangler": "^4.151.1"
