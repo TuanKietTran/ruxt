@@ -4,7 +4,7 @@ export const REGISTRY_PACKAGE_DEPENDENCIES = Object.freeze({
 });
 
 export const PRIVATE_PACKAGE_DEPENDENCIES = Object.freeze({
-    "@ruxt/core": "file:../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz",
+    "@ruxt/core": "file:vendor/tuankiettran-ruxt-core-0.3.0.tgz",
 });
 
 export const PACKED_PACKAGE_DEPENDENCIES = Object.freeze({

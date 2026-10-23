@@ -16,7 +16,7 @@ A full-stack CV workspace and subscription platform built on [Nuxt 4](https://nu
 
 ## Quick Start
 
-The active private core dependency is the external fallback `file:../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz` because GitHub Packages read:packages access returned HTTP 403. Future registry mode uses `.npmrc` with `NODE_AUTH_TOKEN`; the fallback tarball remains outside this repository.
+The active private core dependency is the external fallback `file:vendor/tuankiettran-ruxt-core-0.3.0.tgz` because GitHub Packages read:packages access returned HTTP 403. Future registry mode uses `.npmrc` with `NODE_AUTH_TOKEN`; the fallback tarball remains outside this repository.
 
 ```bash
 pnpm install --frozen-lockfile

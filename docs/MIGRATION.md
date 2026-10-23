@@ -36,7 +36,7 @@ Owner-only actions: `wrangler login`; create resources; apply migrations; set `C
 
 ## Package resolution
 
-The active dependency is the existing external fallback `file:../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz` because GitHub Packages read:packages access returned HTTP 403 in this session. Future registry mode is retained in `.npmrc` and uses `NODE_AUTH_TOKEN`; the tarball is deliberately outside and untracked by this repository. Nothing was published.
+The active dependency is the vendored fallback `file:vendor/tuankiettran-ruxt-core-0.3.0.tgz` because GitHub Packages read:packages access returned HTTP 403 in this session. Future registry mode is retained in `.npmrc` and uses `NODE_AUTH_TOKEN`; the tarball is deliberately outside and untracked by this repository. Nothing was published.
 
 ## Auditor plan/checklist
 
