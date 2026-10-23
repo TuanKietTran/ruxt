@@ -58,7 +58,7 @@ Results below came from the manager's complete local sequential test job. Eviden
 | Install | `pnpm install --frozen-lockfile --offline` | **PASS** | Local fallback `../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz`; GitHub Packages registry mode returned HTTP 403 without read:packages access. |
 | Lint | `pnpm lint` | **PASS** | Local manager test job; no external artifact. |
 | Typecheck | `pnpm exec nuxt typecheck` | **PASS** | Local manager test job; no external artifact. |
-| Tests | `pnpm test` | **PASS** | 199 passed / 40 skipped; local manager final job. |
+| Tests | `pnpm test` | **PASS** | 200 passed / 40 skipped; local manager final job. |
 | Production build | `pnpm build` | **PASS** | Complete sequential test job; no external artifact. |
 | Cloudflare build | `pnpm cf:build` | **PASS** | Local manager test job; no external artifact. |
 | Wrangler dry run | `pnpm cf:deploy:dry` | **PASS** | Dry-run only; warning recorded for duplicate `html2canvas` case. No login or deployment. |
