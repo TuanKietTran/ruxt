@@ -251,17 +251,8 @@ function verify(outDir: string, local: boolean) {
    for (const owner of Object.keys(actualOwnerDigests)) {
       if (!(owner in (manifest.d1.ownerChecksums ?? {}))) problems.push(`D1 has unexported owner records: ${owner}`);
    }
-   const keys: string[] = [];
-   let cursor: string | undefined;
-   do {
-      const listArgs = ["kv", "key", "list", "--binding", "RUXT_KV", mode, "--json"];
-      if (cursor) listArgs.push("--cursor", cursor);
-      const listed = JSON.parse(wrangler(listArgs));
-      const batch = Array.isArray(listed) ? listed : listed.keys ?? [];
-      for (const k of batch) keys.push(k.name);
-      cursor = listed.cursor;
-      if (listed.list_complete === true || (!cursor && batch.length < 1000)) break;
-   } while (cursor);
+   // `wrangler kv key list` walks every page itself and prints one JSON array; it has no --json or --cursor flag.
+   const keys: string[] = (JSON.parse(wrangler(["kv", "key", "list", "--binding", "RUXT_KV", mode])) as { name: string }[]).map((k) => k.name);
    const expectedKeys = new Set<string>();
    for (const file of manifest.kv.files) for (const r of JSON.parse(readFileSync(join(outDir, file), "utf8"))) expectedKeys.add(r.key);
    const missing = [...expectedKeys].filter((k) => !keys.includes(k));
@@ -269,7 +260,8 @@ function verify(outDir: string, local: boolean) {
    else console.log(`kv: all ${expectedKeys.size} physical keys present`);
    const expectedRecords: any[] = [];
    for (const file of manifest.kv.files) expectedRecords.push(...JSON.parse(readFileSync(join(outDir, file), "utf8")));
-   const sample = expectedRecords.sort(() => Math.random() - 0.5).slice(0, Math.min(20, expectedRecords.length));
+   // Chunk payloads are base64 of binary slices, which `kv key get --text` cannot return faithfully; their presence is checked above and their content by check-kv-roundtrip.ts.
+   const sample = expectedRecords.filter((r) => !r.base64).sort(() => Math.random() - 0.5).slice(0, Math.min(20, expectedRecords.length));
    for (const expected of sample) {
       try {
          const actual = wrangler(["kv", "key", "get", expected.key, "--binding", "RUXT_KV", mode, "--text"]);
