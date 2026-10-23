@@ -43,7 +43,7 @@ The active dependency is the vendored fallback `file:vendor/tuankiettran-ruxt-co
 - [x] confirm binding names match adapters and runtime env — source review of `wrangler.json`, `infra/deploy/cloudflare/repos.ts`, D1 adapter and chunked KV binding; no account-backed runtime test.
 - [ ] add/test D1 migrations and KV optimistic-revision contracts — D1/KV unit coverage exists, but real workerd contract evidence is pending `ct` integration.
 - [ ] implement and test R2/DO or retain exercised self-hosted fallbacks — neither is implemented; pipeline/artifact filesystem and cross-isolate realtime remain unsupported on Workers.
-- [ ] measure the complete compressed Worker bundle and representative CPU/write budgets — dry-run measured gzip 930.71 KiB; CPU and daily quotas were not measured.
+- [ ] measure the complete compressed Worker bundle and representative CPU/write budgets — dry-run measured gzip 930.94 KiB; CPU and daily quotas were not measured.
 - [ ] record isolated celld fleet boot, HTTP, restart, and two-node evidence in the auditor record — not run by this manager.
 - [x] verify Deno/self-hosted behavior remains green — final local `pnpm build` and `pnpm test` passed; this is not external Deno production regression evidence.
 - [ ] scan secrets, AI traces, history, and worktree hygiene — tracked-path lint passed; no AI-trace/history scan evidence.
@@ -71,11 +71,11 @@ Results below came from the manager's complete local sequential test job. Eviden
 | Production build | `pnpm build` | **PASS** | Complete sequential test job; no external artifact. |
 | Cloudflare build | `pnpm cf:build` | **PASS** | Local manager test job; no external artifact. |
 | Wrangler dry run | `pnpm cf:deploy:dry` | **PASS** | Dry-run only; warning recorded for duplicate `html2canvas` case. No login or deployment. |
-| Bundle size | `pnpm cf:deploy:dry` local output: 930.71 KiB gzip (2026-10-23) | **PASS, narrow margin** | Below 1 MiB by ~92.29 KiB; no CPU/quota measurement. |
+| Bundle size | `pnpm cf:deploy:dry` local output: 930.94 KiB gzip (2026-10-23) | **PASS, narrow margin** | Below 1 MiB by ~93.06 KiB; no CPU/quota measurement. |
 | CPU and quotas | Representative CPU, request, KV-write, and D1-write measurements | **NOT RUN** | No measurements were collected. |
 | Binding contracts | D1/KV unit coverage in total suite; workerd contract suite; R2/DO status | **PARTIAL / BLOCKED** | D1/KV unit tests pass within the total suite. No workerd contract evidence; R2 and DO are not implemented. |
 | Celld | Isolated boot, HTTP, restart, and two-node evidence | **NOT RUN** | No celld evidence is available. |
 | Deno/self-hosted regression | Production-path regression evidence | **NOT RUN** | No external Deno production regression evidence is available. |
 | Hygiene | Architecture lint scans tracked artifact paths; local manager worktree review | **PARTIAL** | No tracked `.data/`, `local.db`, `.env` credentials or secret-named files; no AI-trace/history scan or final identity/worktree review. |
 
-Acceptance blockers: representative CPU and quota measurements; completed workerd contract evidence; R2/DO or exercised replacements; production-ready bounded imports/restore rehearsal (local Deno KV export/transform/verify tooling exists but was not exercised remotely); celld evidence; and external Deno production regression evidence. `pnpm cf:deploy:dry` measured 930.71 KiB gzip, leaving little bundle headroom.
+Acceptance blockers: representative CPU and quota measurements; completed workerd contract evidence; R2/DO or exercised replacements; production-ready bounded imports/restore rehearsal (local Deno KV export/transform/verify tooling exists but was not exercised remotely); celld evidence; and external Deno production regression evidence. `pnpm cf:deploy:dry` measured 930.94 KiB gzip, leaving little bundle headroom.
