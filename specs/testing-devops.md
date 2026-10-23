@@ -86,7 +86,7 @@ The lockfile is the dependency integrity/version authority. pnpm overrides all C
 
 SQLite local development requires the native `better-sqlite3` package to build or have a compatible binary. Deno KV support lives in the `infra` workspace. CV editing uses browser-only CodeMirror and html2canvas paths; Markdown rendering is unified/remark/rehype based.
 
-Server imports require Python plus `pdfplumber`, `pytesseract`, and Pillow; `pnpm cv:pipeline:setup` installs them into `.data/cv-pipeline-venv`. OCR additionally needs the Tesseract executable, and scanned-PDF fallback needs `pdftoppm`. The server reports missing Python packages through `/api/cv-capabilities` rather than accepting unusable jobs. `CV_PIPELINE_PYTHON`, `CV_PIPELINE_DIR`, upload size, artifact TTL, and storage location are configurable.
+Server imports require Python plus `pdfplumber`, `pytesseract`, and Pillow; `pnpm cv:pipeline:setup` installs them into `.data/cv-pipeline-venv`. OCR additionally needs the Tesseract executable, and scanned-PDF fallback needs `pdftoppm`. The server reports missing Python packages through `/api/cv-capabilities` rather than accepting unusable jobs. `CV_PIPELINE_PYTHON`, `CV_PIPELINE_DIR`, and storage location are configurable. Upload size and artifact TTL use Nuxt runtime config `cvImportMaxBytes` / `cvArtifactTtlHours`, overridden with `NUXT_CV_IMPORT_MAX_BYTES` / `NUXT_CV_ARTIFACT_TTL_HOURS`.
 
 `scripts/render-pdf.mjs` requires an installed Chromium-compatible executable. `playwright-core` does not download a browser; set `CHROMIUM_PATH` unless the default macOS Brave path exists. The script currently expects exactly two rendered CV sheets.
 

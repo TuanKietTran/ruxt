@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 import type { CvExtractor, CvExtractionResult } from "@ruxt/core/handlers/extract-cv";
 
 const formats = ["application/pdf", "image/png", "image/jpeg", "image/webp", "image/tiff", "image/bmp"];
-const maxUploadBytes = Number(process.env.CV_IMPORT_MAX_BYTES ?? 15 * 1024 * 1024);
+const maxUploadBytes = () => Number(useRuntimeConfig().cvImportMaxBytes ?? 15 * 1024 * 1024);
 const configuredPipelineDir = () => resolve(process.env.CV_PIPELINE_DIR ?? join(process.cwd(), "server/pipeline"));
 const python = () => process.env.CV_PIPELINE_PYTHON
    ?? resolve(process.env.CV_PIPELINE_VENV ?? join(process.cwd(), ".data/cv-pipeline-venv"), "bin/python");
@@ -77,7 +77,7 @@ export const cvPipelineExtractor: CvExtractor = {
       return {
          available: !degradedReason,
          formats,
-         maxUploadBytes,
+         maxUploadBytes: maxUploadBytes(),
          ocr: !degradedReason,
          renderer: "cv-pipeline",
          ...(degradedReason ? { degradedReason } : {}),
