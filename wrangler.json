@@ -10,7 +10,7 @@
     "binding": "ASSETS"
   },
   "observability": { "enabled": true },
-  "routes": [{ "pattern": "ruxt.mashallow.cloud", "custom_domain": true }],
+  "workers_dev": true,
   "vars": {
     "RUXT_DEPLOYMENT_ENV": "development"
   },
