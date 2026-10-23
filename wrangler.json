@@ -11,6 +11,7 @@
   },
   "observability": { "enabled": true },
   "workers_dev": true,
+  "routes": [{ "pattern": "ruxt.mashallow.cloud", "custom_domain": true }],
   "vars": {
     "RUXT_DEPLOYMENT_ENV": "development"
   },
