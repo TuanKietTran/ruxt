@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
    if (!Number.isInteger(templateVersion) || templateVersion < 1) throw createError({ statusCode: 400, statusMessage: "Invalid templateVersion" });
    await sendApiRequest(mediator, getCvTemplateQuery({ id: templateId, version: templateVersion }));
 
-   const expiresAt = new Date(Date.now() + Number(process.env.CV_ARTIFACT_TTL_HOURS ?? 24) * 3_600_000).toISOString();
+   const expiresAt = new Date(Date.now() + Number(useRuntimeConfig(event).cvArtifactTtlHours) * 3_600_000).toISOString();
    const source = await cvArtifactRepo.putSource({
       ownerId, filename: file.filename, mediaType: file.type, bytes: file.data, expiresAt,
    });

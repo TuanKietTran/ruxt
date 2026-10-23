@@ -7,7 +7,7 @@ import { cvArtifactRepo, cvImportRepo } from "../adapters/cv/pipeline-repos";
 
 const active = new Map<string, AbortController>();
 const encoder = new TextEncoder();
-const expiry = () => new Date(Date.now() + Number(process.env.CV_ARTIFACT_TTL_HOURS ?? 24) * 3_600_000).toISOString();
+const expiry = () => new Date(Date.now() + Number(useRuntimeConfig().cvArtifactTtlHours) * 3_600_000).toISOString();
 
 function contact(kind: CvContactKind, label: string, value: unknown): CvContact | null {
    return typeof value === "string" && value.trim() ? { kind, label, value: value.trim() } : null;

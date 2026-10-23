@@ -42,6 +42,7 @@ export default defineNuxtConfig({
       signUpFallbackRedirectUrl: "/",
    },
    runtimeConfig: {
+      cvArtifactTtlHours: 24,
       // Nuxt applies NUXT_SESSION_SECRET at runtime. Keep this fallback local-only;
       // deployed Deno timelines are validated by validate-deployment-env.ts.
       sessionSecret: "dev-only-secret-change-me-in-production!!",
