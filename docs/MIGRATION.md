@@ -43,7 +43,7 @@ The active dependency is the vendored fallback `file:vendor/tuankiettran-ruxt-co
 - [x] confirm binding names match adapters and runtime env — source review of `wrangler.json`, `infra/deploy/cloudflare/repos.ts`, D1 adapter and chunked KV binding; no account-backed runtime test.
 - [ ] add/test D1 migrations and KV optimistic-revision contracts — `ct` workerd tests now apply the checked-in D1 migration and exercise D1 repositories plus KV chunking (17 passed, 1 skipped). This does not establish cross-isolate optimistic-revision serialization; that remains unimplemented.
 - [ ] implement and test R2/DO or retain exercised self-hosted fallbacks — neither is implemented; pipeline/artifact filesystem and cross-isolate realtime remain unsupported on Workers.
-- [ ] measure the complete compressed Worker bundle and representative CPU/write budgets — dry-run measured gzip 930.94 KiB; CPU and daily quotas were not measured.
+- [ ] measure the complete compressed Worker bundle and representative CPU/write budgets — post-merge dry-run measured gzip 930.86 KiB; CPU and daily quotas were not measured.
 - [ ] record isolated celld fleet boot, HTTP, restart, and two-node evidence in the auditor record — not run by this manager.
 - [x] verify Deno/self-hosted behavior remains green — final local `pnpm build` and `pnpm test` passed; this is not external Deno production regression evidence.
 - [ ] scan secrets, AI traces, history, and worktree hygiene — tracked-path lint passed; no AI-trace/history scan evidence.
@@ -67,16 +67,16 @@ Results below came from the manager's complete local sequential test job. Eviden
 | Install | `pnpm install --frozen-lockfile --offline` | **PASS** | Local fallback `../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz`; GitHub Packages registry mode returned HTTP 403 without read:packages access. |
 | Lint | `pnpm lint` | **PASS** | Local manager test job; no external artifact. |
 | Typecheck | `pnpm exec nuxt typecheck` | **PASS** | Local manager test job; no external artifact. |
-| Tests | `pnpm test` | **PASS** | 200 passed / 40 skipped; local manager final job. |
+| Tests | `pnpm test` | **PASS** | 205 passed / 40 skipped; final post-merge local run. |
 | Production build | `pnpm build` | **PASS** | Complete sequential test job; no external artifact. |
 | Cloudflare build | `pnpm cf:build` | **PASS** | Local build completed; no deployment. |
 | Worker boot | Built Worker `/api/health` via Miniflare workerd with test bindings/vars | **BLOCKED** | The Worker initializes, but Miniflare v5 reports `Network connection lost` on the request; health 200 not established. The boot test is explicitly skipped pending a compatible integration harness. |
 | Wrangler dry run | `pnpm cf:deploy:dry` | **PASS** | Dry-run only; warning recorded for duplicate `html2canvas` case. No login or deployment. |
-| Bundle size | `pnpm cf:deploy:dry` local output: 930.94 KiB gzip (2026-10-23) | **PASS, narrow margin** | Below 1 MiB by ~93.06 KiB; no CPU/quota measurement. |
+| Bundle size | `pnpm cf:deploy:dry` local output: 930.86 KiB gzip (2026-10-23) | **PASS, narrow margin** | Below 1 MiB by ~93.14 KiB; no CPU/quota measurement. |
 | CPU and quotas | Representative CPU, request, KV-write, and D1-write measurements | **NOT RUN** | No measurements were collected. |
-| Binding contracts | `pnpm test:workerd` (real workerd D1/KV contracts); R2/DO status | **PARTIAL / BLOCKED** | Workerd D1 repository and KV chunk driver contract tests pass locally; R2 and DO are not implemented. |
+| Binding contracts | `pnpm test:workerd`; R2/DO status | **PARTIAL / BLOCKED** | Miniflare workerd D1 migration/repository and KV chunk-driver tests: 17 passed, 1 Worker-boot test skipped (`Network connection lost`); R2 and DO are not implemented; optimistic cross-isolate revisions remain untested. |
 | Celld | Isolated boot, HTTP, restart, and two-node evidence | **NOT RUN** | No celld evidence is available. |
 | Deno/self-hosted regression | Production-path regression evidence | **NOT RUN** | No external Deno production regression evidence is available. |
 | Hygiene | Architecture lint scans tracked artifact paths; local manager worktree review | **PARTIAL** | No tracked `.data/`, `local.db`, `.env` credentials or secret-named files; no AI-trace/history scan or final identity/worktree review. |
 
-Acceptance blockers: representative CPU and quota measurements; built Worker `/api/health` request not established (Miniflare reports `Network connection lost` and its boot test is skipped); R2/DO or exercised replacements; production-ready bounded imports/restore rehearsal (local Deno KV export/transform/verify tooling exists but was not exercised remotely); celld evidence; and external Deno production regression evidence. `pnpm cf:deploy:dry` measured 930.94 KiB gzip, leaving little bundle headroom.
+Acceptance blockers: representative CPU and quota measurements; built Worker `/api/health` request not established (Miniflare reports `Network connection lost` and its boot test is skipped); R2/DO or exercised replacements; production-ready bounded imports/restore rehearsal (local Deno KV export/transform/verify tooling exists but was not exercised remotely); celld evidence; and external Deno production regression evidence. `pnpm cf:deploy:dry` measured 930.86 KiB gzip, leaving little bundle headroom.
