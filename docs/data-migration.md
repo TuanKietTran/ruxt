@@ -21,7 +21,7 @@ $D transform ./migration-out               # writes d1-*.sql, kv-bulk-*.json, ma
 deno run -A --unstable-kv scripts/migrate/check-kv-roundtrip.ts ./migration-out
 for f in ./migration-out/d1-*.sql; do npx wrangler d1 execute RUXT_DB --remote --file "$f"; done
 for f in ./migration-out/kv-bulk-*.json; do npx wrangler kv bulk put "$f" --binding RUXT_KV --remote; done
-$D verify ./migration-out                  # counts and key presence on the remote resources
+$D verify ./migration-out                  # counts, paginated key presence and random content checks
 ```
 
 Imports are idempotent (`INSERT OR REPLACE`, KV put), so a rehearsal can be repeated. Use `ruxt-dev` first, then repeat for production at cutover after freezing writes on Deno. Rehearse locally with `scripts/migrate/seed-rehearsal.ts` and `--local` flags.
