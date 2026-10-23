@@ -55,8 +55,8 @@ importers:
         specifier: ^2.5.1
         version: 2.5.1(magic-string@1.4.3)(magicast@0.5.2)(rolldown@1.2.13)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.13)(rollup@4.64.5)(vite@8.3.4(@types/node@25.6.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.1)(yaml@2.8.3)))(vite@8.3.4(@types/node@25.6.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.46.1)(yaml@2.8.3))(vue@3.5.32(typescript@6.0.3))
       '@ruxt/core':
-        specifier: file:../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz
-        version: '@tuankiettran/ruxt-core@file:../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz'
+        specifier: file:vendor/tuankiettran-ruxt-core-0.3.0.tgz
+        version: '@tuankiettran/ruxt-core@file:vendor/tuankiettran-ruxt-core-0.3.0.tgz'
       '@ruxt/editor':
         specifier: 0.1.2
         version: 0.1.2(239093d1ff790d7bff81bb399d9565e9)
@@ -1596,8 +1596,8 @@ packages:
   '@tanstack/query-core@5.103.1':
     resolution: {integrity: sha512-rms8HqTGp6zA00dM+cUQ2eBcgzNJefuu5CAMB37i/6MiGT1zulPOytCFu2a0qjLqVR2n1jENPj9woqFQNuCzWA==}
 
-  '@tuankiettran/ruxt-core@file:../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz':
-    resolution: {integrity: sha512-sS5qmQBe/1E8H1Jitq+QoiQP0xdn7TOkBX+AuKbRlc/7CrfSPT9AhG2wCHsmXj3E6fKw/C6jTjR78ujMPBw9+Q==, tarball: file:../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz}
+  '@tuankiettran/ruxt-core@file:vendor/tuankiettran-ruxt-core-0.3.0.tgz':
+    resolution: {integrity: sha512-sS5qmQBe/1E8H1Jitq+QoiQP0xdn7TOkBX+AuKbRlc/7CrfSPT9AhG2wCHsmXj3E6fKw/C6jTjR78ujMPBw9+Q==, tarball: file:vendor/tuankiettran-ruxt-core-0.3.0.tgz}
     version: 0.3.0
     engines: {node: '>=22'}
 
@@ -6992,7 +6992,7 @@ snapshots:
 
   '@tanstack/query-core@5.103.1': {}
 
-  '@tuankiettran/ruxt-core@file:../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz':
+  '@tuankiettran/ruxt-core@file:vendor/tuankiettran-ruxt-core-0.3.0.tgz':
     dependencies:
       '@ruxt/shared': 0.1.0
 

@@ -23,17 +23,6 @@ jobs:
           node-version: 22
           cache: pnpm
           registry-url: https://npm.pkg.github.com
-      # The active local fallback is rebuilt from a pinned core revision in CI.
-      - name: Build private core tarball
-        env:
-          RUXT_CORE_REF: ec01245
-        run: |
-          git clone https://github.com/TuanKietTran/ruxt-core.git ../ruxt-core
-          git -C ../ruxt-core checkout "$RUXT_CORE_REF"
-          pnpm --dir ../ruxt-core install --frozen-lockfile --ignore-scripts
-          pnpm --dir ../ruxt-core build
-          mkdir -p ../package-artifacts/phase4
-          pnpm --dir ../ruxt-core pack --pack-destination ../package-artifacts/phase4
       - name: Install
         run: pnpm install --frozen-lockfile
         env:
@@ -68,16 +57,6 @@ jobs:
           node-version: 22
           cache: pnpm
           registry-url: https://npm.pkg.github.com
-      - name: Build private core tarball
-        env:
-          RUXT_CORE_REF: ec01245
-        run: |
-          git clone https://github.com/TuanKietTran/ruxt-core.git ../ruxt-core
-          git -C ../ruxt-core checkout "$RUXT_CORE_REF"
-          pnpm --dir ../ruxt-core install --frozen-lockfile --ignore-scripts
-          pnpm --dir ../ruxt-core build
-          mkdir -p ../package-artifacts/phase4
-          pnpm --dir ../ruxt-core pack --pack-destination ../package-artifacts/phase4
       - name: Install
         run: pnpm install --frozen-lockfile
         env:
