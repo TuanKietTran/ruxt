@@ -11,6 +11,12 @@ const chunkedCloudflareKvDriver = pathToFileURL(fileURLToPath(new URL("./server/
 // `deno-deploy` bundle, which exceeds Deno's standard build-memory limit.
 const denoStorage = process.env.RUXT_DENO_STORAGE === "1" || process.env.NITRO_PRESET === "deno-deploy";
 const cloudflareStorage = process.env.RUXT_CLOUDFLARE_STORAGE === "1";
+// Libraries used only in the browser (dynamic imports in click handlers, editor mount hooks). Keeping them out of
+// the Worker bundle is required to fit the 1 MiB compressed limit of the Workers Free plan.
+const clientOnlyStub = fileURLToPath(new URL("./server/stubs/client-only.mjs", import.meta.url));
+const cloudflareServerAlias = cloudflareStorage
+   ? Object.fromEntries(["html2canvas", "jszip", "docx", "@codemirror/language-data", "@codemirror/theme-one-dark"].map((name) => [name, clientOnlyStub]))
+   : {};
 const durableStorage = (base: string, directory: string) => denoStorage
    ? { driver: chunkedDenoKvDriver, base }
    : cloudflareStorage
@@ -60,6 +66,9 @@ export default defineNuxtConfig({
    vite: {
       build: {
          modulePreload: { polyfill: false },
+      },
+      $server: {
+         resolve: { alias: cloudflareServerAlias },
       },
       optimizeDeps: {
          include: [
