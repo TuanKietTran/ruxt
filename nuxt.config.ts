@@ -68,7 +68,8 @@ export default defineNuxtConfig({
          modulePreload: { polyfill: false },
       },
       $server: {
-         resolve: { alias: cloudflareServerAlias },
+         // `$server` resolve options are typed without `alias`, but Nuxt forwards them to Vite unchanged.
+         resolve: { alias: cloudflareServerAlias } as Record<string, unknown>,
       },
       optimizeDeps: {
          include: [

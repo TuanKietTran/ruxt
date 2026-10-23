@@ -5,7 +5,7 @@ import { cvArtifactRepo, cvImportRepo } from "../adapters/cv/pipeline-repos";
 import { cvPipelineExtractor } from "../adapters/cv/pipeline-extractor";
 import { cvTemplateRepo, ensurePersistedTemplates } from "../adapters/cv/template-repo";
 
-export default defineNitroPlugin(() => {
+export default defineNitroPlugin((nitroApp) => {
    registerCvHandlers({
       documents: cvDocumentRepo,
       applications: cvApplicationRepo,
@@ -15,5 +15,16 @@ export default defineNitroPlugin(() => {
       templates: cvTemplateRepo,
    });
    // Apply template seeds and visibility migrations when a deployment boots, not on its first catalog request.
-   ensurePersistedTemplates().catch(error => console.error("[cv] template migration failed", error));
+   const migrate = () => ensurePersistedTemplates().catch(error => console.error("[cv] template migration failed", error));
+   if (import.meta.preset !== "cloudflare-module") {
+      migrate();
+      return;
+   }
+   // Workers forbid I/O and random values in global scope, so seed on the first request of each isolate instead.
+   let migrated = false;
+   nitroApp.hooks.hook("request", (event) => {
+      if (migrated) return;
+      migrated = true;
+      event.waitUntil?.(migrate());
+   });
 });

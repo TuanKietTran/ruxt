@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ruxt",
-  "account_id": "REPLACE_WITH_CLOUDFLARE_ACCOUNT_ID",
+  "account_id": "46c2828c378df7fe9f02544b74e296c3",
   "main": ".output/server/index.mjs",
   "compatibility_date": "2026-10-18",
   "compatibility_flags": ["nodejs_compat"],
@@ -10,10 +10,6 @@
     "binding": "ASSETS"
   },
   "observability": { "enabled": true },
-  "routes": [{
-    "pattern": "REPLACE_WITH_CUSTOM_DOMAIN/*",
-    "zone_id": "REPLACE_WITH_CLOUDFLARE_ZONE_ID"
-  }],
   "vars": {
     "RUXT_DEPLOYMENT_ENV": "development"
   },
@@ -21,14 +17,14 @@
     {
       "binding": "RUXT_DB",
       "database_name": "ruxt-dev",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "979c2b6e-a4ec-4f8d-8796-4162dc36b938",
       "migrations_dir": "infra/deploy/cloudflare/migrations"
     }
   ],
   "kv_namespaces": [
     {
       "binding": "RUXT_KV",
-      "id": "REPLACE_WITH_KV_NAMESPACE_ID"
+      "id": "62ef57bf79e3482db10e800d2b211510"
     }
   ]
 }

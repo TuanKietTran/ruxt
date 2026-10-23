@@ -3,6 +3,9 @@ import { setMediatorObserver } from "@ruxt/shared/cqrs";
 import { normalizeRoutePath } from "@ruxt/shared/analytics";
 
 const FLUSH_INTERVAL_MS = 30_000;
+// Workers forbid timers in global scope and isolates are short-lived, so flush opportunistically after responses.
+const isWorker = import.meta.preset === "cloudflare-module";
+let lastFlushAt = 0;
 const isAsset = (path: string) => path.startsWith("/_") || /\.[a-z0-9]{1,8}$/i.test(path);
 
 function routeKey(event: H3Event): string {
@@ -40,6 +43,10 @@ export default defineNitroPlugin((nitroApp) => {
       const startedAt = event.context.analyticsStartedAt;
       const pathname = event.path.split("?")[0] ?? "/";
       if (typeof startedAt !== "number" || isAsset(pathname)) return;
+      if (isWorker && Date.now() - lastFlushAt > FLUSH_INTERVAL_MS) {
+         lastFlushAt = Date.now();
+         event.waitUntil?.(flushMetrics());
+      }
       const status = getResponseStatus(event);
       const ok = status < 500;
       recordMetric("routes", routeKey(event), { durationMs: performance.now() - startedAt, ok, status });
@@ -49,6 +56,7 @@ export default defineNitroPlugin((nitroApp) => {
       }
    });
 
+   if (isWorker) return;
    const timer = setInterval(() => void flushMetrics(), FLUSH_INTERVAL_MS);
    (timer as { unref?: () => void }).unref?.();
    nitroApp.hooks.hook("close", async () => {

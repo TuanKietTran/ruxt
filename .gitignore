@@ -35,3 +35,6 @@ __pycache__/
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# Wrangler local state
+.wrangler
