@@ -40,14 +40,14 @@ The active dependency is the vendored fallback `file:vendor/tuankiettran-ruxt-co
 
 ## Auditor plan/checklist
 
-- [ ] confirm binding names match adapters and runtime env
-- [ ] add/test D1 migrations and KV optimistic-revision contracts
-- [ ] implement and test R2/DO or retain exercised self-hosted fallbacks
-- [ ] measure the complete compressed Worker bundle and representative CPU/write budgets
-- [ ] record isolated celld fleet boot, HTTP, restart, and two-node evidence in the auditor record
-- [ ] verify Deno/self-hosted behavior remains green
-- [ ] scan secrets, AI traces, history, and worktree hygiene
-- [ ] confirm no login, non-dry deploy, DNS, secret/resource creation, or production access
+- [x] confirm binding names match adapters and runtime env — source review of `wrangler.json`, `infra/deploy/cloudflare/repos.ts`, D1 adapter and chunked KV binding; no account-backed runtime test.
+- [ ] add/test D1 migrations and KV optimistic-revision contracts — D1/KV unit coverage exists, but real workerd contract evidence is pending `ct` integration.
+- [ ] implement and test R2/DO or retain exercised self-hosted fallbacks — neither is implemented; pipeline/artifact filesystem and cross-isolate realtime remain unsupported on Workers.
+- [ ] measure the complete compressed Worker bundle and representative CPU/write budgets — dry-run measured gzip 930.71 KiB; CPU and daily quotas were not measured.
+- [ ] record isolated celld fleet boot, HTTP, restart, and two-node evidence in the auditor record — not run by this manager.
+- [x] verify Deno/self-hosted behavior remains green — final local `pnpm build` and `pnpm test` passed; this is not external Deno production regression evidence.
+- [ ] scan secrets, AI traces, history, and worktree hygiene — tracked-path lint passed; no AI-trace/history scan evidence.
+- [x] confirm no login, non-dry deploy, DNS, secret/resource creation, or production access — manager performed local commands only; dry-run only.
 
 ## Verification results (2026-10-23)
 
@@ -58,15 +58,15 @@ Results below came from the manager's complete local sequential test job. Eviden
 | Install | `pnpm install --frozen-lockfile --offline` | **PASS** | Local fallback `../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz`; GitHub Packages registry mode returned HTTP 403 without read:packages access. |
 | Lint | `pnpm lint` | **PASS** | Local manager test job; no external artifact. |
 | Typecheck | `pnpm exec nuxt typecheck` | **PASS** | Local manager test job; no external artifact. |
-| Tests | `pnpm test` | **PASS** | 30 passed / 9 skipped; full suite 197 passed / 40 skipped. Local manager test job; no external artifact. |
+| Tests | `pnpm test` | **PASS** | 199 passed / 40 skipped; local manager final job. |
 | Production build | `pnpm build` | **PASS** | Complete sequential test job; no external artifact. |
 | Cloudflare build | `pnpm cf:build` | **PASS** | Local manager test job; no external artifact. |
 | Wrangler dry run | `pnpm cf:deploy:dry` | **PASS** | Dry-run only; warning recorded for duplicate `html2canvas` case. No login or deployment. |
-| Bundle size | Uploaded compressed Worker: 1,549.52 KiB (~1.51 MiB) | **BLOCKED** | Exceeds the 1 MiB target. |
+| Bundle size | `pnpm cf:deploy:dry` local output: 930.71 KiB gzip (2026-10-23) | **PASS, narrow margin** | Below 1 MiB by ~92.29 KiB; no CPU/quota measurement. |
 | CPU and quotas | Representative CPU, request, KV-write, and D1-write measurements | **NOT RUN** | No measurements were collected. |
 | Binding contracts | D1/KV unit coverage in total suite; workerd contract suite; R2/DO status | **PARTIAL / BLOCKED** | D1/KV unit tests pass within the total suite. No workerd contract evidence; R2 and DO are not implemented. |
 | Celld | Isolated boot, HTTP, restart, and two-node evidence | **NOT RUN** | No celld evidence is available. |
 | Deno/self-hosted regression | Production-path regression evidence | **NOT RUN** | No external Deno production regression evidence is available. |
-| Hygiene | Secret/AI-trace/generated-file scan and identity/worktree review | **PASS** | Clean worktree, no remote, one unsigned root commit on `main` with required author/committer; no AI-trace scan hits. |
+| Hygiene | Architecture lint scans tracked artifact paths; local manager worktree review | **PARTIAL** | No tracked `.data/`, `local.db`, `.env` credentials or secret-named files; no AI-trace/history scan or final identity/worktree review. |
 
-Acceptance blockers: Worker bundle size exceeds the 1 MiB target; CPU/quota measurements, workerd contract evidence, R2/DO implementation, executable Deno KV export/import scripts, celld evidence, and external Deno production regression evidence remain unavailable.
+Acceptance blockers: representative CPU and quota measurements; completed workerd contract evidence; R2/DO or exercised replacements; production-ready bounded imports/restore rehearsal (local Deno KV export/transform/verify tooling exists but was not exercised remotely); celld evidence; and external Deno production regression evidence. `pnpm cf:deploy:dry` measured 930.71 KiB gzip, leaving little bundle headroom.
