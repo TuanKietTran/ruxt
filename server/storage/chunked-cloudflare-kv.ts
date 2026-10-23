@@ -58,8 +58,10 @@ export default function chunkedCloudflareKv(options: { base?: string; binding?: 
       if (manifest(old)) await removeChunks(k, old);
    };
    const keys = async (k = "") => {
+      // Match whole path segments like Deno KV array prefixes: base "cv" must not list "cv-pipeline:*".
       const p = key(k); const result: string[] = []; let cursor: string | undefined;
-      do { const page = await kv().list({ prefix: p || undefined, cursor }); result.push(...page.keys.map(x => x.name)); cursor = page.list_complete ? undefined : page.cursor; } while (cursor);
+      const owns = (name: string) => !p || name === p || name.startsWith(`${p}:`);
+      do { const page = await kv().list({ prefix: p || undefined, cursor }); result.push(...page.keys.map(x => x.name).filter(owns)); cursor = page.list_complete ? undefined : page.cursor; } while (cursor);
       return result.filter(x => !x.slice(base.length + (base ? 1 : 0)).startsWith(`${CHUNKS}:`)).map(x => x.slice(base.length + (base ? 1 : 0)));
    };
    return {
