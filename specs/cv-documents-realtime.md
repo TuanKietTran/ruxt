@@ -1,6 +1,6 @@
 # CV Documents And Realtime Sync
 
-Last updated: main@d1ae665 | 2026-09-13
+Last updated: feat/migration-manager@87e5404 | 2026-10-23
 
 ## Scope
 
@@ -52,13 +52,7 @@ Document list/read also performs an idempotent source-contract migration when pe
 
 ## SSE Behavior
 
-An events connection receives:
-
-1. `ready` with the complete document loaded before stream construction;
-2. `cv:update` after accepted writes in the same server process;
-3. an SSE comment heartbeat every 20 seconds.
-
-The route sets event-stream, no-cache/no-transform, keep-alive, and disabled nginx buffering headers. Stream cancellation unsubscribes the listener and clears its heartbeat.
+On Deno/self-hosted runtimes an events connection receives `ready` with the initial document, `cv:update` after accepted writes in the same server process, and a 20-second comment heartbeat. Cancellation unsubscribes and clears the heartbeat. On Cloudflare Workers the route returns HTTP 501: KV has no cross-isolate event hub and Workers do not support this long-lived SSE contract. The browser closes the failed EventSource and polls `GET /api/cvs/:id` every three seconds; polling applies only newer revisions when there are no unsaved local changes. This is eventual refresh, not realtime or cross-isolate write serialization.
 
 ## Browser Autosave
 
@@ -75,7 +69,7 @@ On the client:
 - an `offline` save retries with backoff (2 s, 5 s, 10 s, then every 30 s), and immediately on the browser `online` event or when the tab becomes visible, until the server acknowledges the edit;
 - a save that finds the session missing (404) re-creates it with `POST /api/cvs`; if that create loses a race (409) the snapshot is saved over the copy that won.
 
-On mount, the composable creates an `EventSource`. Remote documents apply only when there are no unsaved local changes and their revision is newer. Updates bearing this tab's `sourceId` are ignored; events from MCP or another browser are eligible. EventSource open restores `saved` only when clean, while an EventSource error changes a currently saved document to `offline`.
+On mount, the composable creates an `EventSource`. Remote documents apply only when there are no unsaved local changes and their revision is newer. Updates bearing this tab's `sourceId` are ignored; events from MCP or another browser are eligible. EventSource open restores `saved` only when clean. On stream error it closes the stream and polls `GET /api/cvs/:id` every three seconds, retaining offline state if requests fail; unmount clears the polling timer.
 
 ## Session Continuity Across Deployments
 

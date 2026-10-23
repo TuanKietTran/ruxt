@@ -33,6 +33,7 @@ export async function useCvDocument(
     let timer: ReturnType<typeof setTimeout> | undefined;
     let saveQueue = Promise.resolve();
     let events: EventSource | undefined;
+    let pollTimer: ReturnType<typeof setInterval> | undefined;
 
     const backup = (pending: boolean) => {
         if (import.meta.client) writeCvSessionBackup(resolvedId.value, { markdown: markdown.value, css: css.value, revision: revision.value, pending });
@@ -69,6 +70,7 @@ export async function useCvDocument(
     };
 
     const connect = () => {
+        if (pollTimer) return;
         events?.close();
         events = new EventSource(`/api/cvs/${encodeURIComponent(resolvedId.value)}/events`);
         events.addEventListener("ready", (event) => {
@@ -81,6 +83,16 @@ export async function useCvDocument(
         });
         events.onerror = () => {
             if (saveState.value === "saved") saveState.value = "offline";
+            // Cloudflare Workers do not provide a cross-isolate event hub. Fall back to bounded polling.
+            events?.close();
+            pollTimer ??= setInterval(async () => {
+                try {
+                    const remote = await $fetch<CvDocument>(`/api/cvs/${encodeURIComponent(resolvedId.value)}`);
+                    applyRemote(remote);
+                } catch {
+                    if (saveState.value === "saved") saveState.value = "offline";
+                }
+            }, 3_000);
         };
         events.onopen = () => {
             if (!dirty) saveState.value = "saved";
@@ -171,6 +183,8 @@ export async function useCvDocument(
             flush();
         }
         cancelRetry();
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = undefined;
         window.removeEventListener("online", retryNow);
         document.removeEventListener("visibilitychange", retryWhenVisible);
         events?.close();

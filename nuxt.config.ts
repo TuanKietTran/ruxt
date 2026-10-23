@@ -98,7 +98,8 @@ export default defineNuxtConfig({
       experimental: {
          tasks: true,
       },
-      scheduledTasks: {
+      // The queue processor invokes Python/filesystem tooling; Workers cron cannot run this task.
+      scheduledTasks: cloudflareStorage ? {} : {
          "*/15 * * * *": ["cv-pipeline-maintenance"],
       },
       serverAssets: [{

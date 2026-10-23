@@ -6,6 +6,10 @@ const encodeEvent = (event: string, data: unknown) =>
     encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 
 export default defineEventHandler(async (event) => {
+    // Workers KV has no cross-isolate event hub; long-lived SSE is self-hosted only.
+    if (import.meta.preset === "cloudflare-module") {
+        throw createError({ statusCode: 501, statusMessage: "CV live events are unavailable on Cloudflare Workers; use document polling" });
+    }
     const id = assertCvId(getRouterParam(event, "id") ?? "");
     const initial = await getCvDocument(id);
     let unsubscribe = () => {};
