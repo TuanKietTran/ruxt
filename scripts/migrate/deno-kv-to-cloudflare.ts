@@ -197,7 +197,7 @@ function transform(outDir: string) {
       generatedAt: new Date().toISOString(),
       sourceEntries: entries.length,
       sourcePrefixes: Object.fromEntries(seen),
-      d1: { counts, checksums, files, ownerChecksums: ownerDigest(Object.entries(d1).flatMap(([table, rows]) => rows.map((r) => ({ owner: r.owner || "<unowned>", table, canonical: r.sql })))) },
+      d1: { counts, checksums, files, ownerChecksums: ownerDigest(Object.entries(d1).filter(([table]) => ["users", "subscriptions", "cloud_consent_states", "cloud_consent_events", "user_preferences"].includes(table)).flatMap(([table, rows]) => rows.map((r) => ({ owner: r.owner, table, canonical: r.sql })))) },
       kv: { logicalItems: logical.length, physicalKeys: out.length, files: kvFiles, byBase: Object.fromEntries(STORAGE_BASES.map((b) => [b, logical.filter((l) => l.base === b).length])), checksum: sha256(logical.map((l) => `${l.base}:${l.name}:${sha256(l.json)}`).sort().join("\n")) },
       indexMismatches: mismatches,
       notes: ["Deno KV list() does not expose expireIn; expiry cannot be carried over, only unexpired entries exist in the export."],
@@ -214,6 +214,17 @@ function wrangler(args: string[]) {
    return r.stdout;
 }
 
+function dbCanonical(table: string, r: Record<string, any>): { owner: string; canonical: string } {
+   switch (table) {
+      case "users": return { owner: r.id, canonical: row(table, { id: r.id, email: r.email, password_hash: r.password_hash, created_at: r.created_at }) };
+      case "subscriptions": return { owner: r.user_id, canonical: row(table, { id: r.id, user_id: r.user_id, plan_id: r.plan_id, status: r.status, started_at: r.started_at, current_period_start: r.current_period_start, current_period_end: r.current_period_end, trial_ends_at: r.trial_ends_at, cancelled_at: r.cancelled_at, paused_at: r.paused_at, next_interval_plan_id: r.next_interval_plan_id }) };
+      case "cloud_consent_states": return { owner: r.owner_id, canonical: row(table, { owner_id: r.owner_id, category: r.category, granted: r.granted, policy_version: r.policy_version, changed_at: r.changed_at }) };
+      case "cloud_consent_events": return { owner: r.owner_id, canonical: row(table, { id: r.id, owner_id: r.owner_id, actor_user_id: r.actor_user_id, category: r.category, granted: r.granted, policy_version: r.policy_version, changed_at: r.changed_at }) };
+      case "user_preferences": return { owner: r.owner_id, canonical: row(table, { owner_id: r.owner_id, preferences: r.preferences, updated_at: r.updated_at }) };
+      default: throw new Error(`unsupported owner digest table: ${table}`);
+   }
+}
+
 function verify(outDir: string, local: boolean) {
    const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
    const mode = local ? "--local" : "--remote";
@@ -223,6 +234,22 @@ function verify(outDir: string, local: boolean) {
       const actual = json[0]?.results?.[0]?.n;
       if (actual < expected) problems.push(`${table}: D1 has ${actual}, expected at least ${expected}`);
       else console.log(`${table}: ${actual} rows (expected ${expected}${actual > expected ? ", extra rows were created after export" : ""})`);
+   }
+   const ownerTables = ["users", "subscriptions", "cloud_consent_states", "cloud_consent_events", "user_preferences"];
+   const actualOwnerRows: Array<{ owner: string; table: string; canonical: string }> = [];
+   for (const table of ownerTables) {
+      const result = JSON.parse(wrangler(["d1", "execute", "RUXT_DB", mode, "--json", "--command", `SELECT * FROM ${table}`]));
+      for (const record of result[0]?.results ?? []) {
+         const parsed = dbCanonical(table, record);
+         actualOwnerRows.push({ ...parsed, table });
+      }
+   }
+   const actualOwnerDigests = ownerDigest(actualOwnerRows);
+   for (const [owner, digest] of Object.entries<string>(manifest.d1.ownerChecksums ?? {})) {
+      if (actualOwnerDigests[owner] !== digest) problems.push(`D1 owner checksum mismatch: ${owner}`);
+   }
+   for (const owner of Object.keys(actualOwnerDigests)) {
+      if (!(owner in (manifest.d1.ownerChecksums ?? {}))) problems.push(`D1 has unexported owner records: ${owner}`);
    }
    const keys: string[] = [];
    let cursor: string | undefined;
