@@ -3,7 +3,8 @@ import { toRaw } from "vue";
 import type { CvContactKind, CvDocumentSummary, CvProfileProps, CvTemplate } from "@ruxt/shared/cv";
 import { mapProfileApplyResults, profileApplyErrorMessage, type ProfileApplyResponse, type ProfileApplyStatus } from "~/utils/profileApplyResults";
 import { normalizeCvProfile } from "@ruxt/shared/cv";
-import { type LocalProfile, newLocalProfileId, readLocalProfiles, saveLocalProfile, writeLocalProfiles } from "~/utils/localProfiles";
+import { type LocalProfile, newLocalProfileId, orderLocalProfiles, readLocalProfiles, saveLocalProfile, writeLocalProfiles } from "~/utils/localProfiles";
+import { parseTechnologies } from "~/utils/technologies";
 import { downloadBlob, safeFilename } from "~/utils/exportCvImage";
 import {
     MIN_PASSPHRASE_LENGTH, PROFILE_FILE_EXTENSION, ProfileTransferError,
@@ -22,7 +23,14 @@ const emptyProfile = (): LocalProfileInput => normalizeCvProfile({});
 const draft = ref<LocalProfileInput>(emptyProfile());
 const currentProfile = computed(() => profiles.value.find(item => item.id === editingId.value) ?? null);
 
-const readProfiles = () => { profiles.value = readLocalProfiles(); };
+/** Card order. Fixed while a profile is edited, so saving never makes the open card jump to the top. */
+const listOrder = ref<string[]>([]);
+const readProfiles = (resort = false) => {
+    const stored = readLocalProfiles();
+    if (resort) listOrder.value = stored.map(item => item.id);
+    profiles.value = orderLocalProfiles(stored, listOrder.value);
+    if (!resort) listOrder.value = profiles.value.map(item => item.id);
+};
 const persist = (items: LocalProfile[]) => {
     writeLocalProfiles(items);
     readProfiles();
@@ -141,7 +149,7 @@ const warnUnsaved = (event: BeforeUnloadEvent) => {
 };
 
 onMounted(() => {
-    readProfiles();
+    readProfiles(true);
     loadPreferences();
     window.addEventListener("beforeunload", warnUnsaved);
 });
@@ -212,7 +220,7 @@ const removeEntry = (section: EntrySection, index: number) => {
     for (const key of Object.keys(savedFlash)) if (key.startsWith(`${section}.`)) delete savedFlash[key];
     persistDraft();
 };
-const splitList = (value: string) => value.split(/[,\n]/).map(item => item.trim()).filter(Boolean);
+const splitList = parseTechnologies;
 const splitLines = (value: string) => value.split("\n").filter(line => line.trim());
 const contactKinds: CvContactKind[] = ["email", "phone", "linkedin", "github", "website", "other"];
 
@@ -499,9 +507,7 @@ const runApply = async () => {
                             <div class="entry-grid">
                                 <EditableField class="span-2" label="Project name" v-bind="field(`projects.${index}.name`)" :model-value="project.name" @commit="project.name = $event; commit(`projects.${index}.name`)" />
                                 <EditableField class="span-2" label="URL" placeholder="https://…" optional v-bind="field(`projects.${index}.url`)" :model-value="project.url" @commit="project.url = $event; commit(`projects.${index}.url`)" />
-                                <EditableField class="span-all" label="Technologies · comma-separated" optional v-bind="field(`projects.${index}.technologies`)" :model-value="project.technologies.join(', ')" @commit="project.technologies = splitList($event); commit(`projects.${index}.technologies`)">
-                                    <template #display><span class="chips"><span v-for="item in project.technologies" :key="item">{{ item }}</span></span></template>
-                                </EditableField>
+                                <TechnologiesInput class="span-all" label="Technologies" :model-value="project.technologies" :saved="Boolean(savedFlash[`projects.${index}.technologies`])" :is-current="field(`projects.${index}.technologies`).isCurrent" @update:model-value="project.technologies = $event" @commit="commit(`projects.${index}.technologies`)" />
                                 <EditableField class="span-all" label="Description" multiline optional v-bind="field(`projects.${index}.description`)" :model-value="project.description" @commit="project.description = $event; commit(`projects.${index}.description`)" />
                             </div>
                             <p v-if="entryPending('projects', index)" class="entry-pending">{{ pendingNote('projects', index) }}</p>
