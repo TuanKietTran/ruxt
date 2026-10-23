@@ -3,6 +3,8 @@ import { findForbiddenAppImports } from "./lint-app-import-boundary.js";
 import { packedPackagePolicyFailures } from "./lint-packed-package-policy.js";
 
 const failures = [];
+const { execFileSync } = await import("node:child_process");
+const trackedFiles = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean);
 for (const finding of findForbiddenAppImports("app")) {
   failures.push(`app/${finding.file}:${finding.line}: browser source must not import private @ruxt/core (@core) (${finding.specifier})`);
 }
@@ -74,6 +76,20 @@ for (const file of ["nuxt.config.ts", "vitest.config.ts", "tsconfig.json", "infr
     failures.push(`${file}: resolve @ruxt/core and @ruxt/shared through package exports; do not alias source directories`);
   }
 }
+// The control document maps every subsystem spec once and excludes local artifacts.
+{
+  const index = readFileSync("specs/_readme.md", "utf8");
+  const mapSection = index.split("## Subsystem Map\n")[1]?.split("## Cross-Cutting")[0] ?? "";
+  const mapped = [...mapSection.matchAll(/\]\(([^)]+\.md)\)/g)].map(match => `specs/${match[1]}`);
+  const actual = trackedFiles.filter(file => file.startsWith("specs/") && file.endsWith(".md") && file !== "specs/_readme.md");
+  for (const file of actual) if (mapped.filter(entry => entry === file).length !== 1) failures.push(`specs/_readme.md: ${file} must appear exactly once in the Subsystem Map`);
+  for (const file of mapped) if (!actual.includes(file)) failures.push(`specs/_readme.md: dead Subsystem Map entry ${file}`);
+  for (const file of trackedFiles) if (/(^|\/)local\.db(?:-|$)|(^|\/)\.data\//.test(file) || /(^|\/)\.env(?:\.|$)/.test(file) && file !== ".env.example" || /(^|\/)(?:credentials|secrets?)(?:\.[^/]*)?$/i.test(file)) failures.push(`${file}: local data, credentials, and secrets must not be committed`);
+}
+for (const file of ["server/plugins/analytics.ts", "server/plugins/init-cv.ts", "server/plugins/init-infra.ts"]) {
+  if (/^\s*(?:setInterval|setTimeout|fetch|useStorage|openKv)\s*\(/m.test(readFileSync(file, "utf8"))) failures.push(`${file}: Worker global scope must not start timers or perform I/O`);
+}
+
 if (failures.length) {
   console.error(`Architecture lint failed:\n- ${failures.join("\n- ")}`);
   process.exit(1);

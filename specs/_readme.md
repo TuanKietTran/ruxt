@@ -51,6 +51,7 @@ If source and specs disagree, source is ground truth. During ordinary implementa
 - [authenticated-cloud-data.md](authenticated-cloud-data.md): intended opt-in consent, cloud-template quota, seven-day session recovery, sync efficiency, and local-data safety.
 - [domain-foundations.md](domain-foundations.md): shared value objects, date/time, email/password, phone, and payment primitives.
 - [persistence-deployment.md](persistence-deployment.md): SQLite and Deno KV adapters, CV filesystem storage, strategy selection, and deployment configuration.
+- [cloudflare-migration-runbook.md](cloudflare-migration-runbook.md): Cloudflare resource, deploy, rollback, and data-migration operator boundaries.
 - [testing-devops.md](testing-devops.md): package commands, build/export prerequisites, CI status, generated artifacts, and validation gaps.
 - [cv-sv-ui-validation.md](cv-sv-ui-validation.md): historical editor/browser validation and its environment limits; not a current acceptance gate.
 - [TODO.md](TODO.md): verified deferred refactor and validation follow-ups.
