@@ -478,11 +478,24 @@ const fitPreview = async (fromUser = false) => {
 watch(previewDocumentKey, () => { void restoreZoom(); });
 
 const updatePageCount = () => {
-    const sheets = previewContent.value?.querySelectorAll(".cv-sheet").length ?? 0;
+    // Sheets inside the paginator's hidden measuring stage are work in progress, not pages.
+    const sheets = [...previewContent.value?.querySelectorAll(".cv-sheet") ?? []]
+        .filter(sheet => !sheet.closest(".cv-pagination-measure")).length;
     const firstSheetArrived = sheets > 0 && !didFitInitialSheet;
     pageCount.value = Math.max(1, sheets);
     if (zoomReady.value && isFitZoom.value && firstSheetArrived) void fitPreview();
 };
+
+// The template-preview and editor layouts render different `previewContent` elements, so the
+// observer must follow the ref instead of staying on the element present at mount.
+watch(previewContent, (element) => {
+    previewObserver?.disconnect();
+    previewObserver = undefined;
+    updatePageCount();
+    if (!element) return;
+    previewObserver = new MutationObserver(updatePageCount);
+    previewObserver.observe(element, { childList: true, subtree: true });
+}, { flush: "post", immediate: true });
 
 onMounted(() => {
     void recoverLocalSessions();
@@ -506,10 +519,6 @@ onMounted(() => {
     if (Number.isFinite(savedWidth) && savedWidth >= 160 && savedWidth <= 420) sidebarWidth.value = savedWidth;
     void restoreZoom();
     updatePageCount();
-    if (previewContent.value) {
-        previewObserver = new MutationObserver(updatePageCount);
-        previewObserver.observe(previewContent.value, { childList: true, subtree: true });
-    }
     if (previewCanvas.value) {
         canvasObserver = new ResizeObserver(() => { if (zoomReady.value && isFitZoom.value) void fitPreview(); });
         canvasObserver.observe(previewCanvas.value);
