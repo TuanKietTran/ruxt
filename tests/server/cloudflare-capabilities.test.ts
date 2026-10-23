@@ -1,13 +1,15 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cvPipelineExtractor } from "../../server/adapters/cv/pipeline-extractor";
 
 afterEach(() => {
    delete (globalThis as typeof globalThis & { __env__?: unknown }).__env__;
+   vi.unstubAllGlobals();
 });
 
 describe("Cloudflare CV extraction capability", () => {
    it("reports extraction and OCR unavailable without probing host Python", async () => {
       (globalThis as typeof globalThis & { __env__?: unknown }).__env__ = { RUXT_KV: {} };
+      vi.stubGlobal("useRuntimeConfig", () => ({ cvImportMaxBytes: 15 * 1024 * 1024 }));
       const capabilities = await cvPipelineExtractor.capabilities();
       expect(capabilities.available).toBe(false);
       expect(capabilities.ocr).toBe(false);
