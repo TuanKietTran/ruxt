@@ -49,6 +49,15 @@ The active dependency is the vendored fallback `file:vendor/tuankiettran-ruxt-co
 - [ ] scan secrets, AI traces, history, and worktree hygiene — tracked-path lint passed; no AI-trace/history scan evidence.
 - [x] confirm no login, non-dry deploy, DNS, secret/resource creation, or production access — manager performed local commands only; dry-run only.
 
+## Manager source audit (local)
+
+- Worker plugin code does not start timers or access storage at module scope; analytics timer and startup writes remain guarded to non-Worker execution/deferred request hooks. Cloudflare env validation reads `globalThis.__env__`; Deno `process.env.DENO_TIMELINE` validation is Deno-only.
+- CV import's Node `fs`/`child_process`/Python pipeline remains a self-hosted fallback: Worker capability detection returns unavailable before probing Python or running extraction. Artifact TTL and upload ceilings now use Nuxt runtime config (`NUXT_CV_ARTIFACT_TTL_HOURS`, `NUXT_CV_IMPORT_MAX_BYTES`), not `process.env`.
+- Worker CV SSE is explicitly unavailable (HTTP 501) because there is no cross-isolate event hub; the browser falls back to three-second document polling. This is eventual refresh, not realtime/serialization.
+- `cv-pipeline-maintenance` cron is omitted from the Cloudflare build because it invokes unsupported Python/filesystem work. No Worker-native background replacement is claimed.
+- MCP remains a stateless Streamable HTTP endpoint; local Cloudflare build and dry-run include it, but no Worker runtime request/CPU test was produced.
+- `node:crypto` remains in adapters for self-hosted execution; Worker password hashing uses WebCrypto PBKDF2. Free-plan CPU impact has not been measured.
+
 ## Verification results (2026-10-23)
 
 Results below came from the manager's complete local sequential test job. Evidence was run locally; no external artifact was retained. Passing checks do not constitute Cloudflare acceptance where a blocker is explicitly recorded.
