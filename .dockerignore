@@ -1,0 +1,12 @@
+.git
+.github
+.nuxt
+.output
+admin/.nuxt
+admin/.output
+admin/.env
+.data
+node_modules
+**/node_modules
+*.log
+.DS_Store

@@ -1,0 +1,157 @@
+/* ──────────────────────────────────────────────
+   CATPPUCCIN MOCHA (default dark)
+   ────────────────────────────────────────────── */
+:root,
+[data-theme="mocha"] {
+  --bg-base:      #1e1e2e;
+  --bg-mantle:    #181825;
+  --bg-crust:     #11111b;
+  --bg-surface0:  #313244;
+  --bg-surface1:  #45475a;
+  --bg-surface2:  #585b70;
+  --bg-overlay0:  #6c7086;
+  --bg-overlay1:  #7f849c;
+  --bg-overlay2:  #9399b2;
+
+  --fg-text:      #cdd6f4;
+  --fg-subtext1:  #bac2de;
+  --fg-subtext0:  #a6adc8;
+
+  --accent:       #89b4fa;   /* blue */
+  --accent-hover: #b4befe;   /* lavender */
+  --accent-muted: #313244;
+
+  --pink:         #f5c2e7;
+  --mauve:        #cba6f7;
+  --red:          #f38ba8;
+  --peach:        #fab387;
+  --yellow:       #f9e2af;
+  --green:        #a6e3a1;
+  --teal:         #94e2d5;
+  --sky:          #89dceb;
+  --sapphire:     #74c7ec;
+
+  --border:       #313244;
+  --border-strong: #45475a;
+
+  --radius-sm:    6px;
+  --radius-md:    10px;
+  --radius-lg:    16px;
+  --radius-full:  9999px;
+
+  color-scheme: dark;
+}
+
+/* ──────────────────────────────────────────────
+   CATPPUCCIN LATTE (light)
+   ────────────────────────────────────────────── */
+[data-theme="latte"] {
+  --bg-base:      #eff1f5;
+  --bg-mantle:    #e6e9ef;
+  --bg-crust:     #dce0e8;
+  --bg-surface0:  #ccd0da;
+  --bg-surface1:  #bcc0cc;
+  --bg-surface2:  #acb0be;
+  --bg-overlay0:  #9ca0b0;
+  --bg-overlay1:  #8c8fa1;
+  --bg-overlay2:  #7c7f93;
+
+  --fg-text:      #4c4f69;
+  --fg-subtext1:  #5c5f77;
+  --fg-subtext0:  #6c6f85;
+
+  --accent:       #1e66f5;
+  --accent-hover: #04a5e5;
+  --accent-muted: #ccd0da;
+
+  --pink:         #ea76cb;
+  --mauve:        #8839ef;
+  --red:          #d20f39;
+  --peach:        #fe640b;
+  --yellow:       #df8e1d;
+  --green:        #40a02b;
+  --teal:         #179299;
+  --sky:          #04a5e5;
+  --sapphire:     #209fb5;
+
+  --border:       #ccd0da;
+  --border-strong: #bcc0cc;
+
+  color-scheme: light;
+}
+
+/* ──────────────────────────────────────────────
+   OPENCODE THEME (terminal dark)
+   ────────────────────────────────────────────── */
+[data-theme="opencode"] {
+  --bg-base:      #0a0a0a;
+  --bg-mantle:    #111111;
+  --bg-crust:     #050505;
+  --bg-surface0:  #1a1a1a;
+  --bg-surface1:  #242424;
+  --bg-surface2:  #2e2e2e;
+  --bg-overlay0:  #404040;
+  --bg-overlay1:  #525252;
+  --bg-overlay2:  #737373;
+
+  --fg-text:      #fafafa;
+  --fg-subtext1:  #d4d4d4;
+  --fg-subtext0:  #a3a3a3;
+
+  --accent:       #22c55e;   /* terminal green */
+  --accent-hover: #4ade80;
+  --accent-muted: #1a2e1a;
+
+  --pink:         #f472b6;
+  --mauve:        #a78bfa;
+  --red:          #f87171;
+  --peach:        #fb923c;
+  --yellow:       #fbbf24;
+  --green:        #4ade80;
+  --teal:         #2dd4bf;
+  --sky:          #38bdf8;
+  --sapphire:     #60a5fa;
+
+  --border:       #1a1a1a;
+  --border-strong: #2e2e2e;
+
+  color-scheme: dark;
+}
+
+/* ──────────────────────────────────────────────
+   GLOBALS
+   ────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: var(--bg-base);
+  color: var(--fg-text);
+  font-family: 'Inter', 'Geist', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-hover); }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

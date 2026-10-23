@@ -1,0 +1,93 @@
+name: ruxt-celld
+# Isolated ruxt celld fleet. Separate project name, bucket (ruxt-celld), volumes and
+# host ports from the distributed-agent-chat fleet (session-chat, 18877/18878, 8787 reserved).
+x-cell-env: &cell-env
+  AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in deploy/celld/.env}
+  AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in deploy/celld/.env}
+  AWS_REGION: us-east-1
+  CELLD_WATCH: /var/lib/celld/state
+services:
+  minio:
+    build:
+      context: .
+      dockerfile: minio.Dockerfile
+      target: minio
+    image: ruxt-celld-minio:RELEASE.2025-04-22T22-12-26Z-source
+    command: [server, /data, --console-address, ':9001']
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+    volumes: [bucket:/data]
+    networks: [fleet]
+    restart: unless-stopped
+  bucket-init:
+    build:
+      context: .
+      dockerfile: minio.Dockerfile
+      target: mc
+    image: ruxt-celld-mc:RELEASE.2025-04-16T18-13-26Z-source
+    depends_on: [minio]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    entrypoint: [/bin/sh, -ec]
+    command:
+      - |
+        attempts=0
+        until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; do
+          attempts=$$((attempts+1)); [ "$$attempts" -lt 60 ] || exit 1; sleep 1
+        done
+        mc mb --ignore-existing local/ruxt-celld
+    networks: [fleet]
+  node-a:
+    image: ghcr.io/denoland/celld:v0.6.2
+    environment: *cell-env
+    command: [--bucket, 's3://ruxt-celld', --endpoint, 'http://minio:9000', --region, us-east-1, --listen, '0.0.0.0:8080', --internal-listen, '0.0.0.0:8081', --advertise, 'node-a:8081']
+    depends_on:
+      bucket-init: {condition: service_completed_successfully}
+    ports: ['127.0.0.1:${RUXT_CELLD_PORT_A:-19877}:8080']
+    volumes: [node-a:/var/lib/celld]
+    networks: [fleet, ingress]
+    restart: unless-stopped
+  node-b:
+    image: ghcr.io/denoland/celld:v0.6.2
+    environment: *cell-env
+    command: [--bucket, 's3://ruxt-celld', --endpoint, 'http://minio:9000', --region, us-east-1, --listen, '0.0.0.0:8080', --internal-listen, '0.0.0.0:8081', --advertise, 'node-b:8081']
+    depends_on:
+      bucket-init: {condition: service_completed_successfully}
+    ports: ['127.0.0.1:${RUXT_CELLD_PORT_B:-19878}:8080']
+    volumes: [node-b:/var/lib/celld]
+    networks: [fleet, ingress]
+    restart: unless-stopped
+  tools:
+    profiles: [tools]
+    build:
+      context: ../..
+      dockerfile: deploy/celld/tools.Dockerfile
+    image: ruxt-celld-tools:0.1.0-celld0.6.2
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_REGION: us-east-1
+      CELLD_BUCKET: s3://ruxt-celld
+      S3_ENDPOINT: http://minio:9000
+      RUXT_CELLD_PROJECT: ${RUXT_CELLD_PROJECT:-/app}
+      CONFIRM_RUXT_CELLD_DEPLOY: ${CONFIRM_RUXT_CELLD_DEPLOY:-NO}
+    # Deploy writes only to the isolated ruxt-celld bucket. Refuses unless explicitly confirmed.
+    command:
+      - |
+        test "$$CONFIRM_RUXT_CELLD_DEPLOY" = YES || { echo "refusing: set CONFIRM_RUXT_CELLD_DEPLOY=YES" >&2; exit 1; }
+        celld deploy "$$RUXT_CELLD_PROJECT" --bucket "$$CELLD_BUCKET" --endpoint "$$S3_ENDPOINT" --region us-east-1
+    entrypoint: [/bin/sh, -ec]
+    networks: [fleet]
+volumes:
+  bucket:
+  node-a:
+  node-b:
+networks:
+  fleet:
+    internal: true
+  ingress:
+    # OrbStack does not publish host ports on internal-only networks. Only Worker
+    # listeners are mapped to loopback; MinIO and the celld internal listener are not.
+    driver: bridge

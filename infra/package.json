@@ -1,0 +1,14 @@
+{
+  "name": "@ruxt/infra",
+  "version": "0.0.1",
+  "type": "module",
+  "sideEffects": true,
+  "private": true,
+  "dependencies": {
+    "better-sqlite3": "^12.9.0",
+    "drizzle-orm": "^0.45.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13"
+  }
+}

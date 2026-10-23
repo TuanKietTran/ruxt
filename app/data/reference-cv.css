@@ -1,0 +1,85 @@
+/* Harvard-style single-column resume template — A4, Georgia.
+   .resume comes from the :::resume Markdown indicator. */
+.resume {
+  box-sizing: border-box;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 12mm 16mm 11mm;
+  background: #fff;
+  color: #171717;
+  font-family: Georgia, "Times New Roman", Times, serif;
+  font-size: 10pt;
+  line-height: 1.24;
+}
+
+.resume * { box-sizing: border-box; }
+.resume > :first-child { margin-top: 0; }
+.resume a { color: inherit; text-decoration: none; }
+.resume p { margin: 0 0 1.4mm; }
+
+.cv-name {
+  margin: 0 0 2.5mm;
+  padding: 0 0 1.8mm;
+  border-bottom: .6pt solid #171717;
+  font-size: 15.5pt;
+  line-height: 1.1;
+  text-align: center;
+}
+.cv-name + p {
+  margin-bottom: 5mm;
+  line-height: 1.75;
+  text-align: center;
+}
+.resume h2 {
+  margin: 3.5mm 0 2mm;
+  border: 0;
+  font-size: 11.5pt;
+  line-height: 1.15;
+  text-align: center;
+  text-decoration: underline;
+}
+
+.resume table {
+  display: table;
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: inherit;
+}
+.resume table tr,
+.resume table tr:nth-child(2n),
+.resume table th,
+.resume table td {
+  background: transparent;
+  border: 0;
+}
+.resume table th,
+.resume table td { padding: 0; }
+.resume table th { font-weight: normal; }
+.resume table td:last-child { white-space: nowrap; text-align: right; }
+.resume table + table { margin-top: 1.5mm; }
+.resume table + p { margin-top: 0; }
+
+.resume ul {
+  margin: .8mm 0 1.5mm;
+  padding-left: 6mm;
+}
+.resume li { margin: 0 0 .7mm; padding-left: .7mm; }
+.resume strong { font-weight: 700; }
+.resume em { font-style: italic; }
+
+/* A Markdown thematic break starts a new physical sheet. */
+.resume hr { display: none; }
+
+@media print {
+  .resume {
+    width: 209.5mm;
+    min-height: 296mm;
+    margin: 0 !important;
+    box-shadow: none !important;
+    break-after: auto;
+    page-break-after: auto;
+  }
+}

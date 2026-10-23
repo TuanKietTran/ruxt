@@ -1,0 +1,89 @@
+name: Verify and Cloudflare dry run
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Lint, typecheck, test, and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+      # The active local fallback is rebuilt from a pinned core revision in CI.
+      - name: Build private core tarball
+        env:
+          RUXT_CORE_REF: ec01245
+        run: |
+          git clone https://github.com/TuanKietTran/ruxt-core.git ../ruxt-core
+          git -C ../ruxt-core checkout "$RUXT_CORE_REF"
+          pnpm --dir ../ruxt-core install --frozen-lockfile --ignore-scripts
+          pnpm --dir ../ruxt-core build
+          mkdir -p ../package-artifacts/phase4
+          pnpm --dir ../ruxt-core pack --pack-destination ../package-artifacts/phase4
+      - name: Install
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm exec nuxt typecheck
+      - name: Test
+        run: pnpm test
+      - name: Self-hosted build
+        run: pnpm build
+      - name: Cloudflare build
+        run: pnpm cf:build
+      - name: Wrangler dry run
+        run: pnpm cf:deploy:dry
+
+  # This is intentionally reachable only from a manually dispatched run on main.
+  # The required secrets are configured by the repository owner, never committed.
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: cloudflare
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+      - name: Build private core tarball
+        env:
+          RUXT_CORE_REF: ec01245
+        run: |
+          git clone https://github.com/TuanKietTran/ruxt-core.git ../ruxt-core
+          git -C ../ruxt-core checkout "$RUXT_CORE_REF"
+          pnpm --dir ../ruxt-core install --frozen-lockfile --ignore-scripts
+          pnpm --dir ../ruxt-core build
+          mkdir -p ../package-artifacts/phase4
+          pnpm --dir ../ruxt-core pack --pack-destination ../package-artifacts/phase4
+      - name: Install
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+      - name: Cloudflare deploy
+        run: pnpm cf:deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
