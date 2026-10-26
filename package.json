@@ -31,7 +31,7 @@
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@nuxt/icon": "^2.5.1",
     "@ruxt/shared": "0.1.0",
-    "@ruxt/core": "file:../package-artifacts/phase4/tuankiettran-ruxt-core-0.3.0.tgz",
+    "@ruxt/core": "npm:@tuankiettran/ruxt-core@0.3.0",
     "@ruxt/editor": "0.1.2",
     "docx": "^9.1.1",
     "html2canvas": "^1.4.1",
