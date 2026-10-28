@@ -55,7 +55,12 @@ await context.addCookies([{ name: "__clerk_db_jwt", value: "dvb_x", url: BASE }]
 await context.route(/clerk\.accounts\.dev/, r => r.abort());
 const page = context.pages()[0] ?? await context.newPage();
 page.on("pageerror", e => !/Clerk/.test(e.message) && console.log("  pageerror:", e.message));
-const typeInEditor = async text => { await page.click(".cm-content"); await page.keyboard.press("Control+End"); await page.keyboard.type(text); };
+const typeInEditor = async text => {
+  // The home route opens the template picker; a new draft starts from its blank card.
+  const blank = await page.$(".template-card--blank");
+  if (blank) await blank.click();
+  await page.click(".cm-content"); await page.keyboard.press("Control+End"); await page.keyboard.type(text);
+};
 const sessionIdFromUrl = () => new URL(page.url()).searchParams.get("s");
 const goto = async path => { await page.goto(BASE + path, { waitUntil: "load" }); await page.waitForTimeout(1500); };
 
