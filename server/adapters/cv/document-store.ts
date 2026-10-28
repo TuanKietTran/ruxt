@@ -96,6 +96,18 @@ export async function getCvDocument(id: string): Promise<CvDocument> {
     return seeded;
 }
 
+/**
+ * The validator fields of a stored document from storage metadata alone, or undefined when the driver
+ * does not keep them (only chunked Workers KV manifests and small KV values do). Used to answer a
+ * conditional GET without reading every chunk.
+ */
+export async function peekCvDocument(id: string): Promise<Pick<CvDocumentProps, "revision" | "updatedAt" | "title"> | undefined> {
+    id = await migrateLegacyDocument(assertCvId(id));
+    const meta = await useStorage("cv").getMeta(keyFor(id), { nativeOnly: true }) as Partial<CvDocumentProps>;
+    if (!Number.isSafeInteger(meta.revision) || typeof meta.updatedAt !== "string") return undefined;
+    return { revision: meta.revision!, updatedAt: meta.updatedAt, title: meta.title };
+}
+
 export async function listCvDocuments(): Promise<CvDocumentSummary[]> {
     const storage = useStorage("cv");
     let keys = await storage.getKeys("documents:");
@@ -103,8 +115,9 @@ export async function listCvDocuments(): Promise<CvDocumentSummary[]> {
         await getCvDocument("master");
         keys = await storage.getKeys("documents:");
     }
-    await Promise.all(keys.map(key => migrateLegacyDocument(key.slice("documents:".length))));
-    const currentKeys = await storage.getKeys("documents:");
+    const routeIds = await Promise.all(keys.map(key => migrateLegacyDocument(key.slice("documents:".length))));
+    // Workers KV allows far fewer list operations than reads: list again only if a migration added a key.
+    const currentKeys = routeIds.every(id => keys.includes(`documents:${id}`)) ? keys : await storage.getKeys("documents:");
     const documents = await Promise.all(
         currentKeys.map(async (key) => {
             const id = key.slice("documents:".length);

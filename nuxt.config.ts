@@ -17,10 +17,10 @@ const clientOnlyStub = fileURLToPath(new URL("./server/stubs/client-only.mjs", i
 const cloudflareServerAlias = cloudflareStorage
    ? Object.fromEntries(["html2canvas", "jszip", "docx", "@codemirror/language-data", "@codemirror/theme-one-dark"].map((name) => [name, clientOnlyStub]))
    : {};
-const durableStorage = (base: string, directory: string) => denoStorage
+const durableStorage = (base: string, directory: string, kvOptions: Record<string, unknown> = {}) => denoStorage
    ? { driver: chunkedDenoKvDriver, base }
    : cloudflareStorage
-      ? { driver: chunkedCloudflareKvDriver, base, binding: "RUXT_KV" }
+      ? { driver: chunkedCloudflareKvDriver, base, binding: "RUXT_KV", ...kvOptions }
       : { driver: "fs", base: process.env[directory] ?? `./.data/${base}` };
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
@@ -110,7 +110,12 @@ export default defineNuxtConfig({
       }],
       storage: {
          // Canonical CV documents shared by the browser API and agent adapters.
-         cv: durableStorage("cv", "CV_DATA_DIR"),
+         // Chunk manifests carry the document validator fields so a revision probe skips chunk reads;
+         // only write-once template keys may be served from the KV edge cache.
+         cv: durableStorage("cv", "CV_DATA_DIR", {
+            metaFields: ["id", "title", "revision", "updatedAt"],
+            cachedPrefixes: ["templates:", "template-seeds:"],
+         }),
          cvPipeline: durableStorage("cv-pipeline", "CV_PIPELINE_DATA_DIR"),
          // Hourly route/CQRS/user/task aggregates, read by the admin app.
          analytics: durableStorage("analytics", "ANALYTICS_DATA_DIR"),
