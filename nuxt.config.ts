@@ -40,6 +40,8 @@ export default defineNuxtConfig({
       signUpUrl: "/login?mode=signup",
       signInFallbackRedirectUrl: "/",
       signUpFallbackRedirectUrl: "/",
+      // No SDK telemetry from the browser or the Worker (each report is an extra outbound request).
+      telemetry: { disabled: true },
    },
    runtimeConfig: {
       cvArtifactTtlHours: 24,
