@@ -2,6 +2,8 @@ import { useMediator } from "@ruxt/shared/cqrs";
 import { createCvImportCommand } from "@ruxt/core/handlers/create-cv-import";
 import { getCvCapabilitiesQuery } from "@ruxt/core/handlers/get-cv-capabilities";
 import { getCvTemplateQuery } from "@ruxt/core/handlers/get-cv-template";
+import type { CvTemplate } from "@ruxt/shared/cv";
+import { isImportCvTemplate } from "../../../utils/cv-template-visibility";
 import type { CvPipelineCapabilities } from "@ruxt/core/domain/cv/import";
 import { cvArtifactRepo } from "../../../adapters/cv/pipeline-repos";
 import { runCvImport } from "../../../services/cv-import-worker";
@@ -33,7 +35,8 @@ export default defineEventHandler(async (event) => {
    const requestedVersion = parts?.find((part) => part.name === "templateVersion")?.data.toString("utf8");
    const templateVersion = requestedVersion ? Number(requestedVersion) : 1;
    if (!Number.isInteger(templateVersion) || templateVersion < 1) throw createError({ statusCode: 400, statusMessage: "Invalid templateVersion" });
-   await sendApiRequest(mediator, getCvTemplateQuery({ id: templateId, version: templateVersion }));
+   const template = await sendApiRequest<CvTemplate>(mediator, getCvTemplateQuery({ id: templateId, version: templateVersion }));
+   if (!isImportCvTemplate(template)) throw createError({ statusCode: 404, statusMessage: "CV template not found" });
 
    const expiresAt = new Date(Date.now() + Number(useRuntimeConfig(event).cvArtifactTtlHours) * 3_600_000).toISOString();
    const source = await cvArtifactRepo.putSource({

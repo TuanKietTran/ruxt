@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { chromium, type Browser, type Page } from "playwright-core";
 import JSZip from "jszip";
+import { seedLocalCv } from "./helpers/local-cv";
 
 const baseUrl = process.env.PAGINATION_BASE_URL?.replace(/\/$/, "");
 if (baseUrl && !["127.0.0.1", "localhost", "[::1]"].includes(new URL(baseUrl).hostname)) {
@@ -33,10 +34,7 @@ async function ready(page: Page, count?: number) {
 }
 async function create(page: Page, source: string, style = css) {
     const id = `pagination-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const response = await page.request.post(`${baseUrl}/api/cvs`, {
-        data: { id, markdown: source, css: style, title: "Pagination fixture" },
-    });
-    expect(response.status()).toBe(201);
+    await seedLocalCv(page, { id, markdown: source, css: style, title: "Pagination fixture" });
     await page.goto(`${baseUrl}/?s=${id}`);
     await ready(page);
     return id;

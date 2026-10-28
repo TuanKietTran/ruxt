@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { chromium, type Browser } from "playwright-core";
+import { readLocalCv, seedLocalCv } from "../helpers/local-cv";
 
 const baseUrl = process.env.SMOKE_BASE_URL?.replace(/\/$/, "");
 const executablePath = process.env.CHROMIUM_PATH ?? (process.platform === "darwin" ? "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser" : "");
@@ -21,23 +22,20 @@ ui("profile safety browser regressions", () => {
     }])), { now });
     await page.goto(`${baseUrl}/p`);
     await page.locator(".profile-card__select").filter({ hasText: "Tech Regression" }).click();
-    await page.getByRole("button", { name: /Technologies/ }).click();
-    const input = page.locator("textarea.profile-input").last();
+    const input = page.locator(".tech-input input");
     const tokens = ["Go", "CQRS", "PostgreSQL", "OpenAPI", "REST", "Idempotency", "TypeScript", "Vue", "Nuxt", "Vitest", "Playwright", "Docker", "SQLite", "Redis", "GraphQL"];
     await input.pressSequentially(tokens.join(", "), { delay: 5 });
     await input.press("Enter");
-    await expect.poll(async () => page.locator(".chips").last().locator("span").allTextContents()).toEqual(tokens);
+    await expect.poll(async () => page.locator("[data-chip]").evaluateAll(nodes => nodes.map(node => node.firstChild?.textContent?.trim()))).toEqual(tokens);
     await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("cv-sv:local-profiles:v1") || "[]")[0].projects[0].technologies)).toEqual(tokens);
-    await page.locator(".editable-field__display").last().click();
-    const blurInput = page.locator("textarea.profile-input").last();
-    await blurInput.fill("Go, CQRS, PostgreSQL");
+    const blurInput = input;
+    await blurInput.fill("Rust");
     await page.getByRole("heading", { name: "Projects" }).click();
-    await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("cv-sv:local-profiles:v1") || "[]")[0].projects[0].technologies)).toEqual(["Go", "CQRS", "PostgreSQL"]);
-    await page.locator(".editable-field__display").last().click();
-    const tabInput = page.locator("textarea.profile-input").last();
-    await tabInput.fill("Go, CQRS, PostgreSQL, OpenAPI");
+    await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("cv-sv:local-profiles:v1") || "[]")[0].projects[0].technologies)).toEqual([...tokens, "Rust"]);
+    const tabInput = input;
+    await tabInput.fill("Python");
     await tabInput.press("Tab");
-    await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("cv-sv:local-profiles:v1") || "[]")[0].projects[0].technologies)).toEqual(["Go", "CQRS", "PostgreSQL", "OpenAPI"]);
+    await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("cv-sv:local-profiles:v1") || "[]")[0].projects[0].technologies)).toEqual([...tokens, "Rust", "Python"]);
     await context.close();
   }, 30_000);
 
@@ -80,7 +78,7 @@ ui("profile safety browser regressions", () => {
     await edit(page.locator(".identity-headline"), "Selected profile updated");
     await edit(page.locator(".identity-location"), "London");
     await edit(page.locator(".profile-identity .editable-field").nth(2), "Five edit regression");
-    await edit(page.locator('[data-entry="projects-0"] .entry-grid > .editable-field').nth(3), "Updated project description");
+    await edit(page.locator('[data-entry="projects-0"] .entry-grid > .editable-field').nth(2), "Updated project description");
     await edit(page.locator(".profile-columns .profile-section").first().locator(".entry-card .editable-field").nth(1), "New issuer");
     const projects = page.locator(".profile-section").filter({ has: page.getByRole("heading", { name: "Projects" }) });
     await projects.getByRole("button", { name: "＋ Add" }).click();
@@ -110,8 +108,7 @@ ui("profile safety browser regressions", () => {
   it("rejects an apply preview if the session changed before confirmation", async () => {
     const context = await browser.newContext(); const page = await context.newPage();
     const id = crypto.randomUUID().replaceAll("-", "");
-    const created = await context.request.post(`${baseUrl}/api/cvs`, { data: { id, title: `Stale preview ${id}`, markdown: "# Stale target\\n\\nOriginal content\\n", css: "body {}" } });
-    expect(created.ok()).toBe(true); const initial = await created.json();
+    await seedLocalCv(context, { id, title: `Stale preview ${id}`, markdown: "# Stale target\n\nOriginal content\n", css: "body {}" });
     const now = Date.now(); const profile = { version: 1, id: `profile-stale-${id}`, createdAt: now, updatedAt: now, identity: { fullName: "Stale Profile", headline: "", summary: "", location: "" }, contacts: [], experiences: [], skills: [], certifications: [], education: [], projects: [], languages: [] };
     await page.addInitScript(profile => localStorage.setItem("cv-sv:local-profiles:v1", JSON.stringify([profile])), profile);
     await page.goto(`${baseUrl}/p`); await page.locator(".profile-card__select").filter({ hasText: "Stale Profile" }).click();
@@ -119,16 +116,15 @@ ui("profile safety browser regressions", () => {
     await page.locator(`.apply-session input[value="${id}"]`).check();
     await page.getByRole("button", { name: "Preview overwrite" }).click();
     const concurrent = "# Stale target\\n\\nConcurrent editor content\\n";
-    const changed = await context.request.put(`${baseUrl}/api/cvs/${id}`, { data: { markdown: concurrent, css: "body {}", expectedRevision: initial.revision } });
-    expect(changed.ok()).toBe(true);
+    await page.evaluate(({ id, concurrent }) => {
+      const key = `cv-sv:session-backup:${id}`;
+      const previous = JSON.parse(localStorage.getItem(key)!);
+      localStorage.setItem(key, JSON.stringify({ ...previous, markdown: concurrent, revision: previous.revision + 1 }));
+    }, { id, concurrent });
     await page.getByRole("checkbox", { name: /I reviewed the before\/after preview/ }).check();
-    const applyResponsePromise = page.waitForResponse(response => response.url().endsWith("/api/cv-profiles/apply") && response.request().method() === "POST");
     await page.getByRole("button", { name: /Confirm & apply/ }).click();
-    const applyResponse = await applyResponsePromise;
-    expect(applyResponse.ok()).toBe(true);
-    const applyResult = await applyResponse.json();
-    expect(applyResult.results[0]).toMatchObject({ ok: false });
-    await expect.poll(async () => (await context.request.get(`${baseUrl}/api/cvs/${id}`)).json()).toMatchObject({ markdown: concurrent });
+    await expect.poll(() => page.locator(".apply-dialog").textContent()).toContain("Session changed since the preview");
+    expect(await readLocalCv(page, id)).toMatchObject({ markdown: concurrent });
     await context.close();
   }, 60_000);
 
@@ -137,8 +133,7 @@ ui("profile safety browser regressions", () => {
     const page = await context.newPage();
     const id = crypto.randomUUID().replaceAll("-", "");
     const original = "# Switch Original\n\nPrivate custom objective.\n\n## Experience\n\n- Hand-edited detail\n";
-    const response = await context.request.post(`${baseUrl}/api/cvs`, { data: { id, title: "Switch safety", markdown: original, css: ".resume { color: navy; }" } });
-    expect(response.ok()).toBe(true);
+    await seedLocalCv(context, { id, title: "Switch safety", markdown: original, css: ".resume { color: navy; }" });
     const now = Date.now();
     const profile = { version: 1, id: "profile-switch-regression", createdAt: now, updatedAt: now,
       identity: { fullName: "Switched Candidate", headline: "Engineer", summary: "New summary", location: "London" }, contacts: [],
@@ -156,7 +151,7 @@ ui("profile safety browser regressions", () => {
     await confirm.click();
     await page.getByRole("button", { name: "Undo switch" }).waitFor({ state: "visible" });
     await page.getByRole("button", { name: "Undo switch" }).click();
-    await expect.poll(async () => (await context.request.get(`${baseUrl}/api/cvs/${id}`)).json()).toMatchObject({ markdown: original, css: ".resume { color: navy; }" });
+    await expect.poll(() => readLocalCv(page, id)).toMatchObject({ markdown: original, css: ".resume { color: navy; }" });
     await context.close();
   }, 60_000);
 
@@ -165,8 +160,7 @@ ui("profile safety browser regressions", () => {
     const page = await context.newPage();
     const id = crypto.randomUUID().replaceAll("-", "");
     const original = "# Original Candidate\n\nCustom objective that must be visible in preview.\n\n## Experience\n\n- Hand-edited bullet\n";
-    const created = await context.request.post(`${baseUrl}/api/cvs`, { data: { id, title: "Safety preview session", markdown: original, css: ".resume { color: black; }" } });
-    expect(created.ok()).toBe(true);
+    await seedLocalCv(context, { id, title: "Safety preview session", markdown: original, css: ".resume { color: black; }" });
     const now = Date.now();
     await page.addInitScript(({ now }) => localStorage.setItem("cv-sv:local-profiles:v1", JSON.stringify([{
       version: 1, id: "profile-preview-regression", createdAt: now, updatedAt: now,
@@ -188,7 +182,7 @@ ui("profile safety browser regressions", () => {
     await page.getByRole("button", { name: /Confirm & apply/ }).click();
     await page.getByRole("button", { name: "Undo this profile change" }).waitFor({ state: "visible" });
     await page.getByRole("button", { name: "Undo this profile change" }).click();
-    await expect.poll(async () => (await context.request.get(`${baseUrl}/api/cvs/${id}`)).json()).toMatchObject({ markdown: original, css: ".resume { color: black; }" });
+    await expect.poll(() => readLocalCv(page, id)).toMatchObject({ markdown: original, css: ".resume { color: black; }" });
     await context.close();
   }, 60_000);
 });

@@ -3,10 +3,10 @@ import { computed } from "vue";
 import { useTheme, type ThemeId } from "~/composables/useTheme";
 import type { EditorStats } from "@ruxt/editor/composables/useCodeMirror";
 import type { CvDocumentSummary, CvTemplate } from "@ruxt/shared/cv";
-import { cvSessionsToRecover, mergeCvSessions, type CvSessionBackupEntry } from "@ruxt/shared/cv";
-import { clearCvSessionBackup, listCvSessionBackups } from "~/utils/cvSessionBackup";
+import type { CvSessionBackupEntry } from "@ruxt/shared/cv";
 import { hasEditorFeature, listEditorContexts, resolveEditorContext, type EditorContext, type EditorFeature } from "~/utils/editorContexts";
 import { reuseFor } from "~/utils/fetchCache";
+import { readLocalCvTemplates } from "~/utils/localCvTemplates";
 
 const LIST_REUSE_MS = 60_000;
 
@@ -80,18 +80,9 @@ const sessionActions = useCvSessionActions();
 const { user, logout } = useAppAuth();
 const { authenticated } = useFeatureFlags();
 const { openAuthDialog } = useAuthDialog();
-// Lazy: slow catalog requests must not block first render or navigation; the sidebar shows skeletons meanwhile.
-const { data: cvIndex, refresh: reloadCvDocuments, status: cvIndexStatus } = useFetch<{ documents: CvDocumentSummary[] }>("/api/cvs", {
-    key: "editor-document-list",
-    lazy: true,
-    // The layout remounts when switching between a session and a template; reuse the list for a minute so
-    // the sidebar neither flashes skeletons nor refetches. Mutations update it from their responses.
-    getCachedData: reuseFor(LIST_REUSE_MS),
-});
-const sessionsLoading = computed(() => !cvIndex.value && cvIndexStatus.value !== "error");
-// The sidebar lists what this browser has backed up as well as what the server returns, so a deployment
-// whose storage misses a session never hides it. Backups are read after mount to keep hydration stable.
-const localBackups = ref<CvSessionBackupEntry[]>([]);
+// CV sessions live in this browser; listing them makes no request.
+const sessionsLoading = ref(false);
+const reloadCvDocuments = async () => { sessionActions.reloadDocuments(); };
 const sessionOrder = ref<"recent" | "name">("recent");
 const sessionOrderReady = ref(false);
 const persistSessionOrder = (event: Event) => {
@@ -99,36 +90,19 @@ const persistSessionOrder = (event: Event) => {
     localStorage.setItem("editor-session-order", sessionOrder.value);
 };
 const sessions = computed(() => {
-    const documents = mergeCvSessions(cvIndex.value?.documents ?? [], localBackups.value);
+    const documents = [...sessionActions.documents.value];
     if (sessionOrder.value === "name") {
         return [...documents].sort((a, b) => documentLabel(a).localeCompare(documentLabel(b)) || a.id.localeCompare(b.id));
     }
     return documents;
 });
-const recovering = new Set<string>();
-/** Re-create sessions this browser has but the server does not, from their local backups. */
-const recoverLocalSessions = () => {
-    if (!import.meta.client) return;
-    localBackups.value = listCvSessionBackups();
-    const server = cvIndex.value?.documents;
-    if (!server) return;
-    const openId = routeQueryValue(route.query.s);
-    // The open session's editor restores itself; racing it here would only cause a duplicate create.
-    const missing = cvSessionsToRecover(server, localBackups.value)
-        .filter(backup => backup.id !== openId && !recovering.has(backup.id));
-    for (const backup of missing) {
-        recovering.add(backup.id);
-        void sessionActions.recoverSession(backup).catch(() => undefined).finally(() => { recovering.delete(backup.id); });
-    }
-};
-watch(() => cvIndex.value?.documents, () => { void recoverLocalSessions(); });
-const templateCatalogUrl = computed(() => user.value ? "/api/cv-templates" : "/api/public/templates");
-const { data: templateIndex, refresh: reloadCvTemplates, status: templateStatus } = useFetch<{ templates: CvTemplate[] }>(templateCatalogUrl, {
-    key: "editor-template-list",
-    lazy: true,
-    // Signing in changes the URL, which always refetches.
-    getCachedData: reuseFor(LIST_REUSE_MS),
-});
+const recoverLocalSessions = () => sessionActions.reloadDocuments();
+const accountFetch = useAccountFetch();
+const { data: templateIndex, refresh: reloadCvTemplates, status: templateStatus } = useAsyncData("editor-template-list", async () => {
+    const account = await accountFetch<{ templates: CvTemplate[] }>("/api/cv-templates");
+    return account ?? await $fetch<{ templates: CvTemplate[] }>("/api/public/templates", { retry: 0 });
+}, { lazy: true, watch: [user], getCachedData: reuseFor(LIST_REUSE_MS) });
+const localTemplatesReady = ref(false);
 const templatesLoading = computed(() => !templateIndex.value && templateStatus.value !== "error");
 const cvTemplates = computed(() => templateIndex.value?.templates ?? []);
 const selectedTemplate = ref<CvTemplate | null>(null);
@@ -170,7 +144,7 @@ const cloneTemplateToLocal = async () => {
     isCloningTemplate.value = true;
     try {
         const cloned = await sessionActions.cloneTemplate(source.id, source.version, newId);
-        await navigateTo(templateRoute(cloned));
+        if (cloned) await navigateTo(templateRoute(cloned));
     } catch (error: any) {
         operationError.value = error?.statusMessage || error?.message || "Could not clone template.";
     } finally {
@@ -258,8 +232,6 @@ const deleteSelectedDocument = async () => {
     const selected = contextMenu.value.document;
     contextMenu.value = null;
     if (!window.confirm(`Delete ${documentLabel(selected)}? This cannot be undone.`)) return;
-    clearCvSessionBackup(selected.id);
-    localBackups.value = listCvSessionBackups();
     try {
         await sessionActions.deleteDocument(selected.id);
         if (isActiveDocument(selected.id)) await navigateTo("/");
@@ -268,7 +240,7 @@ const deleteSelectedDocument = async () => {
     }
 };
 watch(
-    [cvTemplates, () => route.query.t, () => route.query.v, editorContext],
+    [cvTemplates, () => route.query.t, () => route.query.v, editorContext, localTemplatesReady],
     ([templates, templateQuery, version]) => {
         const id = hasFeature("templates") ? routeQueryValue(templateQuery) : undefined;
         if (!id) {
@@ -280,7 +252,7 @@ watch(
             template.id === id && (!Number.isInteger(requestedVersion) || template.version === requestedVersion),
         ) ?? null;
         // Links to templates outside the catalog (removed, or internal like pipeline-default) fall back home.
-        if (!selectedTemplate.value && templateIndex.value && import.meta.client) navigateTo("/", { replace: true });
+        if (!selectedTemplate.value && templateIndex.value && import.meta.client && localTemplatesReady.value) navigateTo("/", { replace: true });
     },
     { immediate: true },
 );
@@ -503,7 +475,15 @@ watch(previewContent, (element) => {
 }, { flush: "post", immediate: true });
 
 onMounted(() => {
+    // Browser-only template copies join the catalog after hydration; no account can read them remotely.
+    watch(templateIndex, (index) => {
+        if (!index) return;
+        const missing = readLocalCvTemplates().filter(local => !index.templates.some(template => template.id === local.id && template.version === local.version));
+        if (missing.length) templateIndex.value = { templates: [...index.templates, ...missing] };
+    }, { immediate: true });
+    localTemplatesReady.value = true;
     void recoverLocalSessions();
+    window.addEventListener("storage", recoverLocalSessions);
     window.addEventListener("click", closeDocumentMenu);
     window.addEventListener("blur", closeDocumentMenu);
 
@@ -534,6 +514,7 @@ const closeDocumentMenu = () => { contextMenu.value = null; };
 
 onBeforeUnmount(() => {
     compactMedia?.removeEventListener("change", syncCompact);
+    window.removeEventListener("storage", recoverLocalSessions);
     window.removeEventListener("click", closeDocumentMenu);
     window.removeEventListener("blur", closeDocumentMenu);
     previewObserver?.disconnect();
@@ -650,7 +631,7 @@ const handleLogout = async () => {
                 <div v-if="selectedTemplate" class="template-header-actions">
                     <span class="template-readonly-label">READ ONLY · {{ selectedTemplate.tags.join(" · ") }}</span>
                     <button
-                        v-if="authenticated && selectedTemplate.tags.includes('public')"
+                        v-if="selectedTemplate.tags.includes('public')"
                         class="template-clone-button"
                         type="button"
                         :disabled="isCloningTemplate"
@@ -662,7 +643,7 @@ const handleLogout = async () => {
                 </div>
                 <NuxtLink class="header-button" to="/settings">Settings</NuxtLink>
                 <button v-if="authenticated && user" class="header-button" type="button" @click="handleLogout">Logout</button>
-                <button v-if="authenticated && hasFeature('import')" class="header-button" type="button" @click="isImportOpen = true">Import</button>
+                <button v-if="authenticated && user && hasFeature('import')" class="header-button" type="button" @click="isImportOpen = true">Import</button>
                 <button v-if="hasFeature('export')" class="header-button header-button--primary" type="button" @click="isExportOpen = true">Export</button>
                 <select
                     class="theme-select"
@@ -739,8 +720,7 @@ const handleLogout = async () => {
                         @contextmenu.prevent="openDocumentMenu($event, document)"
                     >
                         <span>{{ documentLabel(document) }}</span>
-                        <small v-if="'localOnly' in document" title="Only in this browser so far; restoring it to the server">local</small>
-                        <small v-else>r{{ document.revision }}</small>
+                        <small title="Stored in this browser">local · r{{ document.revision }}</small>
                     </NuxtLink>
                 </section>
                 <section class="document-group template-group">
@@ -889,6 +869,7 @@ const handleLogout = async () => {
 
             <template v-else>
             <section class="source-pane" aria-label="CV source editor">
+                <p v-if="operationError" class="operation-error" role="alert">{{ operationError }}</p>
                 <nav class="source-tabs" aria-label="Document files">
                     <slot name="editor-tabs">
                         <button class="source-tab source-tab--active" type="button">content.md</button>
@@ -942,7 +923,7 @@ const handleLogout = async () => {
 
 
         <Teleport to="body">
-            <CvImportDialog v-if="isImportOpen" @close="isImportOpen = false" @committed="handleImportCommitted" />
+            <CvImportDialog v-if="isImportOpen && user" @close="isImportOpen = false" @committed="handleImportCommitted" />
             <nav
                 v-if="contextMenu"
                 class="document-context-menu"
@@ -1001,7 +982,7 @@ const handleLogout = async () => {
         <footer class="editor-statusbar">
             <div class="editor-statusbar__left">
                 <template v-if="hasFeature('documentStats')">
-                    <span class="save-state" :class="`save-state--${saveState}`">{{ saveState }}</span>
+                    <span class="save-state" :class="`save-state--${saveState}`" :role="saveState === 'offline' ? 'alert' : undefined">{{ saveState === 'offline' ? 'Save failed — browser storage unavailable; keep this tab open.' : saveState }}</span>
                     <span v-if="revision">rev {{ revision }}</span>
                     <span>Ln {{ statusStats.line }}, Col {{ statusStats.column }}</span>
                     <span>{{ statusStats.words }} {{ statusStats.words === 1 ? 'word' : 'words' }}</span>

@@ -1,182 +1,77 @@
-import type { CvDocument, CvDocumentProps, CvDocumentSummary, CvTemplate } from "@ruxt/shared/cv";
-import type { CvSessionBackupEntry } from "@ruxt/shared/cv";
+import type { CvDocumentProps, CvDocumentSummary, CvTemplate } from "@ruxt/shared/cv";
 import { cvTitleFromMarkdown } from "@ruxt/shared/cv";
-import { clearCvSessionBackup, readCvSessionBackup, writeCvSessionBackup } from "~/utils/cvSessionBackup";
+import { localCvStore } from "~/utils/localCvStore";
+import { cloneLocalCvTemplate } from "~/utils/localCvTemplates";
 
-let refreshPromise: Promise<void> | undefined;
-
-type CvIndex = { documents: CvDocumentSummary[] };
 type CvTemplateIndex = { templates: CvTemplate[] };
 
 /**
- * Local-first lifecycle actions for CV sessions.
- *
- * The sidebar is updated from local state before the network mutation, so delete/fork/rename keep
- * working while the server or backing storage is slow. Each mutation's response keeps the local list
- * accurate, so the server list is fetched again only after a failed mutation or the refresh button.
+ * Lifecycle actions for CV sessions. Sessions live in this browser (`LocalCvStore`), so every action
+ * is synchronous local work and makes no request. Private template copies also stay in this browser.
  */
 export function useCvSessionActions() {
-    const nuxtApp = useNuxtApp();
-    const { data: cvIndex } = useNuxtData<CvIndex>("editor-document-list");
+    const documents = useState<CvDocumentSummary[]>("cv:sessions", () => []);
+    // Client-only edits survive page navigation even when durable browser storage refuses a write.
+    const buffers = useState<Record<string, { markdown: string; css: string }>>("cv:buffers", () => ({}));
+    const deleted = useState<Record<string, boolean>>("cv:deleted", () => ({}));
     const { data: templateIndex } = useNuxtData<CvTemplateIndex>("editor-template-list");
 
-    const mutateDocuments = (mutator: (documents: CvDocumentSummary[]) => CvDocumentSummary[]) => {
-        const current = cvIndex.value?.documents ?? [];
-        cvIndex.value = { documents: mutator(current) };
+    /** Re-read the browser's sessions (after mount, a storage event or a failed write). */
+    const reloadDocuments = () => {
+        if (import.meta.client) documents.value = localCvStore.list();
     };
 
-    const upsertSummary = (summary: CvDocumentSummary) => {
-        mutateDocuments((documents) => {
-            const existingIndex = documents.findIndex(document => document.id === summary.id);
-            if (existingIndex >= 0) {
-                // Keep an existing row in place. Rename/save responses update the title in place
-                // instead of moving the active session, which otherwise causes a visible sidebar
-                // reflow while the editor is still focused.
-                const next = [...documents];
-                next[existingIndex] = summary;
-                return next;
-            }
-            return [summary, ...documents];
-        });
-    };
-
-    /** Reflect a document a request just returned in the sidebar, titled the way the server lists it. */
+    /** Reflect a document just written in the sidebar, titled the way the list shows it. */
     const upsertDocument = (document: Pick<CvDocumentProps, "id" | "title" | "markdown" | "revision" | "updatedAt">) => {
+        delete deleted.value[document.id];
         const title = document.title?.trim() && document.title.trim() !== "Untitled CV"
             ? document.title.trim()
             : cvTitleFromMarkdown(document.markdown) ?? document.title;
-        upsertSummary({ id: document.id, title, revision: document.revision, updatedAt: document.updatedAt });
-    };
-
-    const cacheDocument = (document: CvDocument) => {
-        if (import.meta.client) nuxtApp.payload.data[`cv-document:${document.id}`] = document;
-    };
-
-    const cachedDocument = (id: string) => {
-        const { data } = useNuxtData<CvDocument>(`cv-document:${id}`);
-        return data.value ?? nuxtApp.payload.data[`cv-document:${id}`] as CvDocument | undefined;
-    };
-
-    const removeSummary = (id: string) => {
-        mutateDocuments(documents => documents.filter(document => document.id !== id));
-        if (import.meta.client) delete nuxtApp.payload.data[`cv-document:${id}`];
-    };
-
-    /** Re-read the server list once, sharing an in-flight request (after a failed mutation). */
-    const refreshDocumentsNow = async () => {
-        refreshPromise ??= refreshNuxtData("editor-document-list").finally(() => { refreshPromise = undefined; });
-        await refreshPromise;
+        const summary = { id: document.id, title, revision: document.revision, updatedAt: document.updatedAt };
+        const index = documents.value.findIndex(item => item.id === summary.id);
+        // Keep an existing row in place so a save does not reflow the sidebar under the focused editor.
+        documents.value = index >= 0
+            ? documents.value.map((item, position) => position === index ? summary : item)
+            : [summary, ...documents.value];
     };
 
     const renameDocument = async (id: string, title: string) => {
-        const trimmed = title.trim();
-        const existing = cvIndex.value?.documents.find(document => document.id === id);
-        const optimistic = { id, title: trimmed, revision: existing?.revision ?? 0, updatedAt: existing?.updatedAt ?? new Date().toISOString() };
-        upsertSummary(optimistic);
-        try {
-            const updated = await $fetch<CvDocument>(`/api/cvs/${encodeURIComponent(id)}`, {
-                method: "PATCH",
-                body: { title: trimmed },
-            });
-            cacheDocument(updated);
-            upsertSummary({ id: updated.id, title: updated.title, revision: updated.revision, updatedAt: updated.updatedAt });
-            const backup = readCvSessionBackup(updated.id);
-            if (backup) writeCvSessionBackup(updated.id, { ...backup, title: updated.title });
-        } catch (error) {
-            await refreshDocumentsNow();
-            throw error;
-        }
+        const renamed = localCvStore.rename(id, title);
+        if (!renamed) { reloadDocuments(); throw new Error("Could not rename session."); }
+        upsertDocument(renamed);
     };
 
     const forkDocument = async (sourceId: string, newId: string, title: string) => {
-        const source = cachedDocument(sourceId);
-        const backup = readCvSessionBackup(sourceId);
-        const sourceSnapshot = source ? { markdown: source.markdown, css: source.css } : backup ? { markdown: backup.markdown, css: backup.css } : null;
-        const optimistic = { id: newId, title: title.trim(), revision: 1, updatedAt: new Date().toISOString() };
-        upsertSummary(optimistic);
-        if (sourceSnapshot) writeCvSessionBackup(newId, { ...sourceSnapshot, title: optimistic.title, revision: 1, pending: true });
-        try {
-            const forked = await $fetch<CvDocument>(`/api/cvs/${encodeURIComponent(sourceId)}/fork`, {
-                method: "POST",
-                body: { id: newId, title },
-            });
-            cacheDocument(forked);
-            writeCvSessionBackup(forked.id, { markdown: forked.markdown, css: forked.css, title: forked.title, revision: forked.revision, pending: false });
-            upsertSummary({ id: forked.id, title: forked.title, revision: forked.revision, updatedAt: forked.updatedAt });
-        } catch (error) {
-            removeSummary(newId);
-            clearCvSessionBackup(newId);
-            await refreshDocumentsNow();
-            throw error;
-        }
+        const source = buffers.value[sourceId] ?? localCvStore.get(sourceId);
+        const forked = source ? localCvStore.create({ id: newId, title: title.trim() || undefined, markdown: source.markdown, css: source.css }) : null;
+        if (!forked) { reloadDocuments(); throw new Error("Could not fork session. Browser storage may be full."); }
+        upsertDocument(forked);
     };
 
     const deleteDocument = async (id: string) => {
-        const previous = cvIndex.value?.documents ?? [];
-        clearCvSessionBackup(id);
-        removeSummary(id);
-        try {
-            await $fetch(`/api/cvs/${encodeURIComponent(id)}`, { method: "DELETE" });
-        } catch (error: any) {
-            // Already gone on the server: the local removal is the whole result.
-            if (error?.statusCode === 404) return;
-            cvIndex.value = { documents: previous };
-            await refreshDocumentsNow();
-            throw error;
-        }
-    };
-
-    const recoverSession = async (backup: CvSessionBackupEntry) => {
-        upsertSummary({ id: backup.id, title: backup.title, revision: backup.revision, updatedAt: new Date(backup.savedAt || Date.now()).toISOString() });
-        try {
-            const recovered = await $fetch<CvDocument>("/api/cvs", {
-                method: "POST",
-                body: { id: backup.id, title: backup.title, markdown: backup.markdown, css: backup.css, sourceId: crypto.randomUUID() },
-            });
-            cacheDocument(recovered);
-            upsertSummary({ id: recovered.id, title: recovered.title, revision: recovered.revision, updatedAt: recovered.updatedAt });
-        } catch (error: any) {
-            if (error?.statusCode === 409) return;
-            await refreshDocumentsNow();
-            throw error;
-        }
+        localCvStore.remove(id);
+        deleted.value[id] = true;
+        delete buffers.value[id];
+        documents.value = documents.value.filter(document => document.id !== id);
     };
 
     const createFromTemplate = async (template: CvTemplate, documentId: string) => {
-        upsertSummary({ id: documentId, title: template.name, revision: 1, updatedAt: new Date().toISOString() });
-        try {
-            const created = await $fetch<CvDocument>("/api/cvs", {
-                method: "POST",
-                body: { id: documentId, title: template.name, markdown: template.markdownSkeleton, css: template.css, sourceId: crypto.randomUUID() },
-            });
-            cacheDocument(created);
-            writeCvSessionBackup(created.id, { markdown: created.markdown, css: created.css, title: created.title, revision: created.revision, pending: false });
-            upsertSummary({ id: created.id, title: created.title, revision: created.revision, updatedAt: created.updatedAt });
-        } catch (error) {
-            removeSummary(documentId);
-            clearCvSessionBackup(documentId);
-            await refreshDocumentsNow();
-            throw error;
-        }
+        const created = localCvStore.create({ id: documentId, title: template.name, markdown: template.markdownSkeleton, css: template.css });
+        if (!created) throw new Error("Could not create session. Browser storage may be full.");
+        upsertDocument(created);
     };
 
     const cloneTemplate = async (templateId: string, version: number, newId: string) => {
-        try {
-            const cloned = await $fetch<CvTemplate>(`/api/cv-templates/${encodeURIComponent(templateId)}/clone`, {
-                method: "POST",
-                body: { version, newId },
-            });
-            if (templateIndex.value) {
-                const templates = [...templateIndex.value.templates, cloned]
-                    .sort((left, right) => left.name.localeCompare(right.name) || right.version - left.version);
-                templateIndex.value = { templates };
-            }
-            return cloned;
-        } catch (error) {
-            await refreshNuxtData("editor-template-list");
-            throw error;
+        const source = templateIndex.value?.templates.find(template => template.id === templateId && template.version === version);
+        if (!source) throw new Error("Template not found in this browser.");
+        const cloned = cloneLocalCvTemplate(source, newId);
+        if (templateIndex.value) {
+            const templates = [...templateIndex.value.templates, cloned]
+                .sort((left, right) => left.name.localeCompare(right.name) || right.version - left.version);
+            templateIndex.value = { templates };
         }
+        return cloned;
     };
 
-    return { renameDocument, forkDocument, deleteDocument, recoverSession, createFromTemplate, cloneTemplate, refreshDocumentsNow, upsertDocument };
+    return { documents, buffers, deleted, reloadDocuments, renameDocument, forkDocument, deleteDocument, createFromTemplate, cloneTemplate, upsertDocument };
 }

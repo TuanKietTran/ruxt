@@ -38,8 +38,8 @@ async function stopServer() {
   s.kill("SIGTERM");
   await new Promise(r => s.once("exit", r));
 }
-const api = async path => (await fetch(BASE + path)).json();
-const serverSessions = async () => (await api("/api/cvs")).documents.map(d => d.id);
+const localDocument = id => page.evaluate(id => JSON.parse(localStorage.getItem(`cv-sv:session-backup:${id}`) || "null"), id);
+const localSessions = () => page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith("cv-sv:session-backup:")).map(key => key.slice("cv-sv:session-backup:".length)));
 
 if (!existsSync(join(ROOT, ".output/server/index.mjs"))) throw new Error("Build first: NITRO_PRESET=node-server nuxi build");
 const dirA = mkdtempSync(join(SP, "deployA-"));
@@ -80,20 +80,20 @@ try {
   await page.waitForURL(/\?s=/, { timeout: 10000 });
   const idBeta = sessionIdFromUrl();
   await page.waitForTimeout(1500);
-  const aDocs = await serverSessions();
-  check("deploy A stored both sessions", aDocs.includes(idAlpha) && aDocs.includes(idBeta), aDocs.join(","));
+  const aDocs = await localSessions();
+  check("browser stored both sessions on deploy A", aDocs.includes(idAlpha) && aDocs.includes(idBeta), aDocs.join(","));
 
   // ---- Scenario 1: new deployment B with empty storage
   await stopServer();
   await startServer(dirB);
-  check("deploy B starts without the sessions", !(await serverSessions()).includes(idAlpha));
+  check("deploy B refuses anonymous CV reads", (await fetch(BASE + "/api/cvs")).status === 401);
   await goto("/");
   const listed = await page.$$eval(".document-tree__item", els => els.map(e => e.getAttribute("href") || ""));
   check("sidebar on deploy B lists both sessions", listed.some(h => h.includes(idAlpha)) && listed.some(h => h.includes(idBeta)), listed.join(" | "));
   await page.waitForTimeout(1500);
-  const bDocs = await serverSessions();
-  check("deploy B re-created both sessions from the browser", bDocs.includes(idAlpha) && bDocs.includes(idBeta), bDocs.join(","));
-  const alpha = await api(`/api/cvs/${idAlpha}`);
+  const bDocs = await localSessions();
+  check("browser retains both sessions on deploy B", bDocs.includes(idAlpha) && bDocs.includes(idBeta), bDocs.join(","));
+  const alpha = await localDocument(idAlpha);
   check("recovered Alpha keeps every edit", alpha.markdown?.includes("Alpha session body") && alpha.markdown?.includes("Alpha second edit"));
   await goto(`/?s=${idBeta}`);
   const betaText = await page.textContent(".cm-content");
@@ -104,11 +104,11 @@ try {
   await typeInEditor("\nEdited during rollout");
   await page.waitForTimeout(3000);
   const stateDown = await page.textContent(".save-state");
-  check("save shows offline while the server is down", stateDown.trim() === "offline", stateDown);
+  check("local save succeeds while the server is down", stateDown.trim() === "saved", stateDown);
   await startServer(dirB);
   await page.waitForTimeout(12000);
-  const betaAfter = await api(`/api/cvs/${idBeta}`);
-  check("edit made during the outage reached the server by retry", betaAfter.markdown?.includes("Edited during rollout"));
+  const betaAfter = await localDocument(idBeta);
+  check("edit made during the outage remains local", betaAfter.markdown?.includes("Edited during rollout"));
   check("save state recovered", (await page.textContent(".save-state")).trim() === "saved");
 
   // ---- Scenario 3: new draft typed while the server is down survives a reload onto a new deployment
@@ -116,16 +116,17 @@ try {
   await stopServer();
   await typeInEditor("\n\nGamma draft written offline");
   await page.waitForTimeout(1200);
+  const offlineGamma = sessionIdFromUrl();
   await startServer(dirC);
-  await goto("/");
+  await goto(offlineGamma ? `/?s=${offlineGamma}` : "/");
   await page.waitForURL(/\?s=/, { timeout: 15000 }).catch(() => {});
   const idGamma = sessionIdFromUrl();
-  const gamma = idGamma ? await api(`/api/cvs/${idGamma}`) : {};
+  const gamma = idGamma ? await localDocument(idGamma) : {};
   check("offline new draft was restored and registered on deploy C", Boolean(gamma.markdown?.includes("Gamma draft written offline")), page.url());
   await page.waitForTimeout(1500);
-  const cDocs = await serverSessions();
-  check("deploy C also re-created Alpha and Beta", cDocs.includes(idAlpha) && cDocs.includes(idBeta), cDocs.join(","));
-  const betaC = await api(`/api/cvs/${idBeta}`);
+  const cDocs = await localSessions();
+  check("browser retains Alpha and Beta on deploy C", cDocs.includes(idAlpha) && cDocs.includes(idBeta), cDocs.join(","));
+  const betaC = await localDocument(idBeta);
   check("Beta on deploy C has the rollout edit", betaC.markdown?.includes("Edited during rollout"));
 
   // ---- Scenario 4: a tab that remembered its session under the old key still returns to it
@@ -137,14 +138,14 @@ try {
   check("CV icon returns to the session remembered under the legacy key", page.url().includes(idAlpha), page.url());
 
   // ---- Scenario 5: deleting a session does not resurrect it
-  const before = await serverSessions();
+  const before = await localSessions();
   await page.evaluate(() => { window.confirm = () => true; });
   await page.click(`.document-tree__item[href*="${idGamma}"]`, { button: "right" });
   await page.click(".document-context-menu__danger");
   await page.waitForTimeout(1500);
   await goto("/");
   await page.waitForTimeout(1500);
-  const after = await serverSessions();
+  const after = await localSessions();
   check("deleted session stays deleted after reload", before.includes(idGamma) && !after.includes(idGamma), after.join(","));
 } catch (error) {
   failures++;

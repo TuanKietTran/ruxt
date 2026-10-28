@@ -22,6 +22,8 @@ export interface CvImportJobResponse {
 
 export interface CvImportPreviewResponse {
    markdown: string;
+   css: string;
+   concept: { profile: import("@ruxt/shared/cv").CvProfileProps };
 }
 
 export interface CvPipelineCapabilitiesResponse {

@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { chromium, type Browser, type Page } from "playwright-core";
+import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
+import { readLocalCv, seedLocalCv } from "./helpers/local-cv";
 
 const baseUrl = process.env.SMOKE_BASE_URL?.replace(/\/$/, "");
 const executablePath = process.env.CHROMIUM_PATH
@@ -9,19 +10,13 @@ const ui = baseUrl && executablePath && existsSync(executablePath) ? describe : 
 let browser: Browser;
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
-async function createSession(title: string) {
+async function createSession(context: BrowserContext, title: string) {
     const id = crypto.randomUUID();
-    const response = await fetch(`${baseUrl}/api/cvs`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-            id,
-            title,
-            markdown: `# ${title} {.cv-name}\n\n:::resume\n## Experience\n\nExample work.\n:::`,
-            css: ".resume { width: 210mm; min-height: 297mm; box-sizing: border-box; }",
-        }),
+    await seedLocalCv(context, {
+        id, title,
+        markdown: `# ${title} {.cv-name}\n\n:::resume\n## Experience\n\nExample work.\n:::`,
+        css: ".resume { width: 210mm; min-height: 297mm; box-sizing: border-box; }",
     });
-    expect(response.status).toBe(201);
     return id;
 }
 
@@ -61,14 +56,14 @@ ui("settings, chooser and per-session preview preferences", () => {
     });
 
     it("defaults to Fit, allows horizontal scrolling at 100%, and restores zoom independently by session", async () => {
-        const first = await createSession("Polish Alpha");
-        const second = await createSession("Polish Beta");
         const context = await browser.newContext();
+        const first = await createSession(context, "Polish Alpha");
+        const second = await createSession(context, "Polish Beta");
         const page = await context.newPage();
         page.setDefaultTimeout(8_000);
         await page.goto(`${baseUrl}/?s=${first}`);
         await waitForSheet(page);
-        const openedDocument = await fetch(`${baseUrl}/api/cvs/${first}`).then(response => response.json());
+        const openedDocument = await readLocalCv(page, first);
         expect(openedDocument.revision).toBe(1);
         expect(await page.getByRole("button", { name: "Fit" }).getAttribute("aria-pressed")).toBe("true");
         expect(await page.locator(".format-select option[value='heading']").textContent()).toBe("Heading");
@@ -105,9 +100,9 @@ ui("settings, chooser and per-session preview preferences", () => {
     });
 
     it("keeps recent/name ordering and applies alphabetical order", async () => {
-        await createSession("Order Zulu");
-        await createSession("Order Alpha");
         const context = await browser.newContext();
+        await createSession(context, "Order Zulu");
+        await createSession(context, "Order Alpha");
         const page = await context.newPage();
         const pageErrors: string[] = [];
         page.on("pageerror", error => pageErrors.push(error.message));

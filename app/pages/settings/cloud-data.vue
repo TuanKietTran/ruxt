@@ -6,7 +6,9 @@ type ConsentView = {
     cloudTemplates: { granted: boolean; changedAt: string | null };
 };
 
-const { data: consent, status, error: loadError } = await useFetch<ConsentView>("/api/cloud-data/consent");
+const { user } = useAppAuth();
+const accountFetch = useAccountFetch();
+const { data: consent, status, error: loadError } = await useAsyncData("cloud-consent", () => accountFetch<ConsentView>("/api/cloud-data/consent"), { watch: [user] });
 const saving = ref<ConsentCategory | null>(null);
 const mutationError = ref("");
 
@@ -16,7 +18,7 @@ async function setConsent(category: ConsentCategory, input: HTMLInputElement) {
     saving.value = category;
     mutationError.value = "";
     try {
-        consent.value = await $fetch<ConsentView>("/api/cloud-data/consent", {
+        consent.value = await accountFetch<ConsentView>("/api/cloud-data/consent", {
             method: "PUT",
             body: { category, granted },
         });
@@ -43,7 +45,7 @@ async function setConsent(category: ConsentCategory, input: HTMLInputElement) {
         <p v-if="status === 'pending'" class="notice">Loading your consent settings…</p>
         <p v-else-if="loadError" class="notice error" role="alert">Consent settings could not be loaded.</p>
 
-        <template v-else-if="consent">
+        <template v-else-if="consent && user">
             <label class="consent-card">
                 <div>
                     <h2 id="session-consent-title">Cloud session recovery</h2>
