@@ -29,7 +29,7 @@ Export approved Deno KV prefixes read-only to an encrypted local directory, pres
 
 ## Cutover, DNS, rollback
 
-The checked-in workflow exposes `pnpm cf:deploy` only for a manually dispatched workflow on `main`. The owner must configure `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `NODE_AUTH_TOKEN` as repository/environment secrets; no values are present in this tree. Local verification uses only `pnpm cf:deploy:dry`.
+The checked-in workflow exposes `pnpm cf:deploy` only for a pushed `v*` tag on a `main` commit or a manually dispatched workflow on `main`. The owner must configure `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `NODE_AUTH_TOKEN` as repository/environment secrets; no values are present in this tree. Local verification uses only `pnpm cf:deploy:dry`.
 
 
 Owner-only actions: `wrangler login`; create resources; apply migrations; set `CLERK_SECRET_KEY`, `NUXT_SESSION_SECRET`, and deployment-specific secrets; connect Workers Builds; review dry-run; deploy; attach custom domain/change DNS. Keep Deno serving until acceptance. Roll back by returning DNS/routing to Deno, preserving Cloudflare data for investigation; do not delete Deno or run split-brain writes.

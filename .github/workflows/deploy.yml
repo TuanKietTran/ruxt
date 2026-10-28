@@ -1,8 +1,9 @@
-name: Verify and Cloudflare dry run
+name: Verify and Cloudflare deploy
 
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -42,15 +43,20 @@ jobs:
       - name: Wrangler dry run
         run: pnpm cf:deploy:dry
 
-  # This is intentionally reachable only from a manually dispatched run on main.
+  # This is reachable only from a pushed v* tag on a main commit, or a manually dispatched run on main.
   # The required secrets are configured by the repository owner, never committed.
   deploy:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
     needs: verify
     runs-on: ubuntu-latest
     environment: cloudflare
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require tagged commit on main
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
       - uses: pnpm/action-setup@v4
         with:
           version: 11.25.0
@@ -63,6 +69,8 @@ jobs:
         run: pnpm install --frozen-lockfile
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+      - name: Cloudflare build
+        run: pnpm cf:build
       - name: Cloudflare deploy
         run: pnpm cf:deploy
         env:

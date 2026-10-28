@@ -103,7 +103,7 @@ The optional Cloudflare target uses Nitro's Cloudflare Workers preset with Worke
 
 Cloudflare setup is manual: create D1 and KV resources, replace placeholders in `wrangler.json`, apply migrations, and set Clerk/session secrets. Do not commit real IDs or secrets. KV has eventual consistency; CV updates and SSE events are currently isolate-local and require further runtime verification.
 
-The owner must configure `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `NODE_AUTH_TOKEN` as workflow/environment secrets before manually dispatching the guarded deployment workflow. No provider action is performed locally.
+The owner must configure `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `NODE_AUTH_TOKEN` as workflow/environment secrets. Deploy `main` by pushing a `v*` tag on a `main` commit (for example `git tag v0.1.0 origin/main && git push origin v0.1.0`), or by manually dispatching the workflow on `main`. No provider action is performed locally.
 
 ## Development
 
