@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
    const id = getRouterParam(event, "id")!;
    const body = await readBody(event);
    const mediator = useMediator();
-   return sendApiRequest(mediator, upsertPlanCommand({
+   const plan = await sendApiRequest(mediator, upsertPlanCommand({
       id,
       name: body.name,
       description: body.description,
@@ -19,4 +19,6 @@ export default defineEventHandler(async (event) => {
       features: body.features,
       isPublic: body.isPublic,
    }));
+   await purgePublicJson(event, "/api/plans");
+   return plan;
 });
