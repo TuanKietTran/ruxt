@@ -32,6 +32,15 @@ smoke("HTTP smoke", () => {
       expect((await call("/api/health")).status).toBe(200);
    });
 
+   it("keeps account and retired-CV responses private and non-storable, including 401", async () => {
+      for (const path of ["/api/auth/me", "/api/preferences", "/api/cloud-data/consent", "/api/cvs", "/api/cvs/synthetic"]) {
+         const response = await call(path);
+         expect(response.status).toBe(401);
+         expect(response.headers.get("cache-control")).toBe("private, no-store");
+         expect(response.headers.get("vary")).toContain("Cookie");
+      }
+   });
+
    it("requires a session to inspect CV pipeline capabilities", async () => {
       expect((await call("/api/cv-capabilities")).status).toBe(401);
    });
@@ -186,7 +195,7 @@ smoke("HTTP smoke", () => {
       if (status === 200) expect(body).not.toHaveProperty("passwordHash");
    });
 
-   it("answers MCP initialize over Streamable HTTP", async () => {
+   it("rejects anonymous MCP initialize before starting a transport", async () => {
       const response = await fetch(`${baseUrl}/mcp`, {
          method: "POST",
          headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
@@ -195,8 +204,27 @@ smoke("HTTP smoke", () => {
             params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "smoke", version: "0" } },
          }),
       });
-      expect(response.status).toBe(200);
-      expect(await response.text()).toContain("cv-sv");
+      expect(response.status).toBe(401);
+   });
+
+   it("requires authentication for every retired CV path and method", async () => {
+      for (const path of ["/api/cvs", "/api/cvs/synthetic", "/api/cvs/synthetic/events", "/api/cvs/synthetic/fork", "/api/cvs/synthetic/profile", "/api/cvs/synthetic/profile/preview", "/api/cvs/synthetic/profile/detect", "/api/cvs/unknown/path", "/api/cv-profiles/apply"]) {
+         for (const method of ["GET", "POST", "PUT", "PATCH", "DELETE"]) {
+            expect((await call(path, { method, headers: { "if-none-match": '"1"' } })).status).toBe(401);
+         }
+      }
+   });
+
+   it("returns the same 404 for signed-in callers of retired CV routes", async () => {
+      for (const label of ["a", "b"]) {
+         const registration = await call("/api/auth/register", json({ email: `synthetic-cv-${label}-${Date.now()}@example.com`, password: "synthetic-test-password" }));
+         const cookie = registration.headers.get("set-cookie")?.split(";", 1)[0];
+         expect(cookie).toBeTruthy();
+         for (const path of ["/api/cvs", "/api/cvs/legacy", "/api/cvs/other-owner", "/api/cvs/missing"]) {
+            expect((await call(path, { headers: { cookie: cookie! } })).status).toBe(404);
+         }
+         expect((await call("/api/cv-templates", { ...json({ overrideId: "synthetic-other-template", name: "Example", markdownSkeleton: "# Example", css: "" }), headers: { "content-type": "application/json", cookie: cookie! } })).status).toBe(403);
+      }
    });
 
    it("serves the editor shell", async () => {

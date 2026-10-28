@@ -2,7 +2,8 @@
 import { toRaw } from "vue";
 import type { CvContactKind, CvDocumentProps, CvDocumentSummary, CvProfileProps, CvTemplate } from "@ruxt/shared/cv";
 import { mapProfileApplyResults, profileApplyErrorMessage, type ProfileApplyResponse, type ProfileApplyStatus } from "~/utils/profileApplyResults";
-import { normalizeCvProfile } from "@ruxt/shared/cv";
+import { composeCvMarkdown, normalizeCvProfile, toCvTemplateSkeleton } from "@ruxt/shared/cv";
+import { localCvStore } from "~/utils/localCvStore";
 import { type LocalProfile, newLocalProfileId, orderLocalProfiles, readLocalProfiles, saveLocalProfile, writeLocalProfiles } from "~/utils/localProfiles";
 import { parseTechnologies } from "~/utils/technologies";
 import { downloadBlob, safeFilename } from "~/utils/exportCvImage";
@@ -310,14 +311,13 @@ const apply = reactive({
 
 });
 const sessionActions = useCvSessionActions();
-const { data: sessionIndex } = useNuxtData<{ documents: CvDocumentSummary[] }>("editor-document-list");
 const { data: templateIndex } = useNuxtData<{ templates: CvTemplate[] }>("editor-template-list");
-const applySessions = computed(() => sessionIndex.value?.documents ?? []);
+const applySessions = sessionActions.documents;
 const applyTemplates = computed(() => templateIndex.value?.templates ?? []);
 const sessionLabel = (session: CvDocumentSummary) => session.title?.trim() || session.id;
 const openApply = async (profile: LocalProfile) => {
     Object.assign(apply, { open: true, profile, selected: [], layout: "", busy: false, error: "", results: {}, confirmed: false, previews: {}, undoable: {} });
-    await refreshNuxtData("editor-document-list");
+    sessionActions.reloadDocuments();
 };
 const closeApply = () => { if (!apply.busy) apply.open = false; };
 const toggleAllSessions = () => {
@@ -334,11 +334,14 @@ const previewApply = async () => {
     const [templateId, templateVersion] = apply.layout.split("@");
     try {
         for (const id of apply.selected) {
-            const [before, after] = await Promise.all([
-                $fetch<{ markdown: string; css: string; revision: number }>(`/api/cvs/${encodeURIComponent(id)}`),
-                $fetch<{ markdown: string; css: string; basedOnRevision?: number }>(`/api/cvs/${encodeURIComponent(id)}/profile/preview`, { method: "POST", body: { profile: toProfileProps(profileSnapshot), template: templateId ? { id: templateId, version: Number(templateVersion) } : undefined } }),
-            ]);
-            if (!templateId && after.basedOnRevision !== before.revision) throw new Error(`Session ${sessionLabel(applySessions.value.find(item => item.id === id) ?? { id, title: id, revision: before.revision, updatedAt: "" })} changed while the preview was being prepared. Retry the preview.`);
+            const before = localCvStore.get(id);
+            if (!before) throw new Error("Session not found in this browser.");
+            const template = templateId ? applyTemplates.value.find(item => item.id === templateId && item.version === Number(templateVersion)) : null;
+            if (templateId && !template) throw new Error("Template not found.");
+            const after = {
+                markdown: composeCvMarkdown(template?.markdownSkeleton ?? toCvTemplateSkeleton(before.markdown), toProfileProps(profileSnapshot)),
+                css: template?.css ?? before.css,
+            };
             apply.previews[id] = { before, after };
         }
     } catch (cause: any) { apply.previews = {}; apply.previewProfile = null; apply.error = cause?.data?.statusMessage ?? cause?.message ?? "Preview failed."; }
@@ -350,7 +353,9 @@ const undoApply = async (id: string) => {
     if (!previous || !currentRevision) return;
     apply.busy = true;
     try {
-        const restored = await $fetch<CvDocumentProps>(`/api/cvs/${encodeURIComponent(id)}`, { method: "PUT", body: { markdown: previous.markdown, css: previous.css, expectedRevision: currentRevision } });
+        if (localCvStore.get(id)?.revision !== currentRevision) throw new Error("Session changed since applying the profile.");
+        const restored = localCvStore.save(id, { markdown: previous.markdown, css: previous.css });
+        if (!restored) throw new Error("Browser storage refused the write.");
         delete apply.undoable[id];
         apply.results[id] = { ok: true, message: `Restored previous content (revision ${restored.revision})` };
         sessionActions.upsertDocument(restored);
@@ -366,16 +371,20 @@ const runApply = async () => {
     apply.error = "";
     apply.results = {};
     try {
-        const output = await $fetch<ProfileApplyResponse>("/api/cv-profiles/apply", {
-            method: "POST",
-            body: {
-                profile: toProfileProps(apply.previewProfile),
-                profileId: apply.previewProfile.id,
-                documentIds: apply.selected,
-                expectedRevisions: Object.fromEntries(apply.selected.map(id => [id, apply.previews[id]!.before.revision])),
-                template: templateId ? { id: templateId, version: Number(templateVersion) } : undefined,
-            },
-        });
+        const output: ProfileApplyResponse = { applied: 0, failed: 0, results: [] };
+        for (const id of apply.selected) {
+            try {
+                const preview = apply.previews[id]!;
+                if (localCvStore.get(id)?.revision !== preview.before.revision) throw new Error("Session changed since the preview. Review it again.");
+                const document = localCvStore.save(id, preview.after);
+                if (!document) throw new Error("Browser storage refused the write.");
+                output.results.push({ documentId: id, ok: true, document });
+                output.applied++;
+            } catch (cause: any) {
+                output.results.push({ documentId: id, ok: false, error: cause?.message ?? "Profile switch failed." });
+                output.failed++;
+            }
+        }
         apply.results = mapProfileApplyResults(output);
         for (const result of output.results) if (result.ok) {
             sessionActions.upsertDocument(result.document);

@@ -2,8 +2,9 @@
 import referenceCvCss from "~/data/reference-cv.css?raw";
 import { exportCvImages, type CvImageExportOptions, type CvImageFormat } from "~/utils/exportCvImage";
 import type { EditorStats, MarkdownFormat } from "@ruxt/editor/composables/useCodeMirror";
-import type { CvDocument } from "@ruxt/shared/cv";
+import type { CvDocumentProps as CvDocument } from "@ruxt/shared/cv";
 import { clearCvNewSessionDraft, readCvNewSessionDraft, writeCvNewSessionDraft } from "~/utils/cvSessionBackup";
+import { localCvStore } from "~/utils/localCvStore";
 
 definePageMeta({ layout: false, editorContext: "cv" });
 
@@ -25,8 +26,8 @@ const saveState = ref<SaveState>("saved");
 const sourceId = ref("");
 let registrationTimer: ReturnType<typeof setTimeout> | undefined;
 let registrationPromise: Promise<void> | undefined;
-// Registration that fails (offline, or a deployment rolling over) retries with backoff; meanwhile the
-// draft lives in localStorage so a reload cannot lose it.
+// A refused browser write retries with backoff; the draft remains in memory and, where possible,
+// in localStorage until the local session has been created.
 const REGISTRATION_RETRY_DELAYS = [2_000, 5_000, 10_000, 30_000];
 let registrationAttempt = 0;
 
@@ -59,22 +60,14 @@ const registerDraft = () => {
         const id = crypto.randomUUID();
         const initial = { markdown: document.value, css: stylesheet.value };
         sourceId.value ||= crypto.randomUUID();
-        registrationPromise = (async () => {
+        registrationPromise = Promise.resolve().then(async () => {
             try {
-                let created = await $fetch<CvDocument>("/api/cvs", {
-                    method: "POST",
-                    body: { id, title: "Untitled CV", ...initial, sourceId: sourceId.value },
-                });
+                // Sessions are browser-local: registering writes to localStorage and makes no request.
+                let created: CvDocument | null = localCvStore.create({ id, title: "Untitled CV", ...initial });
+                if (!created) throw new Error("Browser storage refused the write");
                 if (document.value !== initial.markdown || stylesheet.value !== initial.css) {
-                    created = await $fetch<CvDocument>(`/api/cvs/${encodeURIComponent(id)}`, {
-                        method: "PUT",
-                        body: {
-                            markdown: document.value,
-                            css: stylesheet.value,
-                            expectedRevision: created.revision,
-                            sourceId: sourceId.value,
-                        },
-                    });
+                    created = localCvStore.save(id, { markdown: document.value, css: stylesheet.value });
+                    if (!created) throw new Error("Browser storage refused the write");
                 }
                 revision.value = created.revision;
                 saveState.value = "saved";
@@ -87,8 +80,10 @@ const registerDraft = () => {
                 const delay = REGISTRATION_RETRY_DELAYS[Math.min(registrationAttempt, REGISTRATION_RETRY_DELAYS.length - 1)]!;
                 registrationAttempt += 1;
                 registrationTimer = setTimeout(registerDraft, delay);
+            } finally {
+                registrationPromise = undefined;
             }
-        })();
+        });
     }, 450);
 };
 const retryRegistration = () => {

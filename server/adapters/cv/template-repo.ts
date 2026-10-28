@@ -4,6 +4,7 @@ import type { CvTemplateRepository } from "@ruxt/core/repos/cv-template.repo";
 import { CvTemplate } from "@ruxt/shared/cv";
 import type { CvTemplateProps } from "@ruxt/shared/cv";
 import { migrateCvIndicatorSources } from "./source-migration";
+import { isImportCvTemplate, isPublicCvTemplate } from "../../utils/cv-template-visibility";
 
 // Metadata such as visibility tags intentionally lives in these data blobs. The
 // repository persists and returns it verbatim; no policy is inferred here.
@@ -44,7 +45,7 @@ export async function ensurePersistedTemplates() {
       // template loses `public` and gains `internal`, which hides it from every catalog.
       await Promise.all((await storage.getKeys("templates:")).map(async (key) => {
          const template = await storage.getItem<CvTemplateProps>(key);
-         if (!template) return;
+         if (!template || !isImportCvTemplate(template)) return;
          const migrated = migrateCvIndicatorSources({
             markdown: template.markdownSkeleton,
             css: template.css,
@@ -83,7 +84,7 @@ async function persistedTemplates(): Promise<CvTemplate[]> {
 
 export const cvTemplateRepo: CvTemplateRepository = {
    async list() {
-      const templates = await persistedTemplates();
+      const templates = (await persistedTemplates()).filter(isPublicCvTemplate);
       return templates.sort((left, right) =>
          left.name.localeCompare(right.name) || right.version - left.version,
       );
@@ -94,20 +95,13 @@ export const cvTemplateRepo: CvTemplateRepository = {
       const storage = useStorage("cv");
       if (version !== undefined) {
          const raw = await storage.getItem<CvTemplateProps>(templateKey({ id, version }));
-         return raw ? CvTemplate.create(raw) : null;
+         return raw && isImportCvTemplate(raw) ? CvTemplate.create(raw) : null;
       }
-      const matches = (await persistedTemplates()).filter(template => template.id === id);
+      const matches = (await persistedTemplates()).filter(template => template.id === id && isImportCvTemplate(template));
       return matches.sort((left, right) => right.version - left.version)[0] ?? null;
    },
 
-   async save(template) {
-      await ensurePersistedTemplates();
-      const storage = useStorage("cv");
-      const key = templateKey(template);
-      if (await storage.hasItem(key)) throw new Error("CV template already exists");
-      await storage.setItem(key, template.toJSON());
-      catalog = undefined;
-      // A saved template may need the source migration, so the next isolate re-runs the scan.
-      await storage.removeItem(SEEDED_MARKER);
+   async save(_template) {
+      throw new Error("Private templates are browser-local; server template writes are disabled");
    },
 };

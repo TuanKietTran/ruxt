@@ -156,3 +156,15 @@ A destructive-safety suite must seed local sessions/templates/profiles, then exe
 - Current local templates are not owner-scoped; the override authorization hole blocks cloud-template delivery.
 - Browser CV sessions do not yet have a clearly separated local persistence abstraction suitable for proving cloud/local delete isolation.
 - Product storage budgets beyond the three-template identity limit and seven-day checkpoint window remain to be selected before implementation.
+
+## Decision: Local-First CVs, Authenticated Server Routes
+
+- Browser storage is the primary store for every visitor's CV sessions, behind a `LocalCvStore` interface (list, get, create, update, rename, fork, delete, revision). The server `/api/cvs` store and the legacy `documents:*` KV keys are no longer read or served; ownerless legacy documents are therefore invisible (never listed, never returned).
+- Every path under `/api/cvs` and every CV-data `/mcp` tool is gated by `requireAuthUser` in a Nitro middleware, so an anonymous request gets 401 for removed and existing routes alike. A signed-in caller may get 404 on removed routes or on another owner's id; cross-owner existence is never disclosed.
+- Local write or quota failures surface as a visible save error, keep the in-memory content and never drop or overwrite stored data silently.
+- Sessions already in `cv-sv:session-backup:*` and `cv-sv:new-session-draft` appear as local CVs on the first load after the upgrade.
+- Cloud copies are opt-in and owner-scoped (see [authenticated-cloud-data.md](authenticated-cloud-data.md)); PR2 adds `GET /api/cloud-data/export` as the single authenticated read of cloud data (no subscriptions).
+
+## Single Export Read
+
+`GET /api/cloud-data/export` (authenticated, owner from the session only) returns consent, preferences, cloud sessions, cloud templates and applications, and quota in one response. It excludes subscriptions. Cloud writes enforce current-policy consent.

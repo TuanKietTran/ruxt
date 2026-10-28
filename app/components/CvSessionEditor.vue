@@ -4,7 +4,8 @@ import referenceCvCss from "~/data/reference-cv.css?raw";
 import { exportCvImages, type CvImageExportOptions, type CvImageFormat } from "~/utils/exportCvImage";
 import { exportCvBundle, type CvDocumentExportFormat } from "~/utils/exportCvDocument";
 import type { CodeMirrorHighlight, EditorStats, MarkdownFormat } from "@ruxt/editor/composables/useCodeMirror";
-import { detectCvProfile, type CvDetectedField, type CvDocumentProps as CvDocument, type CvProfileDetection, type CvTemplate } from "@ruxt/shared/cv";
+import { composeCvMarkdown, detectCvProfile, normalizeCvProfile, toCvTemplateSkeleton, type CvDetectedField, type CvDocumentProps as CvDocument, type CvProfileDetection, type CvTemplate } from "@ruxt/shared/cv";
+import { localCvStore } from "~/utils/localCvStore";
 import { localProfileLabel, readLocalProfiles as loadLocalProfiles, type LocalProfile } from "~/utils/localProfiles";
 
 const props = defineProps<{ documentId: string }>();
@@ -91,6 +92,15 @@ const revealField = (field: CvDetectedField) => {
     activeFieldPath.value = field.path;
     nextTick(() => sourceEditor.value?.revealRange(first.from, first.to));
 };
+// Profile switching is local work: the profile and the session are both in this browser.
+const composeSwitch = (profile: LocalProfile, layout: string) => {
+    const [templateId, templateVersion] = layout.split("@");
+    const normalized = normalizeCvProfile(profile);
+    if (!templateId) return { markdown: composeCvMarkdown(toCvTemplateSkeleton(markdown.value), normalized), css: css.value };
+    const template = switchTemplates.value.find(item => item.id === templateId && item.version === Number(templateVersion));
+    if (!template) throw new Error("CV template not found");
+    return { markdown: composeCvMarkdown(template.markdownSkeleton, normalized), css: template.css };
+};
 const switchProfile = async (event: Event) => {
     const select = event.target as HTMLSelectElement;
     const profile = localProfiles.value.find(item => item.id === select.value);
@@ -98,37 +108,33 @@ const switchProfile = async (event: Event) => {
     if (!profile || switchingProfile.value) return;
     if (isDirty()) { switchError.value = "Wait for the current edit to save."; return; }
     const snapshot = structuredClone(toRaw(profile));
-    const [templateId, templateVersion] = switchLayout.value.split("@");
-    switchingProfile.value = true;
     switchError.value = "";
     try {
-        const [before, after] = await Promise.all([
-            $fetch<CvDocument>(`/api/cvs/${encodeURIComponent(resolvedId.value)}`),
-            $fetch<{ markdown: string; css: string; basedOnRevision?: number }>(`/api/cvs/${encodeURIComponent(resolvedId.value)}/profile/preview`, { method: "POST", body: { profile: snapshot, template: templateId ? { id: templateId, version: Number(templateVersion) } : undefined } }),
-        ]);
-        if (!templateId && after.basedOnRevision !== before.revision) throw new Error("Session changed while preparing the preview. Choose the profile again to refresh it.");
+        const before = localCvStore.get(resolvedId.value);
+        if (!before) throw new Error("Session is not saved in this browser yet.");
+        const after = composeSwitch(snapshot, switchLayout.value);
         switchDialog.open = true; switchDialog.profile = snapshot; switchDialog.before = before; switchDialog.after = after; switchDialog.layout = switchLayout.value; switchDialog.confirmed = false; switchDialog.appliedRevision = 0;
-    } catch (error: any) { switchError.value = error?.data?.statusMessage ?? error?.message ?? "Profile preview failed."; }
-    finally { switchingProfile.value = false; }
+    } catch (error: any) { switchError.value = error?.message ?? "Profile preview failed."; }
 };
-const confirmSwitch = async () => {
+const confirmSwitch = () => {
     const profile = switchDialog.profile; if (!profile || !switchDialog.before || !switchDialog.confirmed) return;
-    const [templateId, templateVersion] = switchDialog.layout.split("@");
-    switchingProfile.value = true; switchError.value = "";
+    switchError.value = "";
     try {
-        const result = await $fetch<{ document: CvDocument }>(`/api/cvs/${encodeURIComponent(resolvedId.value)}/profile`, { method: "PUT", body: { profile, profileId: profile.id, template: templateId ? { id: templateId, version: Number(templateVersion) } : undefined, expectedRevision: switchDialog.before.revision, sourceId: sourceId.value } });
-        switchDialog.appliedRevision = result.document.revision; applyDocument(result.document); sessionActions.upsertDocument(result.document);
-    } catch (error: any) { switchError.value = error?.data?.statusMessage ?? error?.message ?? "Profile switch failed."; }
-    finally { switchingProfile.value = false; }
+        const current = localCvStore.get(resolvedId.value);
+        if (!current || current.revision !== switchDialog.before.revision) throw new Error("Session changed while the preview was open. Choose the profile again.");
+        const written = localCvStore.save(resolvedId.value, composeSwitch(profile, switchDialog.layout));
+        if (!written) throw new Error("Browser storage refused the write.");
+        switchDialog.appliedRevision = written.revision; applyDocument(written); sessionActions.upsertDocument(written);
+    } catch (error: any) { switchError.value = error?.message ?? "Profile switch failed."; }
 };
-const undoSwitch = async () => {
+const undoSwitch = () => {
     if (!switchDialog.before || !switchDialog.appliedRevision) return;
-    switchingProfile.value = true;
     try {
-        const restored = await $fetch<CvDocument>(`/api/cvs/${encodeURIComponent(resolvedId.value)}`, { method: "PUT", body: { markdown: switchDialog.before.markdown, css: switchDialog.before.css, expectedRevision: switchDialog.appliedRevision, sourceId: sourceId.value } });
+        if (localCvStore.get(resolvedId.value)?.revision !== switchDialog.appliedRevision) throw new Error("Session changed since the profile switch.");
+        const restored = localCvStore.save(resolvedId.value, { markdown: switchDialog.before.markdown, css: switchDialog.before.css });
+        if (!restored) throw new Error("Browser storage refused the write.");
         applyDocument(restored); switchDialog.appliedRevision = 0; sessionActions.upsertDocument(restored);
-    } catch (error: any) { switchError.value = error?.data?.statusMessage ?? error?.message ?? "Undo failed."; }
-    finally { switchingProfile.value = false; }
+    } catch (error: any) { switchError.value = error?.message ?? "Undo failed."; }
 };
 const activeSource = computed({
     get: () => activeTab.value === "markdown" ? markdown.value : css.value,

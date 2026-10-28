@@ -50,11 +50,9 @@ export default defineNuxtConfig({
       // deployed Deno timelines are validated by validate-deployment-env.ts.
       sessionSecret: "dev-only-secret-change-me-in-production!!",
       public: {
-         // Same-isolate SSE fan-out exists only when self-hosted. On Workers the editor never opens
-         // EventSource (the route answers 501); it probes the revision on return to the tab and slowly.
-         cvLiveEvents: !cloudflareStorage,
-         // Seconds between revision probes of an open, visible editor tab when live events are off; 0 disables.
-         cvPollSeconds: 60,
+         // Compatibility flags for old bundles: server CV routes, streams and revision probes are retired.
+         cvLiveEvents: false,
+         cvPollSeconds: 0,
          featureFlags: {
             // Deployment-owned comma-separated route and host patterns. No
             // environment policy is embedded in the application package.
@@ -116,9 +114,8 @@ export default defineNuxtConfig({
          dir: "./server/pipeline",
       }],
       storage: {
-         // Canonical CV documents shared by the browser API and agent adapters.
-         // Chunk manifests carry the document validator fields so a revision probe skips chunk reads;
-         // only write-once template keys may be served from the KV edge cache.
+         // Shared template catalog. Legacy document keys remain untouched and are never served.
+         // Only write-once template keys may be served from the KV edge cache.
          cv: durableStorage("cv", "CV_DATA_DIR", {
             metaFields: ["id", "title", "revision", "updatedAt"],
             cachedPrefixes: ["templates:", "template-seeds:"],

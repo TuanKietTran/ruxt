@@ -1,13 +1,7 @@
-import { useMediator } from "@ruxt/shared/cqrs";
-import { commitCvImportCommand } from "@ruxt/core/handlers/commit-cv-import";
 import { requireCvOwner } from "../../../../utils/cv-owner";
 
+/** Imported CVs are committed to browser storage, not to the retired shared document store. */
 export default defineEventHandler(async (event) => {
-   const ownerId = await requireCvOwner(event);
-   const id = getRouterParam(event, "id") ?? "";
-   const body = await readBody<{ documentId?: string }>(event);
-   if (!body?.documentId) throw createError({ statusCode: 400, statusMessage: "documentId is required" });
-   const document = await sendApiRequest(useMediator(), commitCvImportCommand({ id, ownerId, documentId: body.documentId }));
-   setResponseStatus(event, 201);
-   return document;
+   await requireCvOwner(event);
+   throw createError({ statusCode: 404, statusMessage: "Create the imported CV in browser storage" });
 });

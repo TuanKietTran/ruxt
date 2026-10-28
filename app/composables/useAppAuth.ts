@@ -6,6 +6,9 @@ export interface AuthUser {
 export function useAppAuth() {
   const user = useState<AuthUser | null>("auth:user", () => null);
 
+  // No network logout or navigation on expiry: preserve all browser-local content.
+  const expireSession = () => { user.value = null; };
+
   const fetchMe = async () => {
     try {
       const fetch = useRequestFetch();
@@ -33,5 +36,5 @@ export function useAppAuth() {
     user.value = null;
   };
 
-  return { user: readonly(user), fetchMe, login, register, logout };
+  return { user: readonly(user), fetchMe, login, register, logout, expireSession };
 }

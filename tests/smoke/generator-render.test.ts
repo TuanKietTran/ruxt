@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { chromium, type Browser } from "playwright-core";
+import { composeCvMarkdown, normalizeCvProfile } from "@ruxt/shared/cv";
+import { seedLocalCv } from "../helpers/local-cv";
 
 const base = process.env.SMOKE_BASE_URL?.replace(/\/$/, "");
 if (base && !["localhost", "127.0.0.1", "[::1]"].includes(new URL(base).hostname)) throw new Error("Generator browser tests require a local server");
@@ -22,8 +24,6 @@ ui("profile generator real Harvard render", () => {
         const page = await context.newPage();
         page.setDefaultTimeout(10_000);
         const id = randomUUID();
-        const created = await context.request.post(`${base}/api/cvs`, { data: { id, markdown: template.markdownSkeleton, css: template.css } });
-        expect(created.status()).toBe(201);
         const profile = {
             identity: { fullName: "Generator Regression", location: "Ho Chi Minh City, Vietnam", headline: "", summary: "" },
             contacts: [{ kind: "github", label: "", value: "github.com/regression" }],
@@ -37,11 +37,9 @@ ui("profile generator real Harvard render", () => {
             projects: [{ name: "PROJECT REGRESSION", url: "github.com/regression/project", description: "A reproducible project.", technologies: ["Go", "PostgreSQL"] }],
             skills: [], languages: [],
         };
-        const response = await context.request.post(`${base}/api/cv-profiles/apply`, { data: { profile, documentIds: [id], expectedRevisions: { [id]: 1 } } });
-        expect(response.status()).toBe(200);
-        const applied = await response.json();
-        expect(applied.applied).toBe(1);
-        expect(applied.results[0].document.markdown).toContain("**Stack:** Go, PostgreSQL");
+        const markdown = composeCvMarkdown(template.markdownSkeleton, normalizeCvProfile(profile));
+        expect(markdown).toContain("**Stack:** Go, PostgreSQL");
+        await seedLocalCv(context, { id, markdown, css: template.css });
         await page.goto(`${base}/?s=${id}`, { waitUntil: "domcontentloaded", timeout: 25_000 });
         const preview = page.locator(".preview-page");
         await preview.locator(".cv-sheet .resume").first().waitFor();

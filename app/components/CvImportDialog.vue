@@ -2,10 +2,14 @@
 import type { CvTemplate } from "@ruxt/shared/cv";
 import type { CvImportJobResponse, CvImportPreviewResponse, CvPipelineCapabilitiesResponse } from "~/types/api";
 import { reuseFor } from "~/utils/fetchCache";
+import { localCvStore } from "~/utils/localCvStore";
+import { saveLocalProfile } from "~/utils/localProfiles";
 
 const emit = defineEmits<{ close: []; committed: [documentId: string] }>();
 const { openAuthDialog } = useAuthDialog();
 const route = useRoute();
+const accountFetch = useAccountFetch();
+const { user } = useAppAuth();
 const CLIENT_MAX_BYTES = 5 * 1024 * 1024;
 const accepted = new Map([
     ["pdf", "application/pdf"], ["png", "image/png"], ["jpg", "image/jpeg"], ["jpeg", "image/jpeg"],
@@ -36,13 +40,14 @@ const signIn = () => openAuthDialog("login", route.fullPath);
 // Capabilities and the public catalog change only with a deployment: reopening the dialog reuses them.
 const { data: setup, error: setupError } = useAsyncData("cv-import-setup", async () => {
     const [caps, catalog] = await Promise.all([
-        $fetch<CvPipelineCapabilitiesResponse>("/api/cv-capabilities"),
+        accountFetch<CvPipelineCapabilitiesResponse>("/api/cv-capabilities"),
         $fetch<{ templates: CvTemplate[] }>("/api/public/templates"),
     ]);
     return { capabilities: caps, templates: catalog.templates };
 }, { server: false, getCachedData: reuseFor(10 * 60_000) });
 watch(setup, (loaded) => {
     if (!loaded) return;
+    if (!loaded.capabilities) return;
     capabilities.value = loaded.capabilities;
     templates.value = loaded.templates;
     const preferred = loaded.templates[0];
@@ -65,15 +70,15 @@ const selectFile = (candidate?: File) => {
 };
 
 const poll = async () => {
-    if (!job.value || terminal.has(job.value.state)) return;
+    if (!user.value || !job.value || terminal.has(job.value.state)) return;
     try {
-        job.value = await $fetch<CvImportJobResponse>(`/api/cv-imports/${encodeURIComponent(job.value.id)}`);
-        if (!terminal.has(job.value.state)) pollTimer = setTimeout(poll, 900);
+        job.value = await accountFetch<CvImportJobResponse>(`/api/cv-imports/${encodeURIComponent(job.value.id)}`);
+        if (job.value && !terminal.has(job.value.state)) pollTimer = setTimeout(poll, 900);
     } catch (reason) { captureError(reason); }
 };
 
 const triggerPipeline = async () => {
-    if (!file.value || !templateKey.value || busy.value) return;
+    if (!user.value || !file.value || !templateKey.value || busy.value) return;
     busy.value = true;
     error.value = "";
     try {
@@ -82,7 +87,7 @@ const triggerPipeline = async () => {
         body.append("file", file.value, file.value.name);
         body.append("templateId", templateKey.value.slice(0, separator));
         body.append("templateVersion", templateKey.value.slice(separator + 1));
-        job.value = await $fetch<CvImportJobResponse>("/api/cv-imports", {
+        job.value = await accountFetch<CvImportJobResponse>("/api/cv-imports", {
             method: "POST",
             body,
             headers: { "Idempotency-Key": `${file.value.name}:${file.value.size}:${file.value.lastModified}` },
@@ -96,36 +101,40 @@ const loadPreview = async () => {
     if (!job.value) return;
     busy.value = true;
     error.value = "";
-    try { preview.value = await $fetch<CvImportPreviewResponse>(`/api/cv-imports/${encodeURIComponent(job.value.id)}/preview`); }
+    try { preview.value = await accountFetch<CvImportPreviewResponse>(`/api/cv-imports/${encodeURIComponent(job.value.id)}/preview`); }
     catch (reason) { captureError(reason); }
     finally { busy.value = false; }
 };
 const cancel = async () => {
     if (!job.value) return;
-    try { job.value = await $fetch<CvImportJobResponse>(`/api/cv-imports/${encodeURIComponent(job.value.id)}/cancel`, { method: "POST" }); }
+    try { job.value = await accountFetch<CvImportJobResponse>(`/api/cv-imports/${encodeURIComponent(job.value.id)}/cancel`, { method: "POST" }); }
     catch (reason) { captureError(reason); }
 };
 const retry = async () => {
     if (!job.value) return;
     try {
-        job.value = await $fetch<CvImportJobResponse>(`/api/cv-imports/${encodeURIComponent(job.value.id)}/retry`, { method: "POST" });
+        job.value = await accountFetch<CvImportJobResponse>(`/api/cv-imports/${encodeURIComponent(job.value.id)}/retry`, { method: "POST" });
         preview.value = null;
         pollTimer = setTimeout(poll, 500);
     } catch (reason) { captureError(reason); }
 };
 const commit = async () => {
-    if (!job.value || !preview.value || busy.value) return;
+    if (!user.value || !job.value || !preview.value || busy.value) return;
     busy.value = true;
     error.value = "";
     const documentId = crypto.randomUUID();
     try {
-        await $fetch(`/api/cv-imports/${encodeURIComponent(job.value.id)}/commit`, { method: "POST", body: { documentId } });
-        // The layout re-reads the session list when it handles `committed`.
+        // Import artifacts are owner-scoped compute output; committing a CV is a browser-only write.
+        const created = localCvStore.create({ id: documentId, markdown: preview.value.markdown, css: preview.value.css });
+        if (!created) throw new Error("Browser storage refused the write.");
+        saveLocalProfile(preview.value.concept.profile);
+        // The layout re-reads the local session list when it handles `committed`.
         emit("committed", documentId);
     } catch (reason) { captureError(reason); }
     finally { busy.value = false; }
 };
 
+watch(user, (value) => { if (!value && pollTimer) clearTimeout(pollTimer); });
 onBeforeUnmount(() => { if (pollTimer) clearTimeout(pollTimer); });
 </script>
 

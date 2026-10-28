@@ -27,6 +27,7 @@ export function usePreferences() {
    const preferences = useState<UserPreferences>("preferences:value", () => ({ ...DEFAULT_USER_PREFERENCES }));
    const source = useState<PreferencesSource>("preferences:source", () => "local");
    const { user } = useAppAuth();
+   const accountFetch = useAccountFetch();
    const { authenticated } = useFeatureFlags();
    const signedIn = computed(() => authenticated.value && Boolean(user.value));
 
@@ -34,10 +35,12 @@ export function usePreferences() {
       if (!import.meta.client) return;
       if (signedIn.value) {
          try {
-            const view = await $fetch<UserPreferencesView>("/api/preferences");
-            preferences.value = normalizeUserPreferences(view.preferences);
-            source.value = "account";
-            return;
+            const view = await accountFetch<UserPreferencesView>("/api/preferences");
+            if (view) {
+               preferences.value = normalizeUserPreferences(view.preferences);
+               source.value = "account";
+               return;
+            }
          } catch {
             // Fall back to the browser copy when the account store is unreachable.
          }
@@ -48,10 +51,17 @@ export function usePreferences() {
 
    const update = async (patch: Partial<UserPreferences>) => {
       const previous = preferences.value;
-      preferences.value = normalizeUserPreferences({ ...previous, ...patch });
-      if (source.value === "account") {
+      const next = normalizeUserPreferences({ ...previous, ...patch });
+      preferences.value = next;
+      if (source.value === "account" && signedIn.value) {
          try {
-            const view = await $fetch<UserPreferencesView>("/api/preferences", { method: "PUT", body: { preferences: patch } });
+            const view = await accountFetch<UserPreferencesView>("/api/preferences", { method: "PUT", body: { preferences: patch } });
+            if (!view) {
+               preferences.value = next;
+               source.value = "local";
+               localStorage.setItem(LOCAL_PREFERENCES_KEY, JSON.stringify(preferences.value));
+               return;
+            }
             preferences.value = normalizeUserPreferences(view.preferences);
          } catch (error) {
             preferences.value = previous;
@@ -59,6 +69,7 @@ export function usePreferences() {
          }
          return;
       }
+      source.value = "local";
       localStorage.setItem(LOCAL_PREFERENCES_KEY, JSON.stringify(preferences.value));
    };
 
