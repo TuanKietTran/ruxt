@@ -28,6 +28,8 @@ pnpm lint                 # architecture/layout/type-ownership checks
 pnpm test                 # hermetic Vitest suites under tests/
 pnpm test:watch           # same suites in watch mode
 pnpm test:smoke           # opt-in HTTP smoke suite against a running server
+pnpm check:request-budget # after build:cloudflare: no sub-30 s /api/cvs poll, live events off, immutable /_nuxt/*
+pnpm measure:requests     # count one editor tab's Worker requests against a running server (see script header)
 pnpm generate
 pnpm preview
 pnpm cv:pipeline:setup # create the ignored Python venv for imports
@@ -120,7 +122,7 @@ Do not commit generated Nuxt/Nitro output, `local.db`, `.data/cv`, rendered PDFs
 
 ## CI And Deployment
 
-The checked-in `.github/workflows/deploy.yml` runs the existing Deno-targeted build and a separate Cloudflare Workers build on pushes to `main`, pull requests, and manual dispatch. `pnpm build:cloudflare` uses a Node wrapper to set `NITRO_PRESET=cloudflare-module` and `RUXT_CLOUDFLARE_STORAGE=1` portably. `wrangler.json` holds placeholder IDs only. Never run `wrangler deploy` or login as part of local validation.
+The checked-in `.github/workflows/deploy.yml` runs the existing Deno-targeted build and a separate Cloudflare Workers build on pushes to `main`, pull requests, and manual dispatch. `pnpm build:cloudflare` uses a Node wrapper to set `NITRO_PRESET=cloudflare-module` and `RUXT_CLOUDFLARE_STORAGE=1` portably; `pnpm check:request-budget` then checks that build before the Wrangler dry run. `wrangler.json` holds placeholder IDs only. Never run `wrangler deploy` or login as part of local validation.
 
 Deno environment variables are runtime context configuration, not repository or GitHub secrets. Configure the same three names twice in the Deno application settings:
 

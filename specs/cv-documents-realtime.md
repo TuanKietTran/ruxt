@@ -1,6 +1,6 @@
 # CV Documents And Realtime Sync
 
-Last updated: feat/migration-manager@87e5404 | 2026-10-23
+Last updated: fix/reduce-request-volume@bf66288 | 2026-10-28
 
 ## Scope
 
@@ -9,7 +9,7 @@ This spec covers:
 - document transport/domain contracts in `core/domain/cv/document.ts`;
 - server ownership in `server/adapters/cv/document-store.ts`;
 - Nitro routes under `server/routes/api/cvs/`;
-- client autosave and EventSource behavior in `app/composables/useCvDocument.ts`;
+- client autosave, EventSource and revision-probe behavior in `app/composables/useCvDocument.ts`, with the shared validator in `shared/utils/cvDocumentEtag.ts`;
 - Nitro `cv` storage configuration in `nuxt.config.ts`.
 
 MCP callers are specified in [mcp-automation.md](mcp-automation.md); editor rendering is specified in [cv-editor.md](cv-editor.md).
@@ -30,9 +30,9 @@ The repository's local `.data/` content is runtime user data and is ignored by G
 
 ## HTTP API
 
-- `GET /api/cvs`: returns `{ documents: CvDocumentSummary[] }`.
+- `GET /api/cvs`: returns `{ documents: CvDocumentSummary[] }` with `Cache-Control: private, no-cache` and `Vary: Cookie, Authorization`.
 - `POST /api/cvs`: explicitly creates one document from a random UUID, independent title, and complete Markdown/CSS, returning 201; the `/` placeholder uses this route only after its first edit.
-- `GET /api/cvs/:id`: reads or lazily creates the complete document.
+- `GET /api/cvs/:id`: reads or lazily creates the complete document. Responses carry a strong `ETag` from `cvDocumentEtag()` (revision, `updatedAt`, title) and `Cache-Control: private, no-cache` with `Vary: Cookie, Authorization`. A matching `If-None-Match` answers 304 without a body; on Workers KV the match is decided from one key read (chunk-manifest metadata or the small value itself) without reading chunks.
 - `PUT /api/cvs/:id`: applies complete-field replacements from `UpdateCvDocumentInput` and returns the new complete document.
 - `PATCH /api/cvs/:id`: renames the independent sidebar title without changing the route id.
 - `POST /api/cvs/:id/fork`: copies content to a new UUID route id and independent title.
@@ -52,7 +52,7 @@ Document list/read also performs an idempotent source-contract migration when pe
 
 ## SSE Behavior
 
-On Deno/self-hosted runtimes an events connection receives `ready` with the initial document, `cv:update` after accepted writes in the same server process, and a 20-second comment heartbeat. Cancellation unsubscribes and clears the heartbeat. On Cloudflare Workers the route returns HTTP 501: KV has no cross-isolate event hub and Workers do not support this long-lived SSE contract. The browser closes the failed EventSource and polls `GET /api/cvs/:id` every three seconds; polling applies only newer revisions when there are no unsaved local changes. This is eventual refresh, not realtime or cross-isolate write serialization.
+On Deno/self-hosted runtimes an events connection receives `ready` with the initial document, `cv:update` after accepted writes in the same server process, and a 20-second comment heartbeat. Cancellation unsubscribes and clears the heartbeat. On Cloudflare Workers the route returns HTTP 501: KV has no cross-isolate event hub and Workers do not support this long-lived SSE contract. The Cloudflare build sets runtime config `public.cvLiveEvents` to false, so the editor never opens the stream there (the 501 remains for stale clients); remote changes arrive through the revision probe below. This is eventual refresh, not realtime or cross-isolate write serialization.
 
 ## Browser Autosave
 
@@ -61,7 +61,9 @@ On Deno/self-hosted runtimes an events connection receives `ready` with the init
 On the client:
 
 - source changes mark the document dirty and set `saving`;
-- saves debounce for 450 ms and serialize through a promise queue;
+- saves wait for a 2 s pause in typing but never longer than 10 s after the first unsaved edit, and serialize through a promise queue;
+- a save whose snapshot equals what the server already holds (and with no save in flight) sends nothing;
+- a waiting edit is saved at once on window blur, when the tab becomes hidden, on `pagehide`, when a kept-alive session is deactivated, and on unmount; hidden/pagehide saves use `fetch` `keepalive` so they outlive the page (a body over the browser's 64 KiB keepalive budget fails and is restored from the local backup on the next visit);
 - each save snapshots both complete source fields and sends the tab's random UUID `sourceId`;
 - `expectedRevision` is omitted when local revision is zero;
 - success updates revision and returns to `saved` only when no newer local edits exist;
@@ -69,7 +71,9 @@ On the client:
 - an `offline` save retries with backoff (2 s, 5 s, 10 s, then every 30 s), and immediately on the browser `online` event or when the tab becomes visible, until the server acknowledges the edit;
 - a save that finds the session missing (404) re-creates it with `POST /api/cvs`; if that create loses a race (409) the snapshot is saved over the copy that won.
 
-On mount, the composable creates an `EventSource`. Remote documents apply only when there are no unsaved local changes and their revision is newer. Updates bearing this tab's `sourceId` are ignored; events from MCP or another browser are eligible. EventSource open restores `saved` only when clean. On stream error it closes the stream and polls `GET /api/cvs/:id` every three seconds, retaining offline state if requests fail; unmount clears the polling timer.
+Remote documents apply only when there are no unsaved local changes and their revision is newer. When `cvLiveEvents` is true (self-hosted), mount creates an `EventSource`; updates bearing this tab's `sourceId` are ignored; events from MCP or another browser are eligible. EventSource open restores `saved` only when clean; on stream error it closes the stream and falls back to the revision probe until the next successful save reconnects it.
+
+Without an open stream the editor sends a revision probe, a conditional `GET /api/cvs/:id` with `If-None-Match`, (a) when the window regains focus or the tab becomes visible after more than 30 s away, and (b) every `public.cvPollSeconds` (60 s; 0 disables) while the tab is visible and has no pending edit, doubling the interval after each failure up to 16x and stopping on 401/403/404. A successful save's response is its post-save refresh; no GET follows. Hidden tabs and sessions deactivated in the page's `<KeepAlive>` do not probe. Another tab of the same browser that saves the session updates this one through the `storage` event on its backup key, without a request. Nothing polls faster than 30 s; `pnpm check:request-budget` fails the Cloudflare build otherwise.
 
 ## Session Continuity Across Deployments
 
@@ -91,5 +95,6 @@ Deleting a session in this browser removes its backup, so it is not re-created. 
 - Write queues and SSE listeners are process-local. Multiple Nitro instances do not coordinate writes or broadcast changes through the filesystem store.
 - Conflict state has no merge, reload, overwrite, or current-document UI.
 - Failed saves are not automatically retried unless another source change schedules a save.
-- Unmount clears a pending debounce timer and closes SSE but does not flush unsaved text or cancel an in-flight request.
+- Without live events (Workers), an edit from another device appears within one probe interval while visible or on return after 30 s away; editing the same session on two devices inside that window ends in a 409 `conflict`.
+- Unmount and page exit flush a pending edit but do not cancel an in-flight request.
 - Update input does not validate `expectedRevision` or `sourceId` types at the HTTP boundary.
