@@ -73,7 +73,8 @@ try {
   const idAlpha = sessionIdFromUrl();
   await page.waitForTimeout(800);
   await typeInEditor("\nAlpha second edit");
-  await page.waitForTimeout(1500);
+  // Autosave waits for a 2 s pause in typing.
+  await page.waitForTimeout(2500);
   await goto("/");
   await typeInEditor("\n\nBeta session body");
   await page.waitForURL(/\?s=/, { timeout: 10000 });
@@ -101,7 +102,7 @@ try {
   // ---- Scenario 2: server goes down mid-edit (rollout), edit is retried without further typing
   await stopServer();
   await typeInEditor("\nEdited during rollout");
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(3000);
   const stateDown = await page.textContent(".save-state");
   check("save shows offline while the server is down", stateDown.trim() === "offline", stateDown);
   await startServer(dirB);

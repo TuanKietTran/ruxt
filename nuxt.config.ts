@@ -48,6 +48,11 @@ export default defineNuxtConfig({
       // deployed Deno timelines are validated by validate-deployment-env.ts.
       sessionSecret: "dev-only-secret-change-me-in-production!!",
       public: {
+         // Same-isolate SSE fan-out exists only when self-hosted. On Workers the editor never opens
+         // EventSource (the route answers 501); it probes the revision on return to the tab and slowly.
+         cvLiveEvents: !cloudflareStorage,
+         // Seconds between revision probes of an open, visible editor tab when live events are off; 0 disables.
+         cvPollSeconds: 60,
          featureFlags: {
             // Deployment-owned comma-separated route and host patterns. No
             // environment policy is embedded in the application package.
