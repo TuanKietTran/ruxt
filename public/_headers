@@ -1,0 +1,11 @@
+# Workers Static Assets headers. Nitro appends Nuxt's route-rule headers to this file at build time,
+# including `/_nuxt/*  cache-control: public, max-age=31536000, immutable` for hashed bundles; matching
+# rules are joined, so keep those out of this file. HTML is rendered by the Worker and never cached here.
+/favicon.ico
+  cache-control: public, max-age=86400
+/robots.txt
+  cache-control: public, max-age=86400
+/icons/*
+  cache-control: public, max-age=86400
+/fonts/*
+  cache-control: public, max-age=86400
