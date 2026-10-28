@@ -51,6 +51,15 @@ describe("browser-local CV store", () => {
         expect(storage.getItem("cv-sv:session-backup:broken")).toBe("{");
     });
 
+    it("refuses to replace an existing backup that cannot be parsed", () => {
+        const storage = new MemoryStorage();
+        const store = createLocalCvStore(() => storage);
+        const original = "{not valid JSON";
+        storage.setItem("cv-sv:session-backup:broken", original);
+        expect(store.save("broken", { markdown: "replacement", css: "" })).toBeNull();
+        expect(storage.getItem("cv-sv:session-backup:broken")).toBe(original);
+    });
+
     it("reports quota/delete failures and keeps the previously stored copy", () => {
         const storage = new MemoryStorage();
         const store = createLocalCvStore(() => storage);

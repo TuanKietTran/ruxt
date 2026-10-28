@@ -101,6 +101,10 @@ export function createLocalCvStore(storage: () => Storage | undefined = () => {
         },
         save(id, source) {
             const current = read(id);
+            let raw: string | null;
+            try { raw = storage()?.getItem(CV_SESSION_BACKUP_PREFIX + id) ?? null; } catch { return null; }
+            // A corrupt existing backup is still user data: never treat a failed parse as a missing session.
+            if (raw !== null && !current) return null;
             if (current && current.markdown === source.markdown && current.css === source.css) return current;
             const next: CvDocumentProps = {
                 id,
