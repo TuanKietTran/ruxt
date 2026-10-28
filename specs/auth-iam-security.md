@@ -87,3 +87,11 @@ Passwords and hashes must never be logged or serialized through API outputs. `Pl
 - The legacy custom endpoints have no rate limiting, login throttling, password reset, email verification, or documented session rotation; Clerk supplies these identity flows only for broker-managed users.
 - The runtime has an insecure local-development fallback session secret; every deployed Deno context must override it with `NUXT_SESSION_SECRET`.
 - The `/d*` `?userId=demo` browser bypass and prefix checks are UI-only and broader than exact route matching.
+
+## Decision: Local-First CVs, Authenticated Server Routes
+
+- Browser storage is the primary store for every visitor's CV sessions, behind a `LocalCvStore` interface (list, get, create, update, rename, fork, delete, revision). The server `/api/cvs` store and the legacy `documents:*` KV keys are no longer read or served; ownerless legacy documents are therefore invisible (never listed, never returned).
+- Every path under `/api/cvs` and every CV-data `/mcp` tool is gated by `requireAuthUser` in a Nitro middleware, so an anonymous request gets 401 for removed and existing routes alike. A signed-in caller may get 404 on removed routes or on another owner's id; cross-owner existence is never disclosed.
+- Local write or quota failures surface as a visible save error, keep the in-memory content and never drop or overwrite stored data silently.
+- Sessions already in `cv-sv:session-backup:*` and `cv-sv:new-session-draft` appear as local CVs on the first load after the upgrade.
+- Cloud copies are opt-in and owner-scoped (see [authenticated-cloud-data.md](authenticated-cloud-data.md)); PR2 adds `GET /api/cloud-data/export` as the single authenticated read of cloud data (no subscriptions).

@@ -284,3 +284,11 @@ The CV editor (`/?s=<id>`) has a `Current layout`/template picker and a `Switch 
 - The `SwitchCvProfile` saga is in-process with no durable saga log. A crash between the document write and the application snapshot leaves the application on the previous profile until the next switch. Composing into a session only reuses entry shapes of sections the current session still has, so a kind that was dropped for an earlier profile comes back in the default `###` layout rather than the original table layout.
 - Current document storage has no owner/workspace scope, durable revision history, audit trail, or multi-instance concurrency control. Client-side version control is not implemented in this server slice.
 - Current MCP transport is stateless and cannot retain workflow state or send unsolicited notifications across requests.
+
+## Decision: Local-First CVs, Authenticated Server Routes
+
+- Browser storage is the primary store for every visitor's CV sessions, behind a `LocalCvStore` interface (list, get, create, update, rename, fork, delete, revision). The server `/api/cvs` store and the legacy `documents:*` KV keys are no longer read or served; ownerless legacy documents are therefore invisible (never listed, never returned).
+- Every path under `/api/cvs` and every CV-data `/mcp` tool is gated by `requireAuthUser` in a Nitro middleware, so an anonymous request gets 401 for removed and existing routes alike. A signed-in caller may get 404 on removed routes or on another owner's id; cross-owner existence is never disclosed.
+- Local write or quota failures surface as a visible save error, keep the in-memory content and never drop or overwrite stored data silently.
+- Sessions already in `cv-sv:session-backup:*` and `cv-sv:new-session-draft` appear as local CVs on the first load after the upgrade.
+- Cloud copies are opt-in and owner-scoped (see [authenticated-cloud-data.md](authenticated-cloud-data.md)); PR2 adds `GET /api/cloud-data/export` as the single authenticated read of cloud data (no subscriptions).
