@@ -4,5 +4,7 @@ import { deletePlanCommand } from "@ruxt/core/handlers/delete-plan";
 export default defineEventHandler(async (event) => {
    const id = getRouterParam(event, "id")!;
    const mediator = useMediator();
-   return sendApiRequest(mediator, deletePlanCommand({ planId: id }));
+   const result = await sendApiRequest(mediator, deletePlanCommand({ planId: id }));
+   await purgePublicJson(event, "/api/plans");
+   return result;
 });

@@ -12,6 +12,12 @@ const seedTemplates = [pipelineTemplateData, harvardTemplateData].map((data) =>
 );
 const templateKey = (template: Pick<CvTemplate, "id" | "version">) =>
    `templates:${template.id}:v${template.version}`;
+// The seed/migration scan below costs a KV list plus a read per template. It runs once per deployment
+// (the marker holds the build that last ran it) instead of once per Worker isolate; saving clears it.
+const SEEDED_MARKER = "template-seeds:build";
+// Catalog reads (a KV list plus a read per template) are reused briefly within one isolate.
+const CATALOG_TTL_MS = 60_000;
+let catalog: { templates: CvTemplateProps[]; expires: number } | undefined;
 let seedPromise: Promise<void> | undefined;
 
 /** Templates the server uses on its own (CV import) but never lists in a catalog. */
@@ -26,6 +32,8 @@ export const isCatalogTemplate = (template: Pick<CvTemplate, "tags">) => !templa
 export async function ensurePersistedTemplates() {
    seedPromise ??= (async () => {
       const storage = useStorage("cv");
+      const build = useRuntimeConfig().app.buildId || "dev";
+      if (await storage.getItem<string>(SEEDED_MARKER) === build) return;
       await Promise.all(seedTemplates.map(async (template) => {
          const key = templateKey(template);
          if (!await storage.hasItem(key)) await storage.setItem(key, template.toJSON());
@@ -53,6 +61,7 @@ export async function ensurePersistedTemplates() {
             });
          }
       }));
+      await storage.setItem(SEEDED_MARKER, build);
    })().catch((error) => {
       seedPromise = undefined;
       throw error;
@@ -61,13 +70,15 @@ export async function ensurePersistedTemplates() {
 }
 
 async function persistedTemplates(): Promise<CvTemplate[]> {
+   if (catalog && catalog.expires > Date.now()) return catalog.templates.map(CvTemplate.create);
    await ensurePersistedTemplates();
    const storage = useStorage("cv");
-   const templates = await Promise.all(
+   const templates = (await Promise.all(
       (await storage.getKeys("templates:"))
          .map(key => storage.getItem<CvTemplateProps>(key)),
-   );
-   return templates.filter((template): template is CvTemplateProps => Boolean(template)).map(CvTemplate.create);
+   )).filter((template): template is CvTemplateProps => Boolean(template));
+   catalog = { templates, expires: Date.now() + CATALOG_TTL_MS };
+   return templates.map(CvTemplate.create);
 }
 
 export const cvTemplateRepo: CvTemplateRepository = {
@@ -95,5 +106,8 @@ export const cvTemplateRepo: CvTemplateRepository = {
       const key = templateKey(template);
       if (await storage.hasItem(key)) throw new Error("CV template already exists");
       await storage.setItem(key, template.toJSON());
+      catalog = undefined;
+      // A saved template may need the source migration, so the next isolate re-runs the scan.
+      await storage.removeItem(SEEDED_MARKER);
    },
 };

@@ -53,7 +53,7 @@ The active dependency is the vendored fallback `file:vendor/tuankiettran-ruxt-co
 
 - Worker plugin code does not start timers or access storage at module scope; analytics timer and startup writes remain guarded to non-Worker execution/deferred request hooks. Cloudflare env validation reads `globalThis.__env__`; Deno `process.env.DENO_TIMELINE` validation is Deno-only.
 - CV import's Node `fs`/`child_process`/Python pipeline remains a self-hosted fallback: Worker capability detection returns unavailable before probing Python or running extraction. Artifact TTL and upload ceilings now use Nuxt runtime config (`NUXT_CV_ARTIFACT_TTL_HOURS`, `NUXT_CV_IMPORT_MAX_BYTES`), not `process.env`.
-- Worker CV SSE is explicitly unavailable (HTTP 501) because there is no cross-isolate event hub; the browser falls back to three-second document polling. This is eventual refresh, not realtime/serialization.
+- Worker CV SSE is explicitly unavailable (HTTP 501) because there is no cross-isolate event hub; the Cloudflare build does not open the stream and refreshes with conditional revision probes (on return after 30 s away, then every 60 s while visible). This is eventual refresh, not realtime/serialization.
 - `cv-pipeline-maintenance` cron is omitted from the Cloudflare build because it invokes unsupported Python/filesystem work. No Worker-native background replacement is claimed.
 - MCP remains a stateless Streamable HTTP endpoint; local Cloudflare build and dry-run include it, but no Worker runtime request/CPU test was produced.
 - `node:crypto` remains in adapters for self-hosted execution; Worker password hashing uses WebCrypto PBKDF2. Free-plan CPU impact has not been measured.
@@ -80,3 +80,27 @@ Results below came from the manager's complete local sequential test job. Eviden
 | Hygiene | Architecture lint scans tracked artifact paths; local manager worktree review | **PARTIAL** | No tracked `.data/`, `local.db`, `.env` credentials or secret-named files; no AI-trace/history scan or final identity/worktree review. |
 
 Acceptance blockers: representative CPU and quota measurements; built Worker `/api/health` request not established (Miniflare reports `Network connection lost` and its boot test is skipped); R2/DO or exercised replacements; production-ready bounded imports/restore rehearsal (local Deno KV export/transform/verify tooling exists but was not exercised remotely); celld evidence; and external Deno production regression evidence. `pnpm cf:deploy:dry` measured 930.86 KiB gzip, leaving little bundle headroom.
+
+## Request budget (Workers Free, 2026-10-28)
+
+Free plan quotas: 100k Worker requests/day, 100k KV reads/day, 1k KV writes/day, 1k KV lists/day, 200k observability events/day. Measured with `scripts/measure-request-volume.js` against the Cloudflare build under `wrangler dev --local` (virtual clock, 10 minutes per idle phase, x144 per day):
+
+| One open editor tab | Before (`main`@bf66288) | After |
+|---|---|---|
+| Idle, visible | 201 requests / 10 min (28,944/day) | 9 / 10 min (1,296/day) |
+| Hidden | 200 / 10 min with emulated visibility; real Chrome throttles a tab hidden for 5 min to 1 timer wake-up/min (~1,440/day, as in the 10-26 overnight logs) | 0 |
+| One tab after opening sessions A, B, C in turn (`<KeepAlive>` keeps each editor) | 61 GET/min (20 + 20 + 21) | 1 GET/min (active session only) |
+| 40 words typed with 0.7 s pauses | 40 PUT + 17 GET | 4 PUT |
+| Edit typed just before leaving the page | lost on the server (backup only) | saved (keepalive) |
+
+`pnpm check:request-budget` (CI, after `pnpm cf:build`) fails on a client `setInterval` under 30 s reaching `/api/cvs`, live events enabled in the Worker build, `/_nuxt/*` without immutable caching, or `assets.run_worker_first`.
+
+Follow-ups:
+
+- [ ] Owner: redeploy, then confirm in Workers Logs/Metrics that `GET /api/cvs/:id` volume dropped by >90% and the 501 `/events` requests are gone; tabs opened before the deploy keep the old 3 s poll until reloaded.
+- [ ] Owner: Cache API (`caches.default`) is a no-op on `*.workers.dev`; edge reuse of `/api/public/templates` and `/api/plans` applies only on `ruxt.mashallow.cloud`.
+- [ ] Owner: Workers Logs head sampling (`head_sampling_rate` 0.1) is decided per request before it runs, so 90% of errored requests are dropped from logs too; raise it to 1 once daily volume is confirmed well under 200k events. Workers Metrics request/error counts are not sampled.
+- [ ] Document listing reads every stored document (all owners) on each SSR page load: KV reads per load equal the stored document count. Writing summaries as KV key metadata on save would let one `list()` serve the sidebar.
+- [ ] KV writes are the next binding quota: an inline save is 1 write (chunked: chunks + manifest writes and old-chunk deletes) plus 2 reads, and analytics flushes (now every 5 min per Worker isolate) write one bucket per metric kind. Consider Workers Analytics Engine for metrics.
+- [ ] `pnpm test:session-continuity` needs the node-server build to resolve one `@ruxt/shared` copy: Nitro does not trace the `file:` alias `@ruxt/core`, so it loads its own `@ruxt/shared` from the store and the mediator is mounted on the other copy ("Mediator not mounted"). Locally, deleting `.output/server/node_modules/@ruxt/shared` after the build works around it.
+

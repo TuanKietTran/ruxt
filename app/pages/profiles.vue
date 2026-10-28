@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toRaw } from "vue";
-import type { CvContactKind, CvDocumentSummary, CvProfileProps, CvTemplate } from "@ruxt/shared/cv";
+import type { CvContactKind, CvDocumentProps, CvDocumentSummary, CvProfileProps, CvTemplate } from "@ruxt/shared/cv";
 import { mapProfileApplyResults, profileApplyErrorMessage, type ProfileApplyResponse, type ProfileApplyStatus } from "~/utils/profileApplyResults";
 import { normalizeCvProfile } from "@ruxt/shared/cv";
 import { type LocalProfile, newLocalProfileId, orderLocalProfiles, readLocalProfiles, saveLocalProfile, writeLocalProfiles } from "~/utils/localProfiles";
@@ -309,6 +309,7 @@ const apply = reactive({
     undoable: {} as Record<string, { revision: number; markdown: string; css: string }>,
 
 });
+const sessionActions = useCvSessionActions();
 const { data: sessionIndex } = useNuxtData<{ documents: CvDocumentSummary[] }>("editor-document-list");
 const { data: templateIndex } = useNuxtData<{ templates: CvTemplate[] }>("editor-template-list");
 const applySessions = computed(() => sessionIndex.value?.documents ?? []);
@@ -349,10 +350,10 @@ const undoApply = async (id: string) => {
     if (!previous || !currentRevision) return;
     apply.busy = true;
     try {
-        const restored = await $fetch<{ revision: number }>(`/api/cvs/${encodeURIComponent(id)}`, { method: "PUT", body: { markdown: previous.markdown, css: previous.css, expectedRevision: currentRevision } });
+        const restored = await $fetch<CvDocumentProps>(`/api/cvs/${encodeURIComponent(id)}`, { method: "PUT", body: { markdown: previous.markdown, css: previous.css, expectedRevision: currentRevision } });
         delete apply.undoable[id];
         apply.results[id] = { ok: true, message: `Restored previous content (revision ${restored.revision})` };
-        await refreshNuxtData("editor-document-list");
+        sessionActions.upsertDocument(restored);
     } catch (cause: any) { apply.error = cause?.data?.statusMessage ?? cause?.message ?? "Undo failed."; }
     finally { apply.busy = false; }
 };
@@ -376,10 +377,10 @@ const runApply = async () => {
             },
         });
         apply.results = mapProfileApplyResults(output);
-        for (const result of output.results) if (result.ok && apply.previews[result.documentId]) {
-            apply.undoable[result.documentId] = { ...apply.previews[result.documentId]!.before, revision: result.document.revision };
+        for (const result of output.results) if (result.ok) {
+            sessionActions.upsertDocument(result.document);
+            if (apply.previews[result.documentId]) apply.undoable[result.documentId] = { ...apply.previews[result.documentId]!.before, revision: result.document.revision };
         }
-        await refreshNuxtData("editor-document-list");
     } catch (cause: any) {
         apply.error = profileApplyErrorMessage(cause);
     } finally {

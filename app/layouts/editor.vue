@@ -6,6 +6,9 @@ import type { CvDocumentSummary, CvTemplate } from "@ruxt/shared/cv";
 import { cvSessionsToRecover, mergeCvSessions, type CvSessionBackupEntry } from "@ruxt/shared/cv";
 import { clearCvSessionBackup, listCvSessionBackups } from "~/utils/cvSessionBackup";
 import { hasEditorFeature, listEditorContexts, resolveEditorContext, type EditorContext, type EditorFeature } from "~/utils/editorContexts";
+import { reuseFor } from "~/utils/fetchCache";
+
+const LIST_REUSE_MS = 60_000;
 
 const props = withDefaults(
     defineProps<{
@@ -81,8 +84,9 @@ const { openAuthDialog } = useAuthDialog();
 const { data: cvIndex, refresh: reloadCvDocuments, status: cvIndexStatus } = useFetch<{ documents: CvDocumentSummary[] }>("/api/cvs", {
     key: "editor-document-list",
     lazy: true,
-    // The layout remounts when switching between a session and a template; keep the loaded list so the sidebar does not flash skeletons.
-    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key],
+    // The layout remounts when switching between a session and a template; reuse the list for a minute so
+    // the sidebar neither flashes skeletons nor refetches. Mutations update it from their responses.
+    getCachedData: reuseFor(LIST_REUSE_MS),
 });
 const sessionsLoading = computed(() => !cvIndex.value && cvIndexStatus.value !== "error");
 // The sidebar lists what this browser has backed up as well as what the server returns, so a deployment
@@ -122,7 +126,8 @@ const templateCatalogUrl = computed(() => user.value ? "/api/cv-templates" : "/a
 const { data: templateIndex, refresh: reloadCvTemplates, status: templateStatus } = useFetch<{ templates: CvTemplate[] }>(templateCatalogUrl, {
     key: "editor-template-list",
     lazy: true,
-    getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key],
+    // Signing in changes the URL, which always refetches.
+    getCachedData: reuseFor(LIST_REUSE_MS),
 });
 const templatesLoading = computed(() => !templateIndex.value && templateStatus.value !== "error");
 const cvTemplates = computed(() => templateIndex.value?.templates ?? []);

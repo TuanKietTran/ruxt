@@ -103,9 +103,11 @@ describe("chunked Cloudflare KV driver on a real KV namespace", () => {
    });
 
    it("detects a missing chunk instead of returning partial data", async () => {
-      const driver = chunkedCloudflareKv({ base: "cv" });
-      await driver.setItem("doc:big", big("a"));
+      const writer = chunkedCloudflareKv({ base: "cv" });
+      await writer.setItem("doc:big", big("a"));
       await kv.delete((await chunkKeys())[0]!);
-      await expect(driver.getItem("doc:big")).rejects.toThrow(/missing chunk|corrupt/);
+      // Another isolate reads KV and must fail; the writing isolate answers from its complete copy of that generation.
+      await expect(chunkedCloudflareKv({ base: "cv" }).getItem("doc:big")).rejects.toThrow(/missing chunk|corrupt/);
+      expect(await writer.getItem("doc:big")).toEqual(big("a"));
    });
 });

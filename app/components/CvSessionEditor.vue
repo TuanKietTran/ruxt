@@ -39,6 +39,7 @@ const exportImage = (format: CvImageFormat, options: CvImageExportOptions) =>
     );
 const exportDocument = (format: CvDocumentExportFormat) =>
     exportCvBundle(format, documentTitle.value, markdown.value, css.value);
+const sessionActions = useCvSessionActions();
 const localProfiles = ref<LocalProfile[]>([]);
 const { data: templateIndex } = useNuxtData<{ templates: CvTemplate[] }>("editor-template-list");
 const switchTemplates = computed(() => templateIndex.value?.templates ?? []);
@@ -116,7 +117,7 @@ const confirmSwitch = async () => {
     switchingProfile.value = true; switchError.value = "";
     try {
         const result = await $fetch<{ document: CvDocument }>(`/api/cvs/${encodeURIComponent(resolvedId.value)}/profile`, { method: "PUT", body: { profile, profileId: profile.id, template: templateId ? { id: templateId, version: Number(templateVersion) } : undefined, expectedRevision: switchDialog.before.revision, sourceId: sourceId.value } });
-        switchDialog.appliedRevision = result.document.revision; applyDocument(result.document); await refreshNuxtData("editor-document-list");
+        switchDialog.appliedRevision = result.document.revision; applyDocument(result.document); sessionActions.upsertDocument(result.document);
     } catch (error: any) { switchError.value = error?.data?.statusMessage ?? error?.message ?? "Profile switch failed."; }
     finally { switchingProfile.value = false; }
 };
@@ -125,7 +126,7 @@ const undoSwitch = async () => {
     switchingProfile.value = true;
     try {
         const restored = await $fetch<CvDocument>(`/api/cvs/${encodeURIComponent(resolvedId.value)}`, { method: "PUT", body: { markdown: switchDialog.before.markdown, css: switchDialog.before.css, expectedRevision: switchDialog.appliedRevision, sourceId: sourceId.value } });
-        applyDocument(restored); switchDialog.appliedRevision = 0; await refreshNuxtData("editor-document-list");
+        applyDocument(restored); switchDialog.appliedRevision = 0; sessionActions.upsertDocument(restored);
     } catch (error: any) { switchError.value = error?.data?.statusMessage ?? error?.message ?? "Undo failed."; }
     finally { switchingProfile.value = false; }
 };

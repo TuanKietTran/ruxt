@@ -2,9 +2,11 @@ import type { H3Event } from "h3";
 import { setMediatorObserver } from "@ruxt/shared/cqrs";
 import { normalizeRoutePath } from "@ruxt/shared/analytics";
 
-const FLUSH_INTERVAL_MS = 30_000;
 // Workers forbid timers in global scope and isolates are short-lived, so flush opportunistically after responses.
 const isWorker = import.meta.preset === "cloudflare-module";
+// Each flush is a KV read and write per metric kind; on Workers that spends the Free plan's 1,000 daily
+// KV writes within hours of editing at 30 s, so Worker isolates merge their samples every five minutes.
+const FLUSH_INTERVAL_MS = isWorker ? 5 * 60_000 : 30_000;
 let lastFlushAt = 0;
 const isAsset = (path: string) => path.startsWith("/_") || /\.[a-z0-9]{1,8}$/i.test(path);
 

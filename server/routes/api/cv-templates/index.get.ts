@@ -6,6 +6,7 @@ import { isCatalogTemplate } from "../../../adapters/cv/template-repo";
 
 export default defineEventHandler(async (event) => {
    await requireCvOwner(event);
+   setPrivateCache(event, 60);
    const templates = await sendApiRequest<CvTemplate[]>(useMediator(), listCvTemplatesQuery());
    return { templates: templates.filter(isCatalogTemplate) };
 });

@@ -55,7 +55,12 @@ await context.addCookies([{ name: "__clerk_db_jwt", value: "dvb_x", url: BASE }]
 await context.route(/clerk\.accounts\.dev/, r => r.abort());
 const page = context.pages()[0] ?? await context.newPage();
 page.on("pageerror", e => !/Clerk/.test(e.message) && console.log("  pageerror:", e.message));
-const typeInEditor = async text => { await page.click(".cm-content"); await page.keyboard.press("Control+End"); await page.keyboard.type(text); };
+const typeInEditor = async text => {
+  // The home route opens the template picker; a new draft starts from its blank card.
+  const blank = await page.$(".template-card--blank");
+  if (blank) await blank.click();
+  await page.click(".cm-content"); await page.keyboard.press("Control+End"); await page.keyboard.type(text);
+};
 const sessionIdFromUrl = () => new URL(page.url()).searchParams.get("s");
 const goto = async path => { await page.goto(BASE + path, { waitUntil: "load" }); await page.waitForTimeout(1500); };
 
@@ -68,7 +73,8 @@ try {
   const idAlpha = sessionIdFromUrl();
   await page.waitForTimeout(800);
   await typeInEditor("\nAlpha second edit");
-  await page.waitForTimeout(1500);
+  // Autosave waits for a 2 s pause in typing.
+  await page.waitForTimeout(2500);
   await goto("/");
   await typeInEditor("\n\nBeta session body");
   await page.waitForURL(/\?s=/, { timeout: 10000 });
@@ -96,7 +102,7 @@ try {
   // ---- Scenario 2: server goes down mid-edit (rollout), edit is retried without further typing
   await stopServer();
   await typeInEditor("\nEdited during rollout");
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(3000);
   const stateDown = await page.textContent(".save-state");
   check("save shows offline while the server is down", stateDown.trim() === "offline", stateDown);
   await startServer(dirB);

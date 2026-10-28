@@ -4,5 +4,7 @@ import { requireCvOwner } from "../../utils/cv-owner";
 
 export default defineEventHandler(async (event) => {
    await requireCvOwner(event);
+   // Capabilities change only with a deployment; the route stays signed-in only, so never shared caches.
+   setPrivateCache(event, 300);
    return sendApiRequest(useMediator(), getCvCapabilitiesQuery());
 });

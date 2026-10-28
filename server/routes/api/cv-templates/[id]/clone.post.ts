@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
       version: body.version,
       newId: body.newId,
    }));
+   await purgePublicJson(event, "/api/public/templates");
    setResponseStatus(event, 201);
    return template;
 });

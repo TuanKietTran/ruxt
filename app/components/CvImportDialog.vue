@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CvTemplate } from "@ruxt/shared/cv";
 import type { CvImportJobResponse, CvImportPreviewResponse, CvPipelineCapabilitiesResponse } from "~/types/api";
+import { reuseFor } from "~/utils/fetchCache";
 
 const emit = defineEmits<{ close: []; committed: [documentId: string] }>();
 const { openAuthDialog } = useAuthDialog();
@@ -32,19 +33,23 @@ const captureError = (reason: any) => {
     authRequired.value = reason?.statusCode === 401 || reason?.data?.statusCode === 401 || error.value === "Authentication required";
 };
 const signIn = () => openAuthDialog("login", route.fullPath);
-const loadSetup = async () => {
-    try {
-        const [caps, catalog] = await Promise.all([
-            $fetch<CvPipelineCapabilitiesResponse>("/api/cv-capabilities"),
-            $fetch<{ templates: CvTemplate[] }>("/api/public/templates"),
-        ]);
-        capabilities.value = caps;
-        templates.value = catalog.templates;
-        const preferred = catalog.templates[0];
-        if (preferred) templateKey.value = `${preferred.id}:${preferred.version}`;
-        if (!caps.available) error.value = caps.degradedReason ?? "CV extraction is unavailable.";
-    } catch (reason) { captureError(reason); }
-};
+// Capabilities and the public catalog change only with a deployment: reopening the dialog reuses them.
+const { data: setup, error: setupError } = useAsyncData("cv-import-setup", async () => {
+    const [caps, catalog] = await Promise.all([
+        $fetch<CvPipelineCapabilitiesResponse>("/api/cv-capabilities"),
+        $fetch<{ templates: CvTemplate[] }>("/api/public/templates"),
+    ]);
+    return { capabilities: caps, templates: catalog.templates };
+}, { server: false, getCachedData: reuseFor(10 * 60_000) });
+watch(setup, (loaded) => {
+    if (!loaded) return;
+    capabilities.value = loaded.capabilities;
+    templates.value = loaded.templates;
+    const preferred = loaded.templates[0];
+    if (preferred) templateKey.value = `${preferred.id}:${preferred.version}`;
+    if (!loaded.capabilities.available) error.value = loaded.capabilities.degradedReason ?? "CV extraction is unavailable.";
+}, { immediate: true });
+watch(setupError, (reason) => { if (reason) captureError(reason); }, { immediate: true });
 
 const selectFile = (candidate?: File) => {
     if (!candidate) return;
@@ -115,13 +120,12 @@ const commit = async () => {
     const documentId = crypto.randomUUID();
     try {
         await $fetch(`/api/cv-imports/${encodeURIComponent(job.value.id)}/commit`, { method: "POST", body: { documentId } });
-        await refreshNuxtData("editor-document-list");
+        // The layout re-reads the session list when it handles `committed`.
         emit("committed", documentId);
     } catch (reason) { captureError(reason); }
     finally { busy.value = false; }
 };
 
-onMounted(loadSetup);
 onBeforeUnmount(() => { if (pollTimer) clearTimeout(pollTimer); });
 </script>
 

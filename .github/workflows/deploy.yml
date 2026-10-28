@@ -37,6 +37,8 @@ jobs:
         run: pnpm build
       - name: Cloudflare build
         run: pnpm cf:build
+      - name: Request budget guardrail
+        run: pnpm check:request-budget
       - name: Wrangler dry run
         run: pnpm cf:deploy:dry
 

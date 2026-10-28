@@ -1,26 +1,24 @@
-import type { CvDocument, CvDocumentSummary, CvTemplate } from "@ruxt/shared/cv";
+import type { CvDocument, CvDocumentProps, CvDocumentSummary, CvTemplate } from "@ruxt/shared/cv";
 import type { CvSessionBackupEntry } from "@ruxt/shared/cv";
+import { cvTitleFromMarkdown } from "@ruxt/shared/cv";
 import { clearCvSessionBackup, readCvSessionBackup, writeCvSessionBackup } from "~/utils/cvSessionBackup";
 
-const CV_SESSION_DELTA_WINDOW_MS = 5 * 60 * 1000;
-const CV_SESSION_DELTA_BATCH_MS = 750;
-let deltaRefreshTimer: ReturnType<typeof setTimeout> | undefined;
-let deltaRefreshPromise: Promise<void> | undefined;
+let refreshPromise: Promise<void> | undefined;
 
 type CvIndex = { documents: CvDocumentSummary[] };
+type CvTemplateIndex = { templates: CvTemplate[] };
 
 /**
  * Local-first lifecycle actions for CV sessions.
  *
  * The sidebar is updated from local state before the network mutation, so delete/fork/rename keep
- * working while the server or backing storage is slow. The expensive server-list refresh is treated
- * as a delta check and is called at most once per five-minute action window; individual mutations
- * already return enough information to keep the local list accurate.
+ * working while the server or backing storage is slow. Each mutation's response keeps the local list
+ * accurate, so the server list is fetched again only after a failed mutation or the refresh button.
  */
 export function useCvSessionActions() {
     const nuxtApp = useNuxtApp();
     const { data: cvIndex } = useNuxtData<CvIndex>("editor-document-list");
-    const lastDeltaRefreshAt = useState<number>("cv-session:last-delta-refresh-at", () => 0);
+    const { data: templateIndex } = useNuxtData<CvTemplateIndex>("editor-template-list");
 
     const mutateDocuments = (mutator: (documents: CvDocumentSummary[]) => CvDocumentSummary[]) => {
         const current = cvIndex.value?.documents ?? [];
@@ -42,6 +40,14 @@ export function useCvSessionActions() {
         });
     };
 
+    /** Reflect a document a request just returned in the sidebar, titled the way the server lists it. */
+    const upsertDocument = (document: Pick<CvDocumentProps, "id" | "title" | "markdown" | "revision" | "updatedAt">) => {
+        const title = document.title?.trim() && document.title.trim() !== "Untitled CV"
+            ? document.title.trim()
+            : cvTitleFromMarkdown(document.markdown) ?? document.title;
+        upsertSummary({ id: document.id, title, revision: document.revision, updatedAt: document.updatedAt });
+    };
+
     const cacheDocument = (document: CvDocument) => {
         if (import.meta.client) nuxtApp.payload.data[`cv-document:${document.id}`] = document;
     };
@@ -56,21 +62,10 @@ export function useCvSessionActions() {
         if (import.meta.client) delete nuxtApp.payload.data[`cv-document:${id}`];
     };
 
+    /** Re-read the server list once, sharing an in-flight request (after a failed mutation). */
     const refreshDocumentsNow = async () => {
-        if (deltaRefreshTimer) clearTimeout(deltaRefreshTimer);
-        deltaRefreshTimer = undefined;
-        deltaRefreshPromise ??= refreshNuxtData("editor-document-list").finally(() => { deltaRefreshPromise = undefined; });
-        await deltaRefreshPromise;
-    };
-
-    const queueDeltaRefresh = () => {
-        const now = Date.now();
-        if (now - lastDeltaRefreshAt.value < CV_SESSION_DELTA_WINDOW_MS || deltaRefreshTimer) return;
-        lastDeltaRefreshAt.value = now;
-        deltaRefreshTimer = setTimeout(() => {
-            deltaRefreshTimer = undefined;
-            deltaRefreshPromise ??= refreshNuxtData("editor-document-list").finally(() => { deltaRefreshPromise = undefined; });
-        }, CV_SESSION_DELTA_BATCH_MS);
+        refreshPromise ??= refreshNuxtData("editor-document-list").finally(() => { refreshPromise = undefined; });
+        await refreshPromise;
     };
 
     const renameDocument = async (id: string, title: string) => {
@@ -87,7 +82,6 @@ export function useCvSessionActions() {
             upsertSummary({ id: updated.id, title: updated.title, revision: updated.revision, updatedAt: updated.updatedAt });
             const backup = readCvSessionBackup(updated.id);
             if (backup) writeCvSessionBackup(updated.id, { ...backup, title: updated.title });
-            queueDeltaRefresh();
         } catch (error) {
             await refreshDocumentsNow();
             throw error;
@@ -109,7 +103,6 @@ export function useCvSessionActions() {
             cacheDocument(forked);
             writeCvSessionBackup(forked.id, { markdown: forked.markdown, css: forked.css, title: forked.title, revision: forked.revision, pending: false });
             upsertSummary({ id: forked.id, title: forked.title, revision: forked.revision, updatedAt: forked.updatedAt });
-            queueDeltaRefresh();
         } catch (error) {
             removeSummary(newId);
             clearCvSessionBackup(newId);
@@ -124,12 +117,9 @@ export function useCvSessionActions() {
         removeSummary(id);
         try {
             await $fetch(`/api/cvs/${encodeURIComponent(id)}`, { method: "DELETE" });
-            queueDeltaRefresh();
         } catch (error: any) {
-            if (error?.statusCode === 404) {
-                queueDeltaRefresh();
-                return;
-            }
+            // Already gone on the server: the local removal is the whole result.
+            if (error?.statusCode === 404) return;
             cvIndex.value = { documents: previous };
             await refreshDocumentsNow();
             throw error;
@@ -145,7 +135,6 @@ export function useCvSessionActions() {
             });
             cacheDocument(recovered);
             upsertSummary({ id: recovered.id, title: recovered.title, revision: recovered.revision, updatedAt: recovered.updatedAt });
-            queueDeltaRefresh();
         } catch (error: any) {
             if (error?.statusCode === 409) return;
             await refreshDocumentsNow();
@@ -163,7 +152,6 @@ export function useCvSessionActions() {
             cacheDocument(created);
             writeCvSessionBackup(created.id, { markdown: created.markdown, css: created.css, title: created.title, revision: created.revision, pending: false });
             upsertSummary({ id: created.id, title: created.title, revision: created.revision, updatedAt: created.updatedAt });
-            queueDeltaRefresh();
         } catch (error) {
             removeSummary(documentId);
             clearCvSessionBackup(documentId);
@@ -178,7 +166,11 @@ export function useCvSessionActions() {
                 method: "POST",
                 body: { version, newId },
             });
-            await refreshNuxtData("editor-template-list");
+            if (templateIndex.value) {
+                const templates = [...templateIndex.value.templates, cloned]
+                    .sort((left, right) => left.name.localeCompare(right.name) || right.version - left.version);
+                templateIndex.value = { templates };
+            }
             return cloned;
         } catch (error) {
             await refreshNuxtData("editor-template-list");
@@ -186,5 +178,5 @@ export function useCvSessionActions() {
         }
     };
 
-    return { renameDocument, forkDocument, deleteDocument, recoverSession, createFromTemplate, cloneTemplate, refreshDocumentsNow, queueDeltaRefresh };
+    return { renameDocument, forkDocument, deleteDocument, recoverSession, createFromTemplate, cloneTemplate, refreshDocumentsNow, upsertDocument };
 }

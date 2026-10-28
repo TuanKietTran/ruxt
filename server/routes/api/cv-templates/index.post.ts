@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
       css: body?.css as string,
       overrideId: body?.overrideId || undefined,
    }));
+   await purgePublicJson(event, "/api/public/templates");
    setResponseStatus(event, 201);
    return template;
 });

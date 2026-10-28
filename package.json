@@ -15,6 +15,8 @@
     "test:workerd": "vitest run --config vitest.workerd.config.ts",
     "test:smoke": "SMOKE_BASE_URL=${SMOKE_BASE_URL:-http://localhost:3000} vitest run tests/smoke",
     "test:session-continuity": "node scripts/check-session-continuity.mjs",
+    "check:request-budget": "node scripts/check-request-budget.js",
+    "measure:requests": "node scripts/measure-request-volume.js",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",

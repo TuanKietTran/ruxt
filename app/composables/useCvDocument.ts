@@ -1,8 +1,16 @@
 import type { CvDocumentProps as CvDocument, CvUpdateEvent } from "@ruxt/shared/cv";
 import { shouldRestoreCvBackup } from "@ruxt/shared/cv";
-import { readCvSessionBackup, writeCvSessionBackup } from "~/utils/cvSessionBackup";
+import { CV_SESSION_BACKUP_PREFIX, readCvSessionBackup, writeCvSessionBackup } from "~/utils/cvSessionBackup";
 
 export type CvSaveState = "saved" | "saving" | "conflict" | "offline";
+
+// Autosave waits for a pause in typing, but never holds an edit back longer than the max wait.
+const SAVE_DEBOUNCE_MS = 2_000;
+const SAVE_MAX_WAIT_MS = 10_000;
+// Coming back to a tab re-checks the server only after a real absence, so tab flicking costs nothing.
+const REFRESH_AFTER_AWAY_MS = 30_000;
+const POLL_BACKOFF_STEPS = 4;
+type ServerVersion = Pick<CvDocument, "revision" | "updatedAt" | "title">;
 
 export async function useCvDocument(
     id: string,
@@ -10,15 +18,21 @@ export async function useCvDocument(
 ) {
     // Lifecycle hooks must be registered before the first await, or Vue drops them.
     const nuxtApp = useNuxtApp();
+    const { cvLiveEvents, cvPollSeconds } = useRuntimeConfig().public;
     let mounted: (() => void) | undefined;
     let unmounting: (() => void) | undefined;
+    let activated: (() => void) | undefined;
+    let deactivated: (() => void) | undefined;
     onMounted(() => mounted?.());
     onBeforeUnmount(() => unmounting?.());
+    // Sessions stay alive in the page's <KeepAlive> after switching away; a hidden one must not poll.
+    onActivated(() => activated?.());
+    onDeactivated(() => deactivated?.());
 
     const { data } = await useFetch<CvDocument>(`/api/cvs/${encodeURIComponent(id)}`, {
         key: `cv-document:${id}`,
         // Reuse a document the sidebar already warmed so opening a session does not wait on the network;
-        // the event stream and local backup reconcile anything newer.
+        // the revision probe and local backup reconcile anything newer.
         getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] ?? nuxtApp.static.data[key],
     });
 
@@ -30,14 +44,22 @@ export async function useCvDocument(
     const sourceId = ref("");
     let applyingRemote = false;
     let dirty = false;
+    let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let firstEditAt = 0;
     let saveQueue = Promise.resolve();
+    let savesInFlight = 0;
     let events: EventSource | undefined;
-    let pollTimer: ReturnType<typeof setInterval> | undefined;
+    // What the server holds, as far as this tab knows: the source (to skip no-op saves) and the
+    // validator fields (to ask for the document only if it changed).
+    let serverSource = data.value ? { markdown: data.value.markdown, css: data.value.css } : undefined;
+    let serverVersion: ServerVersion | undefined = data.value ?? undefined;
 
+    const documentUrl = () => `/api/cvs/${encodeURIComponent(resolvedId.value)}`;
     const backup = (pending: boolean) => {
         if (import.meta.client) writeCvSessionBackup(resolvedId.value, { markdown: markdown.value, css: css.value, revision: revision.value, pending });
     };
+    const liveEventsOpen = () => Boolean(events && events.readyState !== EventSource.CLOSED);
 
     // A failed save (offline, or a deployment rolling over) is retried with backoff, and again when the
     // browser comes back online or the tab becomes visible, until the server has the edit.
@@ -56,23 +78,77 @@ export async function useCvDocument(
         cancelRetry();
         flush();
     };
-    const retryWhenVisible = () => { if (document.visibilityState === "visible") retryNow(); };
 
     const applyRemote = (document: CvDocument) => {
-        if (dirty || document.revision <= revision.value) return;
+        if (dirty || document.revision <= revision.value) return false;
         applyingRemote = true;
         markdown.value = document.markdown;
         css.value = document.css;
         revision.value = document.revision;
+        serverSource = { markdown: document.markdown, css: document.css };
+        serverVersion = document;
         saveState.value = "saved";
         backup(false);
         nextTick(() => { applyingRemote = false; });
+        return true;
     };
 
+    // Revision probe: a conditional GET that the server answers with 304 (one storage read, no body)
+    // while the document is unchanged. Without live events this replaces the old 3 s poll.
+    let pollTimer: ReturnType<typeof setTimeout> | undefined;
+    let pollFailures = 0;
+    let pollStopped = false;
+    let refreshing = false;
+    const clearPoll = () => { if (pollTimer) clearTimeout(pollTimer); pollTimer = undefined; };
+    const schedulePoll = () => {
+        clearPoll();
+        if (!import.meta.client || !active || !cvPollSeconds || pollStopped || liveEventsOpen() || document.visibilityState !== "visible") return;
+        const delay = cvPollSeconds * 1000 * 2 ** Math.min(pollFailures, POLL_BACKOFF_STEPS);
+        pollTimer = setTimeout(() => { pollTimer = undefined; void refresh(); }, delay);
+    };
+    const refresh = async () => {
+        // Pending local edits win; their save answers with the server's revision (or a 409) anyway.
+        if (refreshing || dirty || timer) return schedulePoll();
+        refreshing = true;
+        try {
+            const response = await $fetch.raw<CvDocument>(documentUrl(), {
+                headers: serverVersion ? { "if-none-match": cvDocumentEtag(serverVersion) } : undefined,
+                ignoreResponseError: true,
+                retry: 0,
+            });
+            if (response.status === 304 || response.ok) {
+                pollFailures = 0;
+                if (response.ok && response._data) applyRemote(response._data);
+                if (!dirty && saveState.value === "offline") saveState.value = "saved";
+            } else if ([401, 403, 404].includes(response.status)) {
+                // Signed out, forbidden or deleted: polling cannot fix that; saves still recreate a lost session.
+                pollStopped = true;
+            } else {
+                pollFailures += 1;
+            }
+        } catch {
+            pollFailures += 1;
+            if (saveState.value === "saved") saveState.value = "offline";
+        } finally {
+            refreshing = false;
+            schedulePoll();
+        }
+    };
+
+    let awaySince = 0;
+    const leave = () => { awaySince ||= Date.now(); };
+    const comeBack = () => {
+        const away = awaySince ? Date.now() - awaySince : 0;
+        awaySince = 0;
+        if (away > REFRESH_AFTER_AWAY_MS && !liveEventsOpen()) void refresh();
+        else schedulePoll();
+    };
+
+    // Same-origin SSE fan-out for self-hosted deployments. Workers answer 501, so it is never opened there.
     const connect = () => {
-        if (pollTimer) return;
+        if (!cvLiveEvents) return schedulePoll();
         events?.close();
-        events = new EventSource(`/api/cvs/${encodeURIComponent(resolvedId.value)}/events`);
+        events = new EventSource(`${documentUrl()}/events`);
         events.addEventListener("ready", (event) => {
             const update = JSON.parse((event as MessageEvent).data) as { document: CvDocument };
             applyRemote(update.document);
@@ -83,28 +159,24 @@ export async function useCvDocument(
         });
         events.onerror = () => {
             if (saveState.value === "saved") saveState.value = "offline";
-            // Cloudflare Workers do not provide a cross-isolate event hub. Fall back to bounded polling.
+            // The stream is retried after the next successful save; meanwhile probe slowly.
             events?.close();
-            pollTimer ??= setInterval(async () => {
-                try {
-                    const remote = await $fetch<CvDocument>(`/api/cvs/${encodeURIComponent(resolvedId.value)}`);
-                    applyRemote(remote);
-                } catch {
-                    if (saveState.value === "saved") saveState.value = "offline";
-                }
-            }, 3_000);
+            schedulePoll();
         };
         events.onopen = () => {
+            clearPoll();
             if (!dirty) saveState.value = "saved";
         };
     };
 
-    const writeSnapshot = async (snapshot: { markdown: string; css: string; sourceId: string }) => {
-        const url = `/api/cvs/${encodeURIComponent(resolvedId.value)}`;
+    const writeSnapshot = async (snapshot: { markdown: string; css: string; sourceId: string }, keepalive: boolean) => {
+        const url = documentUrl();
         try {
             return await $fetch<CvDocument>(url, {
                 method: "PUT",
                 body: { ...snapshot, expectedRevision: revision.value || undefined },
+                // A save started while the page is hidden or unloading must outlive it.
+                keepalive,
             });
         } catch (error: any) {
             if (error?.statusCode !== 404) throw error;
@@ -122,29 +194,52 @@ export async function useCvDocument(
         }
     };
 
-    const flush = () => {
+    const flush = (keepalive = false) => {
         timer = undefined;
+        firstEditAt = 0;
         const snapshot = {
             markdown: markdown.value,
             css: css.value,
             sourceId: sourceId.value,
         };
+        // Edits that end where they started (undo, retyping) send nothing.
+        if (!savesInFlight && serverSource && serverSource.markdown === snapshot.markdown && serverSource.css === snapshot.css) {
+            dirty = false;
+            saveState.value = "saved";
+            cancelRetry();
+            backup(false);
+            return;
+        }
+        savesInFlight += 1;
         saveQueue = saveQueue.then(async () => {
             try {
-                const updated = await writeSnapshot(snapshot);
+                const updated = await writeSnapshot(snapshot, keepalive);
                 revision.value = updated.revision;
+                serverSource = { markdown: snapshot.markdown, css: snapshot.css };
+                serverVersion = updated;
                 dirty = markdown.value !== snapshot.markdown || css.value !== snapshot.css;
                 saveState.value = dirty ? "saving" : "saved";
                 retryAttempt = 0;
                 cancelRetry();
                 backup(dirty);
+                // The PUT response is the post-save refresh: it carries the stored revision, so no GET follows.
+                pollStopped = false;
+                schedulePoll();
                 // A stream refused while the session was missing does not retry on its own.
-                if (events?.readyState === EventSource.CLOSED) connect();
+                if (cvLiveEvents && events?.readyState === EventSource.CLOSED) connect();
             } catch (error: any) {
                 saveState.value = error?.statusCode === 409 ? "conflict" : "offline";
                 if (saveState.value === "offline") scheduleRetry();
+            } finally {
+                savesInFlight -= 1;
             }
         });
+    };
+    /** Save a waiting edit now instead of at the end of its debounce. */
+    const flushPending = (keepalive = false) => {
+        if (!timer) return;
+        clearTimeout(timer);
+        flush(keepalive);
     };
 
     const save = () => {
@@ -152,11 +247,37 @@ export async function useCvDocument(
         dirty = true;
         saveState.value = "saving";
         backup(true);
+        const now = Date.now();
+        firstEditAt ||= now;
         if (timer) clearTimeout(timer);
-        timer = setTimeout(flush, 450);
+        timer = setTimeout(flush, Math.max(0, Math.min(SAVE_DEBOUNCE_MS, firstEditAt + SAVE_MAX_WAIT_MS - now)));
     };
 
     watch([markdown, css], save);
+
+    const onVisibilityChange = () => {
+        if (!active) return;
+        if (document.visibilityState === "hidden") {
+            flushPending(true);
+            clearPoll();
+            leave();
+        } else {
+            retryNow();
+            comeBack();
+        }
+    };
+    const onBlur = () => { if (active) { flushPending(); leave(); } };
+    const onFocus = () => { if (active) comeBack(); };
+    const onPageHide = () => flushPending(true);
+    const onOnline = () => { if (active) retryNow(); };
+    // Another tab of this browser saved the session: adopt its saved copy without a request.
+    const onStorage = (event: StorageEvent) => {
+        if (event.key !== CV_SESSION_BACKUP_PREFIX + resolvedId.value) return;
+        const saved = readCvSessionBackup(resolvedId.value);
+        if (!saved || saved.pending || saved.revision <= revision.value) return;
+        // Its validator fields are unknown here, so the next probe asks for the full document once.
+        if (applyRemote({ id: resolvedId.value, markdown: saved.markdown, css: saved.css, revision: saved.revision, updatedAt: "" })) serverVersion = undefined;
+    };
 
     mounted = () => {
         sourceId.value = crypto.randomUUID();
@@ -172,28 +293,44 @@ export async function useCvDocument(
             backup(false);
         }
         connect();
-        window.addEventListener("online", retryNow);
-        document.addEventListener("visibilitychange", retryWhenVisible);
+        window.addEventListener("online", onOnline);
+        window.addEventListener("blur", onBlur);
+        window.addEventListener("focus", onFocus);
+        window.addEventListener("pagehide", onPageHide);
+        window.addEventListener("storage", onStorage);
+        document.addEventListener("visibilitychange", onVisibilityChange);
+    };
+
+    deactivated = () => {
+        flushPending();
+        clearPoll();
+        leave();
+        active = false;
+    };
+    activated = () => {
+        if (active) return;
+        active = true;
+        comeBack();
     };
 
     unmounting = () => {
         // Leaving the session (for example, to view a template) must not drop the last edit.
-        if (timer) {
-            clearTimeout(timer);
-            flush();
-        }
+        flushPending();
         cancelRetry();
-        if (pollTimer) clearInterval(pollTimer);
-        pollTimer = undefined;
-        window.removeEventListener("online", retryNow);
-        document.removeEventListener("visibilitychange", retryWhenVisible);
+        clearPoll();
+        window.removeEventListener("online", onOnline);
+        window.removeEventListener("blur", onBlur);
+        window.removeEventListener("focus", onFocus);
+        window.removeEventListener("pagehide", onPageHide);
+        window.removeEventListener("storage", onStorage);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
         events?.close();
         // Drop the cached copy so the next visit does not open a stale revision.
         if (import.meta.client) delete nuxtApp.payload.data[`cv-document:${id}`];
     };
 
     /** Adopt a server-written document (for example, a profile switch) without re-saving it. */
-    const applyDocument = (document: CvDocument) => applyRemote(document);
+    const applyDocument = (document: CvDocument) => { applyRemote(document); };
     const isDirty = () => dirty;
 
     return { resolvedId, markdown, css, revision, saveState, sourceId, applyDocument, isDirty };

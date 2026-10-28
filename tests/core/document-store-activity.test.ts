@@ -1,17 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createCvDocument, getCvDocument, listCvDocuments, renameCvDocument, updateCvDocument } from "../../server/adapters/cv/document-store";
+import { createCvDocument, getCvDocument, listCvDocuments, peekCvDocument, renameCvDocument, updateCvDocument } from "../../server/adapters/cv/document-store";
 
 const id = "abc123abc123abc123abc123abc123ab";
 let items: Map<string, unknown>;
 let writes: number;
+let lists: number;
+let meta: Record<string, unknown>;
 beforeEach(() => {
     items = new Map();
     writes = 0;
+    lists = 0;
+    meta = {};
     vi.stubGlobal("useStorage", () => ({
         getItem: async (key: string) => structuredClone(items.get(key)),
         setItem: async (key: string, value: unknown) => { writes++; items.set(key, structuredClone(value)); },
         hasItem: async (key: string) => items.has(key),
-        getKeys: async (prefix: string) => [...items.keys()].filter(key => key.startsWith(prefix)),
+        getKeys: async (prefix: string) => { lists++; return [...items.keys()].filter(key => key.startsWith(prefix)); },
+        getMeta: async () => meta,
     }));
     vi.stubGlobal("createError", (input: object) => Object.assign(new Error(), input));
 });
@@ -52,5 +57,18 @@ describe("CV content activity", () => {
         expect((await getCvDocument(id)).toJSON()).toEqual(migrated.toJSON());
         await listCvDocuments();
         expect(writes).toBe(initialWrites);
+    });
+
+    it("lists storage keys once when no legacy session needs a new route", async () => {
+        await createCvDocument(id, source);
+        lists = 0;
+        await listCvDocuments();
+        expect(lists).toBe(1);
+    });
+
+    it("peeks the validator fields from storage metadata and reports when the driver has none", async () => {
+        expect(await peekCvDocument(id)).toBeUndefined();
+        meta = { revision: 7, updatedAt: "2026-10-28T00:00:00.000Z", title: "Ada" };
+        expect(await peekCvDocument(id)).toEqual({ revision: 7, updatedAt: "2026-10-28T00:00:00.000Z", title: "Ada" });
     });
 });

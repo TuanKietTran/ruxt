@@ -8,6 +8,7 @@ import { clearCvNewSessionDraft, readCvNewSessionDraft, writeCvNewSessionDraft }
 definePageMeta({ layout: false, editorContext: "cv" });
 
 const route = useRoute();
+const sessionActions = useCvSessionActions();
 const queryValue = (value: unknown) => typeof value === "string" && value ? value : undefined;
 const sessionId = computed(() => queryValue(route.query.t) ? undefined : queryValue(route.query.s));
 
@@ -77,7 +78,7 @@ const registerDraft = () => {
                 }
                 revision.value = created.revision;
                 saveState.value = "saved";
-                await refreshNuxtData("editor-document-list");
+                sessionActions.upsertDocument(created);
                 await navigateTo({ path: "/", query: { s: id } });
                 clearCvNewSessionDraft();
             } catch (error: any) {
