@@ -1,7 +1,5 @@
 # Subscriptions And Catalog
 
-Last updated: feat/ruxt-core-split@4dd5c27 | 2026-10-22
-
 ## Scope
 
 This spec covers:
@@ -16,7 +14,7 @@ Authentication and authorization boundaries are specified in [auth-iam-security.
 
 ## Distribution boundary
 
-Catalog, subscription, money/currency/billing-cycle rules, related handlers and ports remain private `@ruxt/core`, depending on generic `@ruxt/shared` datetime/value objects rather than being copied into the public package. Dashboard HTTP DTOs and money presentation are app-owned; browser code does not import private core, even type-only. The shared formatter preserves the existing eight-currency minor-unit and nominal monthly-spend calculations. This package split does not alter lifecycle, rounding, authorization or API behavior.
+Catalog, subscription, money/currency/billing-cycle rules, related handlers and ports remain private `@ruxt/core`, depending on generic `@ruxt/shared` datetime/value objects rather than being copied into the public package. Dashboard HTTP DTOs and money presentation are app-owned; browser code does not import private core, even type-only. The shared formatter preserves the existing eight-currency minor-unit and nominal monthly-spend calculations.
 
 ## Catalog Model
 

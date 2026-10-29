@@ -1,108 +1,25 @@
-# CV Documents And Realtime Sync
+# Local CV sessions
 
-Last updated: fix/reduce-request-volume@bf66288 | 2026-10-28
+## Storage
 
-## Scope
+app/utils/localCvStore.ts is the primary session store for every visitor. It supports list, get, create, save, rename, fork, delete, and revision metadata. Session ids are independent of titles. New sessions use UUIDs.
 
-This spec covers:
+Existing cv-sv:session-backup:* records and cv-sv:new-session-draft remain recoverable as local sessions. Browser storage is origin-specific; another hostname or device does not share it. Clearing site data removes local records.
 
-- document transport/domain contracts in `core/domain/cv/document.ts`;
-- server ownership in `server/adapters/cv/document-store.ts`;
-- Nitro routes under `server/routes/api/cvs/`;
-- client autosave, EventSource and revision-probe behavior in `app/composables/useCvDocument.ts`, with the shared validator in `shared/utils/cvDocumentEtag.ts`;
-- Nitro `cv` storage configuration in `nuxt.config.ts`.
+## Autosave
 
-MCP callers are specified in [mcp-automation.md](mcp-automation.md); editor rendering is specified in [cv-editor.md](cv-editor.md).
+app/composables/useCvDocument.ts saves complete Markdown/CSS snapshots after 500 ms idle, with a 3-second maximum wait. Failed browser writes preserve the stored copy and in-memory edits, show an error state, and retry after 5 seconds.
 
-## Document Contract
+Pending edits flush on page hide, hidden visibility, editor deactivation, and unmount. Storage events adopt newer local revisions only while the editor is clean. Dirty content is never overwritten automatically. Deleted sessions are not recreated by pending saves.
 
-A `CvDocument` contains `id`, complete `markdown`, complete `css`, monotonically increasing integer `revision`, and ISO `updatedAt`. List results contain only `id`, `revision`, and `updatedAt`. Updates may replace Markdown, CSS, or both and may include `expectedRevision` and a caller-defined `sourceId`.
+## Server boundary
 
-Document ids must match `^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$`. Invalid ids return HTTP 400. Markdown is limited to 500,000 characters and CSS to 100,000 characters on update; exceeding either limit returns HTTP 413. Values supplied for Markdown or CSS must be strings.
+The ownerless server document store is retired. It does not open, seed, migrate, or serve documents:* keys. Its list returns empty; document operations fail with 404.
 
-## Storage And Seeding
+Nitro middleware requires authentication for /api/cvs and /api/cv-profiles paths even when their routes are absent. Anonymous callers receive 401; signed-in callers reach the removed route's 404. MCP CV tools also require authentication and report unavailable.
 
-`server/adapters/cv/document-store.ts` owns all server-side CV reads and writes. It stores records in Nitro storage namespace `cv` under `documents:<id>`. `nuxt.config.ts` configures that namespace with the filesystem driver and `CV_DATA_DIR`, defaulting to `./.data/cv`.
+No server autosave, document SSE, or revision polling runs in the current browser editor. Local editing needs no CV network request.
 
-Opening an absent document creates it at revision 1. `master` receives the reference Markdown and CSS; other valid ids receive generated starter Markdown and the reference CSS. Listing lazily seeds `master` when no document keys exist, then sorts summaries by descending `updatedAt`.
+## Cloud copies
 
-The repository's local `.data/` content is runtime user data and is ignored by Git. Seed assets under `app/data/` are source; persisted documents under `.data/` are not source.
-
-## HTTP API
-
-- `GET /api/cvs`: returns `{ documents: CvDocumentSummary[] }` with `Cache-Control: private, no-cache` and `Vary: Cookie, Authorization`.
-- `POST /api/cvs`: explicitly creates one document from a random UUID, independent title, and complete Markdown/CSS, returning 201; the `/` placeholder uses this route only after its first edit.
-- `GET /api/cvs/:id`: reads or lazily creates the complete document. Responses carry a strong `ETag` from `cvDocumentEtag()` (revision, `updatedAt`, title) and `Cache-Control: private, no-cache` with `Vary: Cookie, Authorization`. A matching `If-None-Match` answers 304 without a body; on Workers KV the match is decided from one key read (chunk-manifest metadata or the small value itself) without reading chunks.
-- `PUT /api/cvs/:id`: applies complete-field replacements from `UpdateCvDocumentInput` and returns the new complete document.
-- `PATCH /api/cvs/:id`: renames the independent sidebar title without changing the route id.
-- `POST /api/cvs/:id/fork`: copies content to a new UUID route id and independent title.
-- `GET /api/cvs/:id/events`: opens an SSE stream.
-
-When `expectedRevision` is present and differs from current storage, update returns HTTP 409 with the current document in error `data`. Accepted writes increment revision by one, refresh `updatedAt`, persist, then publish a process-local update containing the optional `sourceId`.
-
-Writes for the same id are chained through a process-local promise queue, including recovery after a rejected write. Different ids can write concurrently.
-
-## Route-ID Soft Migration
-
-Session route identity is independent from its sidebar title. Newly created records use UUID ids and persist `title: "Untitled CV"`, a placeholder rather than an explicit name: listings label such sessions by their CV `#` heading (so a profile switch labels the session by that person) until the session is renamed; forked records use a UUID plus an explicit copy title. Renaming changes only `title`, so the `/?s=<id>` route remains stable.
-
-When document listing or an old slug lookup encounters a legacy non-hash id, including the former `master` record, the filesystem adapter deterministically derives a 32-character SHA-256 route id, copies the complete record under that id with its human title preserved, and writes `document-route-migrations:<legacy-id>` as an alias. The legacy record remains for rollback but is suppressed from listings. Old slug query values resolve through the alias, and the editor replace-navigates to `/?s=<hash>`. Existing UUID/hash records always win.
-
-Document list/read also performs an idempotent source-contract migration when persisted CSS contains the legacy `.cv-sheet` or intermediate `.cv-document` selector. Each Markdown page is wrapped with the explicit `:::resume` indicator, its first heading gains `{.cv-name}`, CSS is retargeted to `.resume`/`.cv-name`, and legacy document-global/page-separation rules are removed because the preview owns those concerns. The migrated document is written under the same id with revision incremented once and a refreshed `updatedAt`; sources not matching the legacy selector are unchanged.
-
-## SSE Behavior
-
-On Deno/self-hosted runtimes an events connection receives `ready` with the initial document, `cv:update` after accepted writes in the same server process, and a 20-second comment heartbeat. Cancellation unsubscribes and clears the heartbeat. On Cloudflare Workers the route returns HTTP 501: KV has no cross-isolate event hub and Workers do not support this long-lived SSE contract. The Cloudflare build sets runtime config `public.cvLiveEvents` to false, so the editor never opens the stream there (the 501 remains for stale clients); remote changes arrive through the revision probe below. This is eventual refresh, not realtime or cross-isolate write serialization.
-
-## Browser Autosave
-
-`useCvDocument()` performs an SSR-compatible initial fetch, then creates local Markdown/CSS refs. If initial fetch has no data, it uses the page fallback, revision 0, and `offline` state.
-
-On the client:
-
-- source changes mark the document dirty and set `saving`;
-- saves wait for a 2 s pause in typing but never longer than 10 s after the first unsaved edit, and serialize through a promise queue;
-- a save whose snapshot equals what the server already holds (and with no save in flight) sends nothing;
-- a waiting edit is saved at once on window blur, when the tab becomes hidden, on `pagehide`, when a kept-alive session is deactivated, and on unmount; hidden/pagehide saves use `fetch` `keepalive` so they outlive the page (a body over the browser's 64 KiB keepalive budget fails and is restored from the local backup on the next visit);
-- each save snapshots both complete source fields and sends the tab's random UUID `sourceId`;
-- `expectedRevision` is omitted when local revision is zero;
-- success updates revision and returns to `saved` only when no newer local edits exist;
-- HTTP 409 becomes `conflict`; other failures become `offline`;
-- an `offline` save retries with backoff (2 s, 5 s, 10 s, then every 30 s), and immediately on the browser `online` event or when the tab becomes visible, until the server acknowledges the edit;
-- a save that finds the session missing (404) re-creates it with `POST /api/cvs`; if that create loses a race (409) the snapshot is saved over the copy that won.
-
-Remote documents apply only when there are no unsaved local changes and their revision is newer. When `cvLiveEvents` is true (self-hosted), mount creates an `EventSource`; updates bearing this tab's `sourceId` are ignored; events from MCP or another browser are eligible. EventSource open restores `saved` only when clean; on stream error it closes the stream and falls back to the revision probe until the next successful save reconnects it.
-
-Without an open stream the editor sends a revision probe, a conditional `GET /api/cvs/:id` with `If-None-Match`, (a) when the window regains focus or the tab becomes visible after more than 30 s away, and (b) every `public.cvPollSeconds` (60 s; 0 disables) while the tab is visible and has no pending edit, doubling the interval after each failure up to 16x and stopping on 401/403/404. A successful save's response is its post-save refresh; no GET follows. Hidden tabs and sessions deactivated in the page's `<KeepAlive>` do not probe. Another tab of the same browser that saves the session updates this one through the `storage` event on its backup key, without a request. Nothing polls faster than 30 s; `pnpm check:request-budget` fails the Cloudflare build otherwise.
-
-## Session Continuity Across Deployments
-
-Server storage is not the only copy of a session. `app/utils/cvSessionBackup.ts` (browser storage only; the restore, recovery, and listing rules are `@ruxt/core`'s `domain/cv/session-backup`) keeps, per browser origin, the latest source of every session the browser opened or edited under `cv-sv:session-backup:<id>` (Markdown, CSS, the server revision it is based on, whether an edit is unacknowledged, title, and local change time). A deployment whose storage misses sessions (a new or different KV database, a lost filesystem, a write that failed during a rollout) therefore cannot lose them:
-
-- opening a session restores the backup when the server copy is missing, older, or lacks an unacknowledged edit, and saves it back explicitly (it may equal the page fallback, which the change watcher would ignore);
-- the editor layout lists server sessions plus backed-up route-id sessions the server did not return (shown as `local`), so they stay reachable even while the server is down or empty;
-- after the session list loads, the layout re-creates every such session on the server from its backup (`POST /api/cvs` with the same id), except the open one, which its editor restores; a 409 means another tab already did;
-- the unregistered `/` draft is kept under `cv-sv:new-session-draft` from the first keystroke until its session is created, restored on reload, and registration retries with backoff and on `online`;
-- the layout still reads the pre-registry `cv-sv:last-cv-route` and `cv-sv:last-profile-route` session-storage keys, so an open tab returns to its session after a deploy.
-
-Deleting a session in this browser removes its backup, so it is not re-created. A session deleted from another browser is re-created by any browser that still holds a backup of it; continuity wins over cross-device deletion until sessions have owners. Backups are per origin, so preview and production deployments on different hostnames never exchange sessions.
-
-`pnpm test:session-continuity` (after `NITRO_PRESET=node-server nuxi build`) drives a real browser profile on one origin across simulated deployments with separate empty storage, a server stopped mid-edit, and a server that is down while a new draft is typed, and checks every session and edit survives, the legacy last-route key, and that deletion is not undone.
-
-## Current Gaps
-
-- CV routes have no authentication, authorization, ownership, or per-user namespace; anyone who can reach the server can list, read, create, update, and stream every valid id.
-- Write queues and SSE listeners are process-local. Multiple Nitro instances do not coordinate writes or broadcast changes through the filesystem store.
-- Conflict state has no merge, reload, overwrite, or current-document UI.
-- Failed saves are not automatically retried unless another source change schedules a save.
-- Without live events (Workers), an edit from another device appears within one probe interval while visible or on return after 30 s away; editing the same session on two devices inside that window ends in a 409 `conflict`.
-- Unmount and page exit flush a pending edit but do not cancel an in-flight request.
-- Update input does not validate `expectedRevision` or `sourceId` types at the HTTP boundary.
-
-## Decision: Local-First CVs, Authenticated Server Routes
-
-- Browser storage is the primary store for every visitor's CV sessions, behind a `LocalCvStore` interface (list, get, create, update, rename, fork, delete, revision). The server `/api/cvs` store and the legacy `documents:*` KV keys are no longer read or served; ownerless legacy documents are therefore invisible (never listed, never returned).
-- Every path under `/api/cvs` and every CV-data `/mcp` tool is gated by `requireAuthUser` in a Nitro middleware, so an anonymous request gets 401 for removed and existing routes alike. A signed-in caller may get 404 on removed routes or on another owner's id; cross-owner existence is never disclosed.
-- Local write or quota failures surface as a visible save error, keep the in-memory content and never drop or overwrite stored data silently.
-- Sessions already in `cv-sv:session-backup:*` and `cv-sv:new-session-draft` appear as local CVs on the first load after the upgrade.
-- Cloud copies are opt-in and owner-scoped (see [authenticated-cloud-data.md](authenticated-cloud-data.md)); PR2 adds `GET /api/cloud-data/export` as the single authenticated read of cloud data (no subscriptions).
+Cloud synchronization is planned, separately consented, and owner-scoped. It must not delete local data or overwrite dirty edits. See [cloud data](authenticated-cloud-data.md).
