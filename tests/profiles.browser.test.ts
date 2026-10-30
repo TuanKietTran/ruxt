@@ -1,6 +1,4 @@
-import { existsSync, readdirSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { chromium, type Browser, type Page } from "playwright-core";
 
@@ -8,21 +6,15 @@ const baseUrl = process.env.PROFILES_BASE_URL?.replace(/\/$/, "");
 if (baseUrl && !["127.0.0.1", "localhost", "[::1]"].includes(new URL(baseUrl).hostname)) {
     throw new Error("Profile browser tests are restricted to a local development server");
 }
-/** CHROMIUM_PATH, else any Playwright-installed Chromium, else Brave (as the pagination test does). */
-function findChromium(): string | undefined {
-    if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
-    const cache = join(homedir(), "Library/Caches/ms-playwright");
-    if (existsSync(cache)) {
-        for (const dir of readdirSync(cache).filter(name => /^chromium-\d+$/.test(name)).sort().reverse()) {
-            const app = join(cache, dir, "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing");
-            if (existsSync(app)) return app;
-        }
-    }
-    const brave = "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser";
-    return existsSync(brave) ? brave : undefined;
+const browserRequired = process.env.PROFILES_BROWSER_REQUIRED === "1";
+if (browserRequired && !baseUrl) {
+    throw new Error("PROFILES_BROWSER_REQUIRED=1 requires PROFILES_BASE_URL pointing to a local dev server");
 }
-const executablePath = findChromium();
-const suite = baseUrl && executablePath ? describe : describe.skip;
+const executablePath = process.env.CHROMIUM_PATH ?? chromium.executablePath();
+if (baseUrl && !existsSync(executablePath)) {
+    throw new Error("Profile browser tests require Chromium. Run `pnpm exec playwright-core install chromium` or set CHROMIUM_PATH to a provisioned browser.");
+}
+const suite = baseUrl ? describe : describe.skip;
 let browser: Browser;
 
 const KEY = "cv-sv:local-profiles:v1";
@@ -34,17 +26,99 @@ const seed = (names: string[]) => names.map((fullName, i) => ({
 const stored = (page: Page) => page.evaluate(key => JSON.parse(localStorage.getItem(key) || "[]") as any[], KEY);
 const cardNames = (page: Page) => page.locator(".profile-card__select strong").evaluateAll(els => els.map(el => el.firstChild!.textContent!.trim()));
 
+async function waitForHydration(page: Page, interactiveSelector?: string) {
+    await page.waitForFunction(() => Boolean((document.querySelector("#__nuxt") as HTMLElement & { __vue_app__?: { _instance?: { isMounted?: boolean } } } | null)?.__vue_app__?._instance?.isMounted));
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    // Root mount can precede hydration of an async page/layout subtree. For action tests,
+    // wait until Vue has attached the specific element handler instead of clicking SSR markup.
+    if (interactiveSelector) {
+        await page.waitForFunction(selector => {
+            const element = document.querySelector(selector) as (HTMLElement & { __vnode?: { props?: { onClick?: unknown } } }) | null;
+            return typeof element?.__vnode?.props?.onClick === "function";
+        }, interactiveSelector);
+    }
+}
+
+async function guardNativeDialogs(page: Page) {
+    await page.addInitScript(() => {
+        const forbidden = () => { throw new Error("Native dialog/print API must not be called"); };
+        window.alert = forbidden;
+        window.confirm = forbidden;
+        window.prompt = forbidden;
+        window.print = forbidden;
+    });
+}
+
 async function open(names: string[]) {
     const page = await browser.newPage();
+    await guardNativeDialogs(page);
     await page.addInitScript(([key, value]) => { if (!localStorage.getItem(key!)) localStorage.setItem(key!, value!); }, [KEY, JSON.stringify(seed(names))]);
     await page.goto(`${baseUrl}/p`);
-    await page.locator(".profile-card").first().waitFor();
+    if (names.length) await page.locator(".profile-card").first().waitFor();
+    else await page.locator(".profiles-empty").waitFor();
+    await waitForHydration(page, names.length ? ".profile-card__select" : ".profile-placeholder .profile-save");
     return page;
 }
 
 suite("profile editor (browser)", { timeout: 60_000 }, () => {
     beforeAll(async () => { browser = await chromium.launch({ executablePath, headless: true }); });
     afterAll(async () => { await browser?.close(); });
+
+    it("opens a new empty profile with Full name focused and keeps it unsaved until valid", async () => {
+        const page = await open([]);
+        await page.locator(".profile-placeholder").waitFor({ state: "visible" });
+        await page.locator(".profile-placeholder .profile-save").click();
+        await page.locator(".profile-sheet").waitFor({ state: "visible" });
+        const fullName = page.locator(".profile-name-section .profile-input");
+        await fullName.waitFor({ state: "visible" });
+        await expect.poll(() => fullName.evaluate(element => element === document.activeElement)).toBe(true);
+        expect(await stored(page)).toEqual([]);
+
+        await fullName.fill(" ");
+        await fullName.press("Enter");
+        await page.getByText("Full name is required to save.").waitFor({ state: "visible" });
+        expect(await stored(page)).toEqual([]);
+
+        await page.locator(".profile-name-section .editable-field__display").click();
+        const correctedName = page.locator(".profile-name-section .profile-input");
+        await correctedName.waitFor({ state: "visible" });
+        await correctedName.fill("New Person");
+        await page.locator(".profile-name-section .profile-input").press("Enter");
+        await page.waitForFunction(key => JSON.parse(localStorage.getItem(key) || "[]").some((profile: any) => profile.identity.fullName === "New Person"), KEY);
+        await page.close();
+    });
+
+    it("opens the form and focuses Full name from the sidebar New profile action", async () => {
+        const page = await open([]);
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.waitForFunction(() => window.matchMedia("(max-width: 900px)").matches);
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+        await waitForHydration(page, '[aria-label="Toggle sidebar"]');
+        await page.getByRole("button", { name: "Toggle sidebar" }).click();
+        await page.locator(".editor-layout--drawer-open").waitFor();
+        await page.locator(".profiles-new").click();
+        await page.locator(".profile-sheet").waitFor({ state: "visible" });
+        const fullName = page.locator('.profile-name-section textarea[placeholder="Your name"]');
+        await fullName.waitFor({ state: "visible" });
+        await expect.poll(() => fullName.evaluate(element => element === document.activeElement)).toBe(true);
+        await page.close();
+    });
+
+    it("keeps Preferences within a 390px viewport after hydration", async () => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        await guardNativeDialogs(page);
+        await page.goto(`${baseUrl}/settings`);
+        await page.getByRole("heading", { name: "Preferences" }).waitFor();
+        await waitForHydration(page);
+        await expect.poll(() => page.evaluate(() => ({
+            viewport: window.innerWidth,
+            document: document.documentElement.scrollWidth,
+            body: document.body.scrollWidth,
+            root: document.querySelector("#__nuxt")?.scrollWidth ?? 0,
+        }))).toEqual({ viewport: 390, document: 390, body: 390, root: 390 });
+        expect(await page.locator(".settings").count()).toBe(1);
+        await page.close();
+    });
 
     it("keeps selection by id and the card order stable while editing; other profiles' updatedAt is untouched", async () => {
         const page = await open(["Alice", "Bob", "Carol"]);

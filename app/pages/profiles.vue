@@ -40,6 +40,7 @@ const persist = (items: LocalProfile[]) => {
 // Fields are click-to-edit; each one saves on its own when its edit is committed. Whether that happens
 // while typing or only on an explicit Save is the `profileSaveMode` preference.
 const { preferences, load: loadPreferences, signedIn } = usePreferences();
+const appDialog = useAppDialog();
 const saveMode = computed(() => preferences.value.profileSaveMode);
 type EntrySection = "contacts" | "experiences" | "skills" | "certifications" | "education" | "projects" | "languages";
 const touched = reactive(new Set<string>());
@@ -141,8 +142,13 @@ const resetFieldState = () => {
     autoEditKey.value = null;
     formKey.value++;
 };
-const confirmDiscard = () => !unsavedKeys.size
-    || confirm(`Discard ${unsavedKeys.size} unsaved ${unsavedKeys.size === 1 ? "edit" : "edits"}?`);
+const confirmDiscard = async () => !unsavedKeys.size || await appDialog.confirm({
+    title: "Discard unsaved changes?",
+    message: `Discard ${unsavedKeys.size} unsaved ${unsavedKeys.size === 1 ? "edit" : "edits"}?`,
+    confirmLabel: "Discard changes",
+    cancelLabel: "Keep editing",
+    destructive: true,
+});
 const warnUnsaved = (event: BeforeUnloadEvent) => {
     if (!unsavedKeys.size) return;
     event.preventDefault();
@@ -157,15 +163,15 @@ onMounted(() => {
 onBeforeUnmount(() => window.removeEventListener("beforeunload", warnUnsaved));
 watch(signedIn, loadPreferences);
 
-const startCreate = () => {
-    if (!confirmDiscard()) return;
+const startCreate = async () => {
+    if (!await confirmDiscard()) return;
     resetFieldState();
     editingId.value = "";
     draft.value = emptyProfile();
     autoEditKey.value = "identity.fullName";
 };
-const startEdit = (profile: LocalProfile) => {
-    if (profile.id === editingId.value || !confirmDiscard()) return;
+const startEdit = async (profile: LocalProfile, discardConfirmed = false) => {
+    if (profile.id === editingId.value || (!discardConfirmed && !await confirmDiscard())) return;
     resetFieldState();
     const cloned = structuredClone(toRaw(profile));
     const { id: _id, createdAt: _createdAt, updatedAt, ...profileValue } = cloned;
@@ -174,22 +180,42 @@ const startEdit = (profile: LocalProfile) => {
     lastSavedAt.value = updatedAt;
 };
 const duplicateName = (profile: LocalProfile) => profiles.value.some(item => item.id !== profile.id && item.identity.fullName.trim().toLocaleLowerCase() === profile.identity.fullName.trim().toLocaleLowerCase());
-const renameProfile = (profile: LocalProfile) => {
-    const name = prompt("Profile name", profile.identity.fullName)?.trim();
+const renameProfile = async (profile: LocalProfile) => {
+    const response = await appDialog.prompt({
+        title: "Rename profile",
+        message: "Choose a name for this profile.",
+        inputLabel: "Profile name",
+        initialValue: profile.identity.fullName,
+        confirmLabel: "Save name",
+        validate: value => value.trim() ? undefined : "Enter a profile name.",
+    });
+    const name = response?.trim();
     if (!name || name === profile.identity.fullName) return;
     if (profiles.value.some(item => item.id !== profile.id && item.identity.fullName.trim().toLocaleLowerCase() === name.toLocaleLowerCase())
-        && !confirm(`Another profile is already named “${name}”. Keep this duplicate name?`)) return;
+        && !await appDialog.confirm({
+            title: "Keep duplicate profile name?",
+            message: `Another profile is already named “${name}”.`,
+            confirmLabel: "Keep duplicate name",
+            cancelLabel: "Choose another name",
+        })) return;
     const updated = { ...profile, identity: { ...profile.identity, fullName: name }, updatedAt: Date.now() };
     persist(profiles.value.map(item => item.id === profile.id ? updated : item));
     if (editingId.value === profile.id) { draft.value.identity.fullName = name; lastSavedAt.value = updated.updatedAt; }
 };
-const duplicateProfile = (profile: LocalProfile) => {
+const duplicateProfile = async (profile: LocalProfile) => {
+    if (!await confirmDiscard()) return;
     const copy = saveLocalProfile(toProfileProps(profile));
     readProfiles();
-    startEdit(copy);
+    await startEdit(copy, true);
 };
-const remove = (profile: LocalProfile) => {
-    if (!confirm(`Delete ${profile.identity.fullName}'s profile?`)) return;
+const remove = async (profile: LocalProfile) => {
+    if (!await appDialog.confirm({
+        title: "Delete profile?",
+        message: `Delete ${profile.identity.fullName}'s profile? This cannot be undone.`,
+        confirmLabel: "Delete profile",
+        cancelLabel: "Keep profile",
+        destructive: true,
+    })) return;
     persist(profiles.value.filter(item => item.id !== profile.id));
     if (editingId.value === profile.id) {
         editingId.value = null;

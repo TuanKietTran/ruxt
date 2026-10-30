@@ -16,13 +16,14 @@ const canvasToBlob = (canvas: HTMLCanvasElement, format: CvImageFormat, quality:
         quality,
     ));
 
-export const downloadBlob = (blob: Blob, filename: string) => {
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
+export const downloadBlob = (blob: Blob, filename: string, ownerDocument: Document = document) => {
+    const urlApi = ownerDocument.defaultView?.URL ?? URL;
+    const url = urlApi.createObjectURL(blob);
+    const anchor = ownerDocument.createElement("a");
     anchor.href = url;
     anchor.download = filename;
     anchor.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1_000);
+    setTimeout(() => urlApi.revokeObjectURL(url), 1_000);
 };
 
 export async function exportCvImages(

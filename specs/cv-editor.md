@@ -32,6 +32,12 @@ PNG/JPEG export waits for fonts, captures only the active preview sheets at the 
 
 Lucide icons are bundled locally through AppIcon; runtime icon API fallback is disabled. Controls have accessible labels, keyboard resize/navigation, and reduced-motion support. Themes are Mocha, Latte, and OpenCode.
 
+## Workspace shell and local save status
+
+Shared workspace navigation uses the editor and profiles destinations and no longer adds a legacy Ruxt/Dashboard header or internal `app:*` status label. Navigation remembers each editor context's last route within the tab. CV-only formatting, export, page, and document statistics remain gated by the registered CV context; profile editing does not present CV document status.
+
+Session save status is explicitly local: saving/saved states say they are local, storage failures keep edits in memory and announce automatic retry. The editor layout exposes an explicit retry action for views that supply a local retry handler. Preferences remain local when signed out and should fit a 390px viewport without horizontal document overflow. Creating a profile opens Full name for keyboard input; incomplete required data remains unsaved and the configured auto/manual save mode is preserved.
+
 ## Limitations
 
 Remote assets depend on browser CORS/canvas behavior. Export and responsive coverage is incomplete. Source CSS cannot be treated as a network sandbox.

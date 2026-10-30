@@ -9,10 +9,6 @@ onMounted(() => {
 });
 const route = useRoute();
 
-const nav = [
-    { label: "Dashboard", to: "/d", exact: true },
-];
-
 const { user, logout } = useAppAuth();
 const { authenticated } = useFeatureFlags();
 const { openAuthDialog } = useAuthDialog();
@@ -27,20 +23,13 @@ const handleLogout = async () => {
         <header class="header">
             <div class="header-inner">
                 <NuxtLink to="/" class="logo">
-                    <span class="logo-mark">◆</span>
-                    <span class="logo-text">ruxt</span>
+                    <span class="logo-mark" aria-hidden="true">◆</span>
+                    <span class="logo-text">CV workspace</span>
                 </NuxtLink>
 
-                <nav class="nav" aria-label="Main navigation">
-                    <NuxtLink
-                        v-for="item in nav"
-                        :key="item.to"
-                        :to="item.to"
-                        class="nav-link"
-                        :class="{ active: item.exact ? route.path === item.to : route.path.startsWith(item.to) }"
-                    >
-                        {{ item.label }}
-                    </NuxtLink>
+                <nav class="nav" aria-label="Workspace navigation">
+                    <NuxtLink to="/" class="nav-link" :class="{ active: route.path === '/' }" :aria-current="route.path === '/' ? 'page' : undefined">Editor</NuxtLink>
+                    <NuxtLink to="/p" class="nav-link" :class="{ active: route.path === '/p' }" :aria-current="route.path === '/p' ? 'page' : undefined">Profiles</NuxtLink>
                 </nav>
 
                 <div class="header-actions">
@@ -105,7 +94,10 @@ const handleLogout = async () => {
     backdrop-filter: blur(12px);
 }
 .header-inner {
+    box-sizing: border-box;
+    width: 100%;
     max-width: 1200px;
+    min-width: 0;
     margin: 0 auto;
     padding: 0 24px;
     height: 56px;
@@ -117,12 +109,14 @@ const handleLogout = async () => {
 /* Logo */
 .logo {
     display: flex;
+    min-width: 0;
     align-items: center;
     gap: 8px;
     color: var(--fg-text);
     font-weight: 700;
     font-size: 18px;
     text-decoration: none;
+    white-space: nowrap;
 }
 .logo-mark {
     color: var(--accent);
@@ -135,6 +129,7 @@ const handleLogout = async () => {
 /* Nav */
 .nav {
     display: flex;
+    min-width: 0;
     align-items: center;
     gap: 4px;
     flex: 1;
@@ -229,5 +224,14 @@ const handleLogout = async () => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+    .header-inner { height: auto; min-height: 56px; flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px; }
+    .logo { font-size: 15px; }
+    .nav-link { padding: 6px 8px; font-size: 12px; }
+    .header-actions { flex-wrap: wrap; gap: 6px; margin-left: 0; }
+    .header-actions .btn-sm { padding: 5px 8px; }
+    .user-email { max-width: 100px; }
 }
 </style>
