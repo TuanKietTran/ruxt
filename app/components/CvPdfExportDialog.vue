@@ -60,15 +60,17 @@ watch(() => props.open, async (open) => {
     filenameInput.value?.focus();
     buildPreview();
 }, { immediate: true });
-watch(() => [props.previewRoot, props.open, previewPageNumber.value], () => { if (props.open) nextTick(buildPreview); });
+watch(() => [props.previewRoot, props.open, previewPageNumber.value], () => {
+    if (props.open) buildPreview(previewPageNumber.value);
+}, { flush: "post" });
 
-function buildPreview() {
+function buildPreview(pageNumber = previewPageNumber.value) {
     const host = previewHost.value;
     const root = props.previewRoot;
     const view = root?.ownerDocument.defaultView;
     if (!host || !root || !view) return;
     host.replaceChildren();
-    const original = root.querySelectorAll<HTMLElement>(".cv-sheet")[previewPageNumber.value - 1];
+    const original = root.querySelectorAll<HTMLElement>(".cv-sheet")[pageNumber - 1];
     if (!original) return;
     const clone = original.cloneNode(true) as HTMLElement;
     const originals = [original, ...original.querySelectorAll<HTMLElement>("*")];
