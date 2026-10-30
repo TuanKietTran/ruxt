@@ -9,5 +9,6 @@ const { authenticated } = useFeatureFlags();
       <NuxtPage />
     </NuxtLayout>
     <AuthDialog v-if="authenticated" />
+    <AppDialogHost />
   </div>
 </template>
