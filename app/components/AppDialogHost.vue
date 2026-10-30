@@ -19,7 +19,7 @@ watch(() => active.value?.id, async (id) => {
         if (restore?.isConnected) restore.focus();
         return;
     }
-    restoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (!restoreFocus) restoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     value.value = active.value?.initialValue ?? "";
     validationError.value = "";
     await nextTick();
