@@ -1,6 +1,4 @@
-import { existsSync, readdirSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { chromium, type Browser, type Page } from "playwright-core";
 
@@ -8,21 +6,15 @@ const baseUrl = process.env.PROFILES_BASE_URL?.replace(/\/$/, "");
 if (baseUrl && !["127.0.0.1", "localhost", "[::1]"].includes(new URL(baseUrl).hostname)) {
     throw new Error("Profile browser tests are restricted to a local development server");
 }
-/** CHROMIUM_PATH, else any Playwright-installed Chromium, else Brave (as the pagination test does). */
-function findChromium(): string | undefined {
-    if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
-    const cache = join(homedir(), "Library/Caches/ms-playwright");
-    if (existsSync(cache)) {
-        for (const dir of readdirSync(cache).filter(name => /^chromium-\d+$/.test(name)).sort().reverse()) {
-            const app = join(cache, dir, "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing");
-            if (existsSync(app)) return app;
-        }
-    }
-    const brave = "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser";
-    return existsSync(brave) ? brave : undefined;
+const browserRequired = process.env.PROFILES_BROWSER_REQUIRED === "1";
+if (browserRequired && !baseUrl) {
+    throw new Error("PROFILES_BROWSER_REQUIRED=1 requires PROFILES_BASE_URL pointing to a local dev server");
 }
-const executablePath = findChromium();
-const suite = baseUrl && executablePath ? describe : describe.skip;
+const executablePath = process.env.CHROMIUM_PATH ?? chromium.executablePath();
+if (baseUrl && !existsSync(executablePath)) {
+    throw new Error("Profile browser tests require Chromium. Run `pnpm exec playwright-core install chromium` or set CHROMIUM_PATH to a provisioned browser.");
+}
+const suite = baseUrl ? describe : describe.skip;
 let browser: Browser;
 
 const KEY = "cv-sv:local-profiles:v1";
