@@ -1,6 +1,8 @@
 # Specifications
 
-## Application
+## Subsystem Map
+
+### Application
 
 | Specification | Covers |
 | --- | --- |
@@ -10,7 +12,7 @@
 | [CV workflows](cv-server-workflows.md) | Import, templates, profile transformations |
 | [MCP](mcp-automation.md) | Authenticated transport and rendering automation |
 
-## Accounts and storage
+### Accounts and storage
 
 | Specification | Covers |
 | --- | --- |
@@ -20,7 +22,7 @@
 | [Domain foundations](domain-foundations.md) | Shared primitives and private domain ownership |
 | [Persistence](persistence-deployment.md) | SQLite, Deno KV, Cloudflare, Nitro storage |
 
-## Development and operations
+### Development and operations
 
 | Specification | Covers |
 | --- | --- |
@@ -28,5 +30,7 @@
 | [UI validation](cv-sv-ui-validation.md) | Browser and export checks |
 | [Cloudflare runbook](cloudflare-migration-runbook.md) | Bindings, deployment, rollback |
 | [Follow-ups](TODO.md) | Deferred improvements |
+
+## Cross-Cutting
 
 Source code defines current behavior. Planned behavior is labelled explicitly. Reusable domain/editor contracts belong to ruxt-core; administration contracts belong to ruxt-admin. Changes to a contract should update its owning specification.
