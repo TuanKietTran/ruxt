@@ -34,9 +34,17 @@ const seed = (names: string[]) => names.map((fullName, i) => ({
 const stored = (page: Page) => page.evaluate(key => JSON.parse(localStorage.getItem(key) || "[]") as any[], KEY);
 const cardNames = (page: Page) => page.locator(".profile-card__select strong").evaluateAll(els => els.map(el => el.firstChild!.textContent!.trim()));
 
-async function waitForHydration(page: Page) {
+async function waitForHydration(page: Page, interactiveSelector?: string) {
     await page.waitForFunction(() => Boolean((document.querySelector("#__nuxt") as HTMLElement & { __vue_app__?: { _instance?: { isMounted?: boolean } } } | null)?.__vue_app__?._instance?.isMounted));
     await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    // Root mount can precede hydration of an async page/layout subtree. For action tests,
+    // wait until Vue has attached the specific element handler instead of clicking SSR markup.
+    if (interactiveSelector) {
+        await page.waitForFunction(selector => {
+            const element = document.querySelector(selector) as (HTMLElement & { __vnode?: { props?: { onClick?: unknown } } }) | null;
+            return typeof element?.__vnode?.props?.onClick === "function";
+        }, interactiveSelector);
+    }
 }
 
 async function guardNativeDialogs(page: Page) {
@@ -56,7 +64,7 @@ async function open(names: string[]) {
     await page.goto(`${baseUrl}/p`);
     if (names.length) await page.locator(".profile-card").first().waitFor();
     else await page.locator(".profiles-empty").waitFor();
-    await waitForHydration(page);
+    await waitForHydration(page, names.length ? ".profile-card__select" : ".profile-placeholder .profile-save");
     return page;
 }
 
@@ -91,6 +99,9 @@ suite("profile editor (browser)", { timeout: 60_000 }, () => {
     it("opens the form and focuses Full name from the sidebar New profile action", async () => {
         const page = await open([]);
         await page.setViewportSize({ width: 390, height: 844 });
+        await page.waitForFunction(() => window.matchMedia("(max-width: 900px)").matches);
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+        await waitForHydration(page, '[aria-label="Toggle sidebar"]');
         await page.getByRole("button", { name: "Toggle sidebar" }).click();
         await page.locator(".editor-layout--drawer-open").waitFor();
         await page.locator(".profiles-new").click();
