@@ -116,6 +116,96 @@ async function buildCvDocx(profile: CvProfileProps): Promise<Blob> {
     return Packer.toBlob(doc);
 }
 
+export type CvPdfPaper = "a4" | "letter" | "legal";
+export interface CvPdfExportOptions {
+    filename: string;
+    paper: CvPdfPaper;
+    orientation: "portrait" | "landscape";
+    margins: { top: number; right: number; bottom: number; left: number };
+    pages: string;
+}
+export interface CvPdfRenderOptions extends CvPdfExportOptions {
+    root: HTMLElement;
+    onProgress?: (completed: number, total: number) => void;
+}
+
+export function parseCvPdfPageSelection(value: string, total: number): number[] {
+    if (!Number.isInteger(total) || total < 1) throw new Error("No rendered CV pages are available to export.");
+    if (!value.trim()) return Array.from({ length: total }, (_, index) => index + 1);
+    if (!/^[\d,\s-]+$/.test(value)) throw new Error("Enter page numbers or ranges, for example 1-3,5.");
+    const selected = new Set<number>();
+    const parts = value.split(",").map(item => item.trim());
+    if (parts.some(part => !part)) throw new Error("Enter page numbers or ranges, for example 1-3,5.");
+    for (const part of parts) {
+        const match = /^(\d+)(?:\s*-\s*(\d+))?$/.exec(part);
+        if (!match) throw new Error("Enter page numbers or ranges, for example 1-3,5.");
+        const start = Number(match[1]); const end = Number(match[2] ?? match[1]);
+        if (start < 1 || end < start || end > total) throw new Error(`Choose pages from 1 to ${total}.`);
+        for (let page = start; page <= end; page++) selected.add(page);
+    }
+    if (!selected.size) throw new Error("Choose at least one page.");
+    return [...selected].sort((a, b) => a - b);
+}
+
+export async function exportCvPdf(options: CvPdfRenderOptions): Promise<void> {
+    if (!import.meta.client) throw new Error("PDF export is only available in the browser.");
+    const { root } = options;
+    if (!root.isConnected) throw new Error("The CV preview is no longer available. Reopen the export dialog and retry.");
+    const ownerDocument = root.ownerDocument;
+    const ownerWindow = ownerDocument.defaultView;
+    if (!ownerWindow) throw new Error("The CV preview browser context is unavailable.");
+    const sourceSheets = [...root.querySelectorAll<HTMLElement>(".cv-sheet")];
+    const pageNumbers = parseCvPdfPageSelection(options.pages, sourceSheets.length);
+    if (![options.margins.top, options.margins.right, options.margins.bottom, options.margins.left].every(value => Number.isFinite(value) && value >= 0 && value <= 50)) {
+        throw new Error("Margins must be between 0 and 50 mm.");
+    }
+    await ownerDocument.fonts?.ready;
+    await Promise.all([...root.querySelectorAll("img")].map(image => image.decode().catch(() => {})));
+    const { default: html2canvas } = await import("html2canvas");
+    const { jsPDF } = await import("jspdf");
+    const pdf = new jsPDF({ orientation: options.orientation, unit: "mm", format: options.paper, compress: true });
+    const staging = ownerDocument.createElement("div");
+    staging.setAttribute("aria-hidden", "true");
+    staging.style.cssText = "position:fixed;left:-100000px;top:0;z-index:-2147483647;pointer-events:none;";
+    ownerDocument.body.append(staging);
+    try {
+        for (let index = 0; index < pageNumbers.length; index++) {
+            const pageNumber = pageNumbers[index]!;
+            const original = sourceSheets[pageNumber - 1];
+            if (!original) throw new Error(`CV page ${pageNumber} is no longer available.`);
+            const sheet = original.cloneNode(true) as HTMLElement;
+            const originals = [original, ...original.querySelectorAll<HTMLElement>("*")];
+            const copies = [sheet, ...sheet.querySelectorAll<HTMLElement>("*")];
+            originals.forEach((element, elementIndex) => {
+                const copy = copies[elementIndex];
+                if (!copy) return;
+                const computed = ownerWindow.getComputedStyle(element);
+                for (const property of computed) copy.style.setProperty(property, computed.getPropertyValue(property));
+            });
+            sheet.style.transform = "none";
+            sheet.style.zoom = "1";
+            sheet.style.margin = "0";
+            staging.replaceChildren(sheet);
+            await Promise.all([...sheet.querySelectorAll("img")].map(image => image.decode().catch(() => {})));
+            const canvas = await html2canvas(sheet, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
+            const pageSize = pdf.internal.pageSize;
+            const pageWidth = pageSize.getWidth(); const pageHeight = pageSize.getHeight();
+            const contentWidth = pageWidth - options.margins.left - options.margins.right;
+            const contentHeight = pageHeight - options.margins.top - options.margins.bottom;
+            if (contentWidth <= 0 || contentHeight <= 0) throw new Error("Margins leave no printable page area.");
+            const ratio = Math.min(contentWidth / canvas.width, contentHeight / canvas.height);
+            const width = canvas.width * ratio; const height = canvas.height * ratio;
+            if (index > 0) pdf.addPage(options.paper, options.orientation);
+            pdf.addImage(canvas.toDataURL("image/jpeg", 0.96), "JPEG", options.margins.left, options.margins.top, width, height, undefined, "FAST");
+            options.onProgress?.(index + 1, pageNumbers.length);
+        }
+        const blob = pdf.output("blob");
+        downloadBlob(blob, `${safeFilename(options.filename)}.pdf`, ownerDocument);
+    } finally {
+        staging.remove();
+    }
+}
+
 export async function exportCvBundle(
     format: CvDocumentExportFormat,
     name: string,

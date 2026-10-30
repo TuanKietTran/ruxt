@@ -17,6 +17,9 @@ const accepted = new Map([
 ]);
 const terminal = new Set(["succeeded", "failed", "cancelled"]);
 const input = ref<HTMLInputElement | null>(null);
+const dialogElement = ref<HTMLElement | null>(null);
+const initialControl = ref<HTMLButtonElement | null>(null);
+let previousFocus: HTMLElement | null = null;
 const file = ref<File | null>(null);
 const dragging = ref(false);
 const busy = ref(false);
@@ -135,16 +138,34 @@ const commit = async () => {
 };
 
 watch(user, (value) => { if (!value && pollTimer) clearTimeout(pollTimer); });
-onBeforeUnmount(() => { if (pollTimer) clearTimeout(pollTimer); });
+const handleDialogKeydown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") { event.preventDefault(); emit("close"); return; }
+    if (event.key !== "Tab" || !dialogElement.value) return;
+    const focusable = [...dialogElement.value.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled):not([type='hidden']), select:not(:disabled), [tabindex]:not([tabindex='-1'])")].filter(element => element.offsetParent !== null);
+    const first = focusable[0]; const last = focusable.at(-1);
+    if (!first || !last) { event.preventDefault(); dialogElement.value.focus(); return; }
+    if (event.shiftKey && (document.activeElement === first || !dialogElement.value.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && (document.activeElement === last || !dialogElement.value.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+};
+onMounted(() => {
+    previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    initialControl.value?.focus();
+    window.addEventListener("keydown", handleDialogKeydown);
+});
+onBeforeUnmount(() => {
+    if (pollTimer) clearTimeout(pollTimer);
+    window.removeEventListener("keydown", handleDialogKeydown);
+    if (previousFocus?.isConnected) previousFocus.focus();
+});
 </script>
 
 <template>
     <div class="import-backdrop" @click.self="emit('close')">
-        <section class="import-dialog" role="dialog" aria-modal="true" aria-labelledby="import-title" @keydown.esc="emit('close')">
-            <header><div><h2 id="import-title">Import CV blob</h2><p>Extract a structured profile, then build editable Markdown and CSS from the selected template.</p></div><button type="button" aria-label="Close import" @click="emit('close')">×</button></header>
+        <section ref="dialogElement" class="import-dialog" role="dialog" aria-modal="true" aria-labelledby="import-title" aria-describedby="import-description" tabindex="-1">
+            <header><div><h2 id="import-title">Import CV blob</h2><p id="import-description">Extract a structured profile, then build editable Markdown and CSS from the selected template.</p></div><button type="button" aria-label="Close import" @click="emit('close')">×</button></header>
             <div class="import-grid">
                 <div>
-                    <button class="drop-zone" :class="{ dragging }" type="button" @click="input?.click()" @dragenter.prevent="dragging = true" @dragover.prevent @dragleave.prevent="dragging = false" @drop.prevent="dragging = false; selectFile($event.dataTransfer?.files[0])">
+                    <button ref="initialControl" class="drop-zone" :class="{ dragging }" type="button" @click="input?.click()" @dragenter.prevent="dragging = true" @dragover.prevent @dragleave.prevent="dragging = false" @drop.prevent="dragging = false; selectFile($event.dataTransfer?.files[0])">
                         <strong>{{ file ? file.name : "Drop CV media here" }}</strong>
                         <span>{{ file ? readableBytes(file.size) : `PDF or image · maximum ${readableBytes(maxBytes)}` }}</span>
                         <small>Choose file</small>
@@ -157,7 +178,7 @@ onBeforeUnmount(() => { if (pollTimer) clearTimeout(pollTimer); });
                     <div v-if="!job" class="empty">Select one blob to start the CV pipeline.</div>
                     <template v-else>
                         <h3>{{ file?.name }}</h3>
-                        <dl><div><dt>State</dt><dd>{{ job.state }}</dd></div><div><dt>Stage</dt><dd>{{ job.stage.replaceAll('_', ' ') }}</dd></div><div><dt>Progress</dt><dd>{{ job.progress }}%</dd></div><div><dt>Attempt</dt><dd>{{ job.attempt }}</dd></div></dl>
+                        <dl role="status" aria-live="polite"><div><dt>State</dt><dd>{{ job.state }}</dd></div><div><dt>Stage</dt><dd>{{ job.stage.replaceAll('_', ' ') }}</dd></div><div><dt>Progress</dt><dd>{{ job.progress }}%</dd></div><div><dt>Attempt</dt><dd>{{ job.attempt }}</dd></div></dl>
                         <div class="progress"><span :style="{ width: `${Math.max(2, job.progress)}%` }" /></div>
                         <div v-if="job.warnings.length" class="warning"><strong>Warnings</strong><p v-for="warning in job.warnings" :key="warning">{{ warning }}</p></div>
                         <div v-if="job.error" class="error"><strong>{{ job.error.code }}</strong><p>{{ job.error.message }}</p></div>

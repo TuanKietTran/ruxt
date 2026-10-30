@@ -2,7 +2,7 @@
 import { toRaw } from "vue";
 import referenceCvCss from "~/data/reference-cv.css?raw";
 import { exportCvImages, type CvImageExportOptions, type CvImageFormat } from "~/utils/exportCvImage";
-import { exportCvBundle, type CvDocumentExportFormat } from "~/utils/exportCvDocument";
+import { exportCvBundle, exportCvPdf, type CvDocumentExportFormat, type CvPdfExportOptions } from "~/utils/exportCvDocument";
 import type { CodeMirrorHighlight, EditorStats, MarkdownFormat } from "@ruxt/editor/composables/useCodeMirror";
 import { composeCvMarkdown, detectCvProfile, normalizeCvProfile, toCvTemplateSkeleton, type CvDetectedField, type CvDocumentProps as CvDocument, type CvProfileDetection, type CvTemplate } from "@ruxt/shared/cv";
 import { localCvStore } from "~/utils/localCvStore";
@@ -30,7 +30,32 @@ useSeoMeta({
     ogTitle: () => documentTitle.value,
 });
 const formatSource = (format: MarkdownFormat) => sourceEditor.value?.applyMarkdownFormat(format);
-const exportPdf = () => window.print();
+const previewFrame = useTemplateRef<HTMLElement>("previewFrame");
+const pdfOpen = ref(false);
+const pdfBusy = ref(false);
+const pdfError = ref("");
+const pdfMessage = ref("");
+const pdfProgress = ref("");
+const pdfPageCount = ref(0);
+const refreshPdfPageCount = () => { pdfPageCount.value = previewFrame.value?.querySelectorAll(".cv-sheet").length ?? 0; };
+watch([markdown, css], () => nextTick(refreshPdfPageCount), { flush: "post" });
+const exportPdf = async () => {
+    pdfError.value = ""; pdfMessage.value = ""; pdfOpen.value = true;
+    await nextTick(); await document.fonts?.ready;
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    refreshPdfPageCount();
+};
+const generatePdf = async (options: CvPdfExportOptions) => {
+    const root = previewFrame.value;
+    if (!root) { pdfError.value = "The CV preview is not ready. Wait for it to render, then retry."; return; }
+    pdfBusy.value = true; pdfError.value = ""; pdfMessage.value = ""; pdfProgress.value = "Preparing rendered CV pages…";
+    try {
+        await exportCvPdf({ ...options, root, onProgress: (completed, total) => { pdfProgress.value = `Creating page ${completed} of ${total}…`; } });
+        pdfProgress.value = ""; pdfMessage.value = "PDF downloaded. If it did not appear, check your browser downloads.";
+    } catch (error) {
+        pdfProgress.value = ""; pdfError.value = error instanceof Error ? error.message : "PDF export failed. Check the preview and retry.";
+    } finally { pdfBusy.value = false; }
+};
 const exportImage = (format: CvImageFormat, options: CvImageExportOptions) =>
     exportCvImages(
         format,
@@ -48,12 +73,34 @@ const switchLayout = ref("");
 const switchingProfile = ref(false);
 const switchError = ref("");
 const switchDialog = reactive({ open: false, profile: null as LocalProfile | null, before: null as CvDocument | null, after: null as { markdown: string; css: string } | null, layout: "", appliedRevision: 0, confirmed: false });
+const switchDialogElement = useTemplateRef<HTMLElement>("switchDialogElement");
+const switchDialogCancel = useTemplateRef<HTMLButtonElement>("switchDialogCancel");
+let switchDialogReturnFocus: HTMLElement | null = null;
+watch(() => switchDialog.open, async (open) => {
+    if (open) {
+        switchDialogReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        await nextTick(); switchDialogCancel.value?.focus();
+    } else {
+        const restore = switchDialogReturnFocus; switchDialogReturnFocus = null;
+        await nextTick(); if (restore?.isConnected) restore.focus();
+    }
+});
+const onSwitchDialogKeydown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") { event.preventDefault(); switchDialog.open = false; return; }
+    if (event.key !== "Tab" || !switchDialogElement.value) return;
+    const items = [...switchDialogElement.value.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])')].filter(item => item.offsetParent !== null);
+    const first = items[0]; const last = items.at(-1);
+    if (!first || !last) { event.preventDefault(); switchDialogElement.value.focus(); return; }
+    if (event.shiftKey && (document.activeElement === first || !switchDialogElement.value.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && (document.activeElement === last || !switchDialogElement.value.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+};
 const readLocalProfiles = () => {
     localProfiles.value = loadLocalProfiles().filter(profile => profile.identity.fullName.trim());
 };
 onMounted(() => {
     readLocalProfiles();
     window.addEventListener("focus", readLocalProfiles);
+    void nextTick(() => requestAnimationFrame(() => requestAnimationFrame(refreshPdfPageCount)));
 });
 onBeforeUnmount(() => {
     window.removeEventListener("focus", readLocalProfiles);
@@ -196,12 +243,12 @@ const activeSource = computed({
                 </select>
                 <span v-if="switchError" class="profile-switch__error" role="alert" :title="switchError">{{ switchError }}</span>
                 <div v-if="switchDialog.open" class="profile-overwrite-backdrop" @click.self="switchDialog.open = false">
-                    <section class="profile-overwrite" role="dialog" aria-modal="true" aria-labelledby="switch-preview-title">
+                    <section ref="switchDialogElement" class="profile-overwrite" role="dialog" aria-modal="true" aria-labelledby="switch-preview-title" aria-describedby="switch-preview-description" tabindex="-1" @keydown="onSwitchDialogKeydown">
                         <h2 id="switch-preview-title">Review profile overwrite</h2>
-                        <p>Switching to {{ switchDialog.profile?.identity.fullName }} replaces the session Markdown and may replace its layout.</p>
+                        <p id="switch-preview-description">Switching to {{ switchDialog.profile?.identity.fullName }} replaces the session Markdown and may replace its layout.</p>
                         <div class="switch-diff"><section><h3>Before · Markdown</h3><pre>{{ switchDialog.before?.markdown }}</pre><h3>Before · CSS</h3><pre>{{ switchDialog.before?.css }}</pre></section><section><h3>After · Markdown</h3><pre>{{ switchDialog.after?.markdown }}</pre><h3>After · CSS</h3><pre>{{ switchDialog.after?.css }}</pre></section></div>
                         <label v-if="!switchDialog.appliedRevision"><input v-model="switchDialog.confirmed" type="checkbox"> I reviewed this before/after preview and confirm overwriting the session.</label>
-                        <footer><button type="button" @click="switchDialog.open = false">{{ switchDialog.appliedRevision ? "Done" : "Cancel" }}</button><button v-if="!switchDialog.appliedRevision" type="button" :disabled="!switchDialog.confirmed || switchingProfile" @click="confirmSwitch">{{ switchingProfile ? "Switching…" : "Confirm switch" }}</button><button v-else type="button" :disabled="switchingProfile" @click="undoSwitch">Undo switch</button></footer>
+                        <footer><button ref="switchDialogCancel" type="button" @click="switchDialog.open = false">{{ switchDialog.appliedRevision ? "Done" : "Cancel" }}</button><button v-if="!switchDialog.appliedRevision" type="button" :disabled="!switchDialog.confirmed || switchingProfile" @click="confirmSwitch">{{ switchingProfile ? "Switching…" : "Confirm switch" }}</button><button v-else type="button" :disabled="switchingProfile" @click="undoSwitch">Undo switch</button></footer>
                     </section>
                 </div>
             </div>
@@ -219,12 +266,14 @@ const activeSource = computed({
         </template>
 
         <template #preview>
-            <CodePreview :doc="markdown" :css="css" />
+            <div ref="previewFrame" class="cv-export-scope"><CodePreview :doc="markdown" :css="css" /></div>
         </template>
     </NuxtLayout>
+    <CvPdfExportDialog :open="pdfOpen" :document-name="documentTitle" :preview-root="previewFrame" :page-count="pdfPageCount" :busy="pdfBusy" :progress="pdfProgress" :error="pdfError" :success="pdfMessage" @close="pdfOpen = false" @generate="generatePdf" />
 </template>
 
 <style scoped>
+.cv-export-scope { display: contents; }
 .source-tab {
     height: 100%;
     padding: 0 14px;
