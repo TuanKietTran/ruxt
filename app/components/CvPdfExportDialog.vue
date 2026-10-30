@@ -25,6 +25,7 @@ const dialog = useTemplateRef<HTMLElement>("dialog");
 const filenameInput = useTemplateRef<HTMLInputElement>("filenameInput");
 const previewHost = useTemplateRef<HTMLElement>("previewHost");
 let restoreFocus: HTMLElement | null = null;
+let previewBuildRevision = 0;
 const pageSelectionError = computed(() => {
     if (!pages.value.trim()) return "";
     const total = props.pageCount;
@@ -49,6 +50,7 @@ const previewPageNumber = computed(() => {
 
 watch(() => props.open, async (open) => {
     if (!open) {
+        previewBuildRevision++;
         const restore = restoreFocus; restoreFocus = null;
         await nextTick(); if (restore?.isConnected) restore.focus();
         return;
@@ -58,11 +60,25 @@ watch(() => props.open, async (open) => {
     formError.value = "";
     await nextTick();
     filenameInput.value?.focus();
-    buildPreview();
+    schedulePreview();
 }, { immediate: true });
-watch(() => [props.previewRoot, props.open, previewPageNumber.value], () => {
-    if (props.open) buildPreview(previewPageNumber.value);
+watch(() => [props.previewRoot, props.open, props.pageCount], () => {
+    if (props.open) schedulePreview();
+    else previewBuildRevision++;
 }, { flush: "post" });
+watch(pages, () => {
+    if (!props.open) return;
+    previewBuildRevision++;
+    buildPreview(previewPageNumber.value);
+}, { flush: "sync" });
+
+function schedulePreview(pageNumber = previewPageNumber.value) {
+    const revision = ++previewBuildRevision;
+    void nextTick(() => {
+        if (revision !== previewBuildRevision || !props.open) return;
+        buildPreview(pageNumber);
+    });
+}
 
 function buildPreview(pageNumber = previewPageNumber.value) {
     const host = previewHost.value;
