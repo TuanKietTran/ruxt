@@ -101,16 +101,16 @@ suite("anonymous local UI baseline (localhost, isolated browser contexts)", { ti
         const { context, page, dialogEvents, blockedExternal, pageErrors } = await localPage({ width: 390, height: 844 });
         await page.goto(`${baseUrl}/settings`, { waitUntil: "domcontentloaded" });
         const beforeHydration = await dimensions(page);
-        await page.screenshot({ path: join(artifacts, "before-mobile-settings-pre-hydration.png"), fullPage: true });
+        await page.screenshot({ path: join(artifacts, "after-mobile-settings-pre-hydration.png"), fullPage: true });
         await hydration(page);
         await page.getByRole("heading", { name: "Preferences" }).waitFor();
         await page.getByText("These settings are saved in this browser only. Sign in to keep them with your account.").waitFor();
         await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
         const afterHydration = await dimensions(page);
-        await page.screenshot({ path: join(artifacts, "before-mobile-settings-post-hydration.png"), fullPage: true });
+        await page.screenshot({ path: join(artifacts, "after-mobile-settings-post-hydration.png"), fullPage: true });
         const nativeCalls = await interceptedNativeCalls(page, dialogEvents);
         const result = { url: page.url(), beforeHydration, afterHydration, nativeCalls, blockedExternal, pageErrors };
-        await writeResult("before-mobile-settings-measurements.json", result);
+        await writeResult("after-mobile-settings-measurements.json", result);
         expect(afterHydration.viewport).toBe(390);
         // Intentional acceptance assertion: expected to fail when the baseline overflows.
         expect(afterHydration.document).toBeLessThanOrEqual(390);
@@ -123,7 +123,7 @@ suite("anonymous local UI baseline (localhost, isolated browser contexts)", { ti
         await page.goto(`${baseUrl}/p`, { waitUntil: "domcontentloaded" });
         await hydration(page, ".profile-placeholder .profile-save");
         await page.locator(".profile-placeholder").waitFor({ state: "visible" });
-        await page.screenshot({ path: join(artifacts, "before-mobile-profiles-empty.png"), fullPage: true });
+        await page.screenshot({ path: join(artifacts, "after-mobile-profiles-empty.png"), fullPage: true });
         await page.locator(".profile-placeholder .profile-save").click();
         await page.locator(".profile-sheet").waitFor({ state: "visible", timeout: 10_000 });
         await page.locator('textarea[placeholder="Your name"]').waitFor({ state: "visible", timeout: 10_000 });
@@ -134,9 +134,9 @@ suite("anonymous local UI baseline (localhost, isolated browser contexts)", { ti
             activeValue: (document.activeElement as HTMLInputElement | null)?.value ?? "",
             headings: [...document.querySelectorAll("h1,h2,h3")].map(node => node.textContent?.trim()),
         }));
-        await page.screenshot({ path: join(artifacts, "before-mobile-profiles-new-form.png"), fullPage: true });
+        await page.screenshot({ path: join(artifacts, "after-mobile-profiles-new-form.png"), fullPage: true });
         const nativeCalls = await interceptedNativeCalls(page, dialogEvents);
-        await writeResult("before-mobile-profile-focus.json", { url: page.url(), afterClick, nativeCalls, blockedExternal, pageErrors });
+        await writeResult("after-mobile-profile-focus.json", { url: page.url(), afterClick, nativeCalls, blockedExternal, pageErrors });
         expect(afterClick.activeTag).toBe("TEXTAREA");
         expect(afterClick.activeValue).toBe("");
         expect(afterClick.activePlaceholder).toBe("Your name");
@@ -169,7 +169,7 @@ suite("anonymous local UI baseline (localhost, isolated browser contexts)", { ti
             text: document.body.innerText.slice(0, 500),
         }));
         const nativeCalls = await interceptedNativeCalls(page, dialogEvents);
-        await writeResult("before-mobile-profile-sidebar.json", { url: page.url(), initialSidebar, afterClick, nativeCalls, blockedExternal, pageErrors });
+        await writeResult("after-mobile-profile-sidebar.json", { url: page.url(), initialSidebar, afterClick, nativeCalls, blockedExternal, pageErrors });
         expect(afterClick.activeTag).toBe("TEXTAREA");
         expect(afterClick.activePlaceholder).toBe("Your name");
         expect(nativeCalls).toEqual([]);
@@ -187,13 +187,13 @@ suite("anonymous local UI baseline (localhost, isolated browser contexts)", { ti
         const id = new URL(page.url()).searchParams.get("s")!;
         await page.waitForFunction(id => Boolean(localStorage.getItem(`cv-sv:session-backup:${id}`)), id);
         const beforeReload = await page.evaluate(id => JSON.parse(localStorage.getItem(`cv-sv:session-backup:${id}`) || "null"), id);
-        await page.screenshot({ path: join(artifacts, "before-desktop-template-session.png"), fullPage: true });
+        await page.screenshot({ path: join(artifacts, "after-desktop-template-session.png"), fullPage: true });
         await page.reload();
         await hydration(page);
         await page.locator(".cm-content").first().waitFor({ state: "visible" });
         const afterReload = await page.evaluate(id => JSON.parse(localStorage.getItem(`cv-sv:session-backup:${id}`) || "null"), id);
         const nativeCalls = await interceptedNativeCalls(page, dialogEvents);
-        await writeResult("before-template-session.json", { url: page.url(), id, beforeReload, afterReload, nativeCalls, blockedExternal, pageErrors });
+        await writeResult("after-template-session.json", { url: page.url(), id, beforeReload, afterReload, nativeCalls, blockedExternal, pageErrors });
         expect(beforeReload.markdown).toContain("YOUR NAME");
         expect(afterReload.markdown).toBe(beforeReload.markdown);
         expect(nativeCalls).toEqual([]);
@@ -223,13 +223,13 @@ suite("anonymous local UI baseline (localhost, isolated browser contexts)", { ti
             return doc?.markdown?.includes("Edited only in this browser.");
         }, id, { timeout: 10_000 });
         const beforeReload = await page.evaluate(key => JSON.parse(localStorage.getItem(key) || "null"), key);
-        await page.screenshot({ path: join(artifacts, "before-desktop-blank-edit.png"), fullPage: true });
+        await page.screenshot({ path: join(artifacts, "after-desktop-blank-edit.png"), fullPage: true });
         await page.reload();
         await hydration(page);
         await page.locator(".cm-content").first().waitFor({ state: "visible" });
         const afterReload = await page.evaluate(key => JSON.parse(localStorage.getItem(key) || "null"), key);
         const nativeCalls = await interceptedNativeCalls(page, dialogEvents);
-        await writeResult("before-blank-session-reload.json", { url: page.url(), id, beforeReload, afterReload, nativeCalls, blockedExternal, pageErrors });
+        await writeResult("after-blank-session-reload.json", { url: page.url(), id, beforeReload, afterReload, nativeCalls, blockedExternal, pageErrors });
         expect(beforeReload.markdown).toContain("Edited only in this browser.");
         expect(afterReload.markdown).toBe(beforeReload.markdown);
         expect(nativeCalls).toEqual([]);
@@ -260,7 +260,7 @@ suite("anonymous local UI baseline (localhost, isolated browser contexts)", { ti
             theme: localStorage.getItem("theme"),
         }));
         const nativeCalls = await interceptedNativeCalls(page, dialogEvents);
-        await writeResult("before-preferences-theme-persistence.json", { url: page.url(), theme, localValues, nativeCalls, blockedExternal, pageErrors });
+        await writeResult("after-preferences-theme-persistence.json", { url: page.url(), theme, localValues, nativeCalls, blockedExternal, pageErrors });
         expect(theme).toBe("latte");
         expect(localValues.preferences).toContain("manual");
         expect(localValues.theme).toBe("latte");
