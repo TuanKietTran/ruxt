@@ -663,6 +663,7 @@ const handleLogout = async () => {
                 <button v-if="authenticated && user" class="header-button" type="button" @click="handleLogout">Logout</button>
                 <button v-if="authenticated && user && hasFeature('import')" class="header-button" type="button" @click="isImportOpen = true">Import</button>
                 <button v-if="hasFeature('export')" class="header-button header-button--primary" type="button" @click="isExportOpen = true">Export</button>
+                <button v-if="hasFeature('export')" class="header-button" type="button" data-pdf-export-trigger="true" @click="emit('exportPdf')">Export PDF</button>
                 <select
                     class="theme-select"
                     :value="current"
