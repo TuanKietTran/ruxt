@@ -9,6 +9,7 @@ import type { StatusCode, BillingPeriod, CurrencyCode } from "~/types/api";
 import { calculateMonthlyAmount, formatMajorMoney, formatMoney, minorUnitsFor } from "~/utils/money";
 
 const route = useRoute();
+const appDialog = useAppDialog();
 const userId = computed(() => (route.query.userId as string) || "demo");
 
 const {
@@ -284,7 +285,13 @@ async function submitPlanThenSub() {
 
 // ── Cancel subscription ───────────────────────────────────────────────────────
 async function cancelSub(id: string) {
-    if (!confirm("Cancel this subscription?")) return;
+    if (!await appDialog.confirm({
+        title: "Cancel subscription?",
+        message: "Cancel this subscription?",
+        confirmLabel: "Cancel subscription",
+        cancelLabel: "Keep subscription",
+        destructive: true,
+    })) return;
     try {
         await $fetch(`/api/subscriptions/${id}/cancel`, { method: "POST" });
         await refreshSubs();

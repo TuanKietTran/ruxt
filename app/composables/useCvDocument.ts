@@ -37,6 +37,12 @@ export async function useCvDocument(
     const css = ref(buffered?.css ?? stored?.css ?? fallback.css);
     const revision = ref(stored?.revision ?? 0);
     const saveState = ref<CvSaveState>("saved");
+    const saveMessage = computed(() => {
+        if (saveState.value === "saving") return "Saving locally…";
+        if (saveState.value === "offline") return "Could not save locally. Your edits remain in this tab and will retry automatically.";
+        if (saveState.value === "conflict") return "This session changed elsewhere; review before replacing edits.";
+        return "Saved locally";
+    });
     const sourceId = ref("");
     let applyingRemote = false;
     let dirty = false;
@@ -67,6 +73,13 @@ export async function useCvDocument(
     const flushPending = () => {
         if (!dirty) return;
         if (timer) clearTimeout(timer);
+        flush();
+    };
+    const retrySave = () => {
+        if (!dirty) return;
+        if (timer) clearTimeout(timer);
+        cancelRetry();
+        saveState.value = "saving";
         flush();
     };
 
@@ -128,5 +141,5 @@ export async function useCvDocument(
     const applyDocument = (document: CvDocument) => { apply(document); };
     const isDirty = () => dirty;
 
-    return { resolvedId, markdown, css, revision, saveState, sourceId, applyDocument, isDirty };
+    return { resolvedId, markdown, css, revision, saveState, saveMessage, retrySave, sourceId, applyDocument, isDirty };
 }

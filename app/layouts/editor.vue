@@ -15,6 +15,8 @@ const props = withDefaults(
         title?: string;
         appLabel?: string;
         saveState?: "saved" | "saving" | "conflict" | "offline";
+        saveMessage?: string;
+        retryAvailable?: boolean;
         revision?: number;
         formattingEnabled?: boolean;
         showIndicators?: boolean;
@@ -26,6 +28,7 @@ const props = withDefaults(
         title: "Untitled CV",
         appLabel: "APP",
         saveState: "saved",
+        retryAvailable: false,
         revision: 0,
         formattingEnabled: true,
         showIndicators: true,
@@ -42,6 +45,7 @@ const emit = defineEmits<{
     exportPdf: [];
     exportImage: [format: "png" | "jpeg", options: { scale: number; quality: number; root: HTMLElement | null }];
     exportDocument: [format: "md" | "html" | "jsonresume" | "yaml" | "docx"];
+    retrySave: [];
     format: [format: "bold" | "italic" | "link" | "heading" | "quote" | "bullet" | "code"];
     toggleIndicators: [];
     recoverSession: [backup: CvSessionBackupEntry];
@@ -80,6 +84,7 @@ const sessionActions = useCvSessionActions();
 const { user, logout } = useAppAuth();
 const { authenticated } = useFeatureFlags();
 const { openAuthDialog } = useAuthDialog();
+const appDialog = useAppDialog();
 // CV sessions live in this browser; listing them makes no request.
 const sessionsLoading = ref(false);
 const reloadCvDocuments = async () => { sessionActions.reloadDocuments(); };
@@ -190,27 +195,27 @@ const refreshDocuments = async () => {
     emit("refreshDocuments");
 };
 const contextMenu = ref<{ x: number; y: number; document: CvDocumentSummary } | null>(null);
-const renameDocument = ref<CvDocumentSummary | null>(null);
-const renameValue = ref("");
 const operationError = ref("");
 const openDocumentMenu = (event: MouseEvent, document: CvDocumentSummary) => {
     contextMenu.value = { x: Math.min(event.clientX, window.innerWidth - 170), y: Math.min(event.clientY, window.innerHeight - 126), document };
 };
-const startRename = () => {
+const startRename = async () => {
     if (!contextMenu.value) return;
-    renameDocument.value = contextMenu.value.document;
-    renameValue.value = documentLabel(renameDocument.value);
-    operationError.value = "";
+    const selected = contextMenu.value.document;
     contextMenu.value = null;
-};
-const confirmRename = async () => {
-    if (!renameDocument.value) return;
-    if (!renameValue.value.trim()) { operationError.value = "Enter a valid name."; return; }
-    const id = renameDocument.value.id;
-    const title = renameValue.value.trim();
-    renameDocument.value = null;
+    operationError.value = "";
+    const response = await appDialog.prompt({
+        title: "Rename session",
+        message: "Choose a name for this session.",
+        inputLabel: "Session name",
+        initialValue: documentLabel(selected),
+        confirmLabel: "Rename session",
+        validate: value => value.trim() ? undefined : "Enter a valid session name.",
+    });
+    const title = response?.trim();
+    if (!title || title === documentLabel(selected)) return;
     try {
-        await sessionActions.renameDocument(id, title);
+        await sessionActions.renameDocument(selected.id, title);
     } catch (error: any) {
         operationError.value = error?.statusMessage || error?.message || "Could not rename session.";
     }
@@ -231,7 +236,14 @@ const deleteSelectedDocument = async () => {
     if (!contextMenu.value) return;
     const selected = contextMenu.value.document;
     contextMenu.value = null;
-    if (!window.confirm(`Delete ${documentLabel(selected)}? This cannot be undone.`)) return;
+    const confirmed = await appDialog.confirm({
+        title: "Delete session?",
+        message: `Delete ${documentLabel(selected)}? This cannot be undone.`,
+        confirmLabel: "Delete session",
+        cancelLabel: "Keep session",
+        destructive: true,
+    });
+    if (!confirmed) return;
     try {
         await sessionActions.deleteDocument(selected.id);
         if (isActiveDocument(selected.id)) await navigateTo("/");
@@ -273,6 +285,13 @@ const editorTitle = computed(
         ?? (route.meta.editorTitle as string | undefined)
         ?? props.title,
 );
+const saveStatusText = computed(() => ({
+    saved: "Saved locally",
+    saving: "Saving locally…",
+    conflict: "This session changed elsewhere; review before replacing edits.",
+    offline: "Could not save locally. Your edits remain in this tab; retrying automatically.",
+}[props.saveState]));
+const saveStatusMessage = computed(() => props.saveMessage ?? saveStatusText.value);
 // Pages set the tab title for sessions; a template is rendered by this layout, so it names the tab itself.
 const templateTitle = computed(() => selectedTemplate.value?.name ?? (showTemplatePicker.value ? "Choose a CV template" : undefined));
 useSeoMeta({
@@ -589,7 +608,6 @@ const handleLogout = async () => {
                     <img class="editor-brand-icon" src="/favicon.ico" alt="" aria-hidden="true">
                 </button>
                 <strong v-if="!showTemplatePicker" class="editor-title">{{ editorTitle }}</strong>
-                <span v-if="!showTemplatePicker" class="app-badge">{{ appLabel }}</span>
             </section>
 
             <nav v-if="hasFeature('formatting')" class="editor-header__tools" aria-label="Editor tools">
@@ -935,14 +953,6 @@ const handleLogout = async () => {
                 <button type="button" @click="forkSelectedDocument">Fork</button>
                 <button class="document-context-menu__danger" type="button" @click="deleteSelectedDocument">Delete</button>
             </nav>
-            <div v-if="renameDocument" class="export-dialog-backdrop" @click.self="renameDocument = null">
-                <section class="export-dialog" role="dialog" aria-modal="true" aria-labelledby="rename-dialog-title" @keydown.esc="renameDocument = null">
-                    <header><div><h2 id="rename-dialog-title">Rename session</h2><p>Choose a unique session name.</p></div><button type="button" aria-label="Close rename dialog" @click="renameDocument = null">×</button></header>
-                    <label>Session name<input v-model="renameValue" autofocus @keydown.enter="confirmRename"></label>
-                    <p v-if="operationError" class="operation-error">{{ operationError }}</p>
-                    <footer><button type="button" @click="renameDocument = null">Cancel</button><button class="export-dialog__submit" type="button" @click="confirmRename">Rename</button></footer>
-                </section>
-            </div>
             <div v-if="isExportOpen" class="export-dialog-backdrop" @click.self="isExportOpen = false">
                 <section class="export-dialog" role="dialog" aria-modal="true" aria-labelledby="export-dialog-title" @keydown.esc="isExportOpen = false">
                     <header>
@@ -982,15 +992,14 @@ const handleLogout = async () => {
         <footer class="editor-statusbar">
             <div class="editor-statusbar__left">
                 <template v-if="hasFeature('documentStats')">
-                    <span class="save-state" :class="`save-state--${saveState}`" :role="saveState === 'offline' ? 'alert' : undefined">{{ saveState === 'offline' ? 'Save failed — browser storage unavailable; keep this tab open.' : saveState }}</span>
-                    <span v-if="revision">rev {{ revision }}</span>
+                    <span class="save-state" :class="`save-state--${saveState}`" :role="saveState === 'offline' || saveState === 'conflict' ? 'alert' : 'status'" aria-live="polite">{{ saveStatusMessage }}</span>
+                    <button v-if="saveState === 'offline' && retryAvailable" class="save-retry" type="button" @click="emit('retrySave')">Retry</button>
                     <span>Ln {{ statusStats.line }}, Col {{ statusStats.column }}</span>
                     <span>{{ statusStats.words }} {{ statusStats.words === 1 ? 'word' : 'words' }}</span>
                     <span>{{ pageCount }} {{ pageCount === 1 ? 'page' : 'pages' }}</span>
                     <span>A4</span>
                 </template>
             </div>
-            <span class="editor-statusbar__context">app:{{ editorTitle.toLowerCase().replaceAll(" ", "-") }}</span>
         </footer>
     </div>
 </template>
@@ -1078,15 +1087,6 @@ button {
     font-size: 13px;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.app-badge {
-    padding: 2px 5px;
-    border-radius: 3px;
-    background: var(--bg-surface0);
-    color: var(--fg-subtext0);
-    font-size: 9px;
-    letter-spacing: 0.12em;
 }
 
 .icon-button,
@@ -1555,12 +1555,8 @@ button {
 .save-state--saving { color: var(--yellow); }
 .save-state--conflict,
 .save-state--offline { color: var(--red); }
-
-.editor-statusbar__context {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
+.save-retry { padding: 1px 5px; border: 1px solid currentColor; border-radius: 3px; background: transparent; color: var(--red); font: inherit; cursor: pointer; }
+.save-retry:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .document-context-menu {
     position: fixed;
@@ -1709,9 +1705,7 @@ button {
 
 @media (max-width: 560px) {
     .editor-header__actions .header-button:not(.header-button--primary),
-    .editor-statusbar__left span:not(.save-state),
-    .editor-statusbar__context,
-    .app-badge {
+    .editor-statusbar__left span:not(.save-state) {
         display: none;
     }
 }
