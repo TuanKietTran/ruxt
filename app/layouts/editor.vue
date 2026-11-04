@@ -210,7 +210,12 @@ const startRename = async () => {
         inputLabel: "Session name",
         initialValue: documentLabel(selected),
         confirmLabel: "Rename session",
-        validate: value => value.trim() ? undefined : "Enter a valid session name.",
+        validate: value => {
+            const name = value.trim();
+            if (!name) return "Enter a valid session name.";
+            const duplicate = sessions.value.some(document => document.id !== selected.id && documentLabel(document).trim().toLowerCase() === name.toLowerCase());
+            return duplicate ? "A session with this name already exists." : undefined;
+        },
     });
     const title = response?.trim();
     if (!title || title === documentLabel(selected)) return;
