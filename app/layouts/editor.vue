@@ -385,6 +385,9 @@ const exportFormatLabels: Record<typeof exportFormat.value, string> = {
 };
 const exportScale = ref(2);
 const exportQuality = ref(95);
+const exportDialog = useTemplateRef<HTMLElement>("exportDialog");
+const exportFormatSelect = useTemplateRef<HTMLSelectElement>("exportFormatSelect");
+useModalBehavior({ isOpen: () => isExportOpen.value, onClose: () => { isExportOpen.value = false; }, container: () => exportDialog.value, initialFocus: () => exportFormatSelect.value });
 const runExport = async () => {
     isExportOpen.value = false;
     await nextTick();
@@ -991,13 +994,13 @@ const handleLogout = async () => {
                 <button class="document-context-menu__danger" type="button" @click="deleteSelectedDocument">Delete</button>
             </nav>
             <div v-if="isExportOpen" class="export-dialog-backdrop" @click.self="isExportOpen = false">
-                <section class="export-dialog" role="dialog" aria-modal="true" aria-labelledby="export-dialog-title" @keydown.esc="isExportOpen = false">
+                <section ref="exportDialog" class="export-dialog" role="dialog" aria-modal="true" aria-labelledby="export-dialog-title">
                     <header>
                         <div><h2 id="export-dialog-title">Export CV</h2><p>Configure the output for this document.</p></div>
                         <button type="button" aria-label="Close export dialog" @click="isExportOpen = false">×</button>
                     </header>
                     <label>Format
-                        <select v-model="exportFormat" autofocus>
+                        <select ref="exportFormatSelect" v-model="exportFormat">
                             <option value="pdf">PDF</option>
                             <option value="png">PNG</option>
                             <option value="jpeg">JPEG</option>
