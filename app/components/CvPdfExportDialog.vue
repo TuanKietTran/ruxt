@@ -24,7 +24,7 @@ const formError = ref("");
 const dialog = useTemplateRef<HTMLElement>("dialog");
 const filenameInput = useTemplateRef<HTMLInputElement>("filenameInput");
 const previewHost = useTemplateRef<HTMLElement>("previewHost");
-let restoreFocus: HTMLElement | null = null;
+useModalBehavior({ isOpen: () => props.open, onClose: () => { if (!props.busy) emit("close"); }, container: () => dialog.value, initialFocus: () => filenameInput.value });
 let previewBuildRevision = 0;
 const pageSelectionError = computed(() => {
     if (!pages.value.trim()) return "";
@@ -51,15 +51,11 @@ const previewPageNumber = computed(() => {
 watch(() => props.open, async (open) => {
     if (!open) {
         previewBuildRevision++;
-        const restore = restoreFocus; restoreFocus = null;
-        await nextTick(); if (restore?.isConnected) restore.focus();
         return;
     }
-    restoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     filename.value = props.documentName;
     formError.value = "";
     await nextTick();
-    filenameInput.value?.focus();
     schedulePreview();
 }, { immediate: true });
 watch(() => [props.previewRoot, props.open, props.pageCount], () => {
@@ -106,15 +102,6 @@ function buildPreview(pageNumber = previewPageNumber.value) {
 }
 
 function close() { if (!props.busy) emit("close"); }
-function onKeydown(event: KeyboardEvent) {
-    if (event.key === "Escape") { event.preventDefault(); close(); return; }
-    if (event.key !== "Tab") return;
-    const items = [...(dialog.value?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])') ?? [])].filter(item => item.offsetParent !== null);
-    if (!items.length) { event.preventDefault(); dialog.value?.focus(); return; }
-    const first = items[0]!; const last = items[items.length - 1]!;
-    if (event.shiftKey && (document.activeElement === first || !dialog.value?.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
-    else if (!event.shiftKey && (document.activeElement === last || !dialog.value?.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
-}
 function submit() {
     formError.value = "";
     const cleanName = filename.value.trim().replace(/\.pdf$/i, "");
@@ -133,7 +120,7 @@ function submit() {
 
 <template>
     <Teleport to="body">
-        <div v-if="open" class="cv-pdf-backdrop" @click.self="close" @keydown="onKeydown">
+        <div v-if="open" class="cv-pdf-backdrop" @click.self="close">
             <section ref="dialog" class="cv-pdf-dialog" role="dialog" aria-modal="true" aria-labelledby="cv-pdf-title" aria-describedby="cv-pdf-description" tabindex="-1">
                 <header><div><h2 id="cv-pdf-title">Export PDF</h2><p id="cv-pdf-description">Generate a PDF from this CV in your browser. Nothing is uploaded.</p></div><button class="cv-pdf-close" type="button" aria-label="Close PDF export" :disabled="busy" @click="close">×</button></header>
                 <form class="cv-pdf-form" @submit.prevent="submit">

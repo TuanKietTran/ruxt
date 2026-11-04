@@ -4,7 +4,6 @@ const { authDialog, closeAuthDialog, setAuthMode } = useAuthDialog();
 
 const dialogElement = ref<HTMLElement | null>(null);
 const clerkLoadTimedOut = ref(false);
-let previousFocus: HTMLElement | null = null;
 let previousOverflow = "";
 let clerkLoadTimeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -30,6 +29,10 @@ const clerkAppearance = {
         rootBox: { width: "100%" },
         cardBox: { width: "100%", boxShadow: "none" },
         card: { width: "100%", boxShadow: "none", background: "transparent", padding: "0" },
+        socialButtonsIconButton: { backgroundColor: "#ffffff", border: "1px solid var(--border-strong)" },
+        socialButtonsProviderIcon: { width: "20px", height: "20px" },
+        socialButtonsBlockButton: { backgroundColor: "#ffffff", border: "1px solid var(--border-strong)" },
+        socialButtonsBlockButtonText: { color: "#11111b", fontWeight: "600" },
         header: { display: "none" },
         footer: { display: "none" },
     },
@@ -38,20 +41,15 @@ const clerkAppearance = {
 watch(() => authDialog.value.open, async (open) => {
     if (!import.meta.client) return;
     if (open) {
-        previousFocus = document.activeElement as HTMLElement | null;
         previousOverflow = document.body.style.overflow;
         document.body.style.overflow = "hidden";
         startClerkLoadTimeout();
-        await nextTick();
-        dialogElement.value?.focus();
         return;
     }
 
     clearClerkLoadTimeout();
     clerkLoadTimedOut.value = false;
     document.body.style.overflow = previousOverflow;
-    await nextTick();
-    previousFocus?.focus();
 }, { immediate: true });
 
 const close = async () => {
@@ -61,32 +59,9 @@ const close = async () => {
 
 const retryClerk = () => window.location.reload();
 
-const handleKeydown = (event: KeyboardEvent) => {
-    if (!authDialog.value.open) return;
-    if (event.key === "Escape") {
-        void close();
-        return;
-    }
-    if (event.key !== "Tab" || !dialogElement.value) return;
+useModalBehavior({ isOpen: () => authDialog.value.open, onClose: () => { void close(); }, container: () => dialogElement.value, initialFocus: () => dialogElement.value });
 
-    const focusable = [...dialogElement.value.querySelectorAll<HTMLElement>(
-        "button:not(:disabled), input:not(:disabled), [href], [tabindex]:not([tabindex='-1'])",
-    )];
-    const first = focusable[0];
-    const last = focusable.at(-1);
-    if (!first || !last) return;
-    if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-    }
-};
-
-onMounted(() => window.addEventListener("keydown", handleKeydown));
 onUnmounted(() => {
-    window.removeEventListener("keydown", handleKeydown);
     clearClerkLoadTimeout();
     document.body.style.overflow = previousOverflow;
 });
@@ -182,8 +157,8 @@ onUnmounted(() => {
 }
 .auth-dialog {
     width: min(430px, 100%);
-    max-height: min(760px, calc(100vh - 32px));
-    overflow: auto;
+    max-height: min(760px, calc(100dvh - 32px));
+    overflow-y: auto;
     padding: 24px;
     outline: 0;
     color: var(--fg-text);
@@ -218,6 +193,6 @@ onUnmounted(() => {
 .privacy-note { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); font-size: 12px; }
 @media (max-width: 480px) {
     .auth-backdrop { align-items: end; padding: 0; }
-    .auth-dialog { width: 100%; max-height: 92vh; border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom)); }
+    .auth-dialog { width: 100%; max-height: 92dvh; border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom)); }
 }
 </style>
