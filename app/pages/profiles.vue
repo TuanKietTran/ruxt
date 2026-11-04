@@ -436,7 +436,7 @@ const runApply = async () => {
                 </div>
                 <p v-if="!profiles.length" class="profiles-empty">No local profiles yet.</p>
                 <article v-for="profile in profiles" :key="profile.id" class="profile-card" :class="{ active: editingId === profile.id }">
-                    <button class="profile-card__select" type="button" @click="startEdit(profile)"><strong>{{ profile.identity.fullName }} <em v-if="duplicateName(profile)" class="duplicate-warning">Duplicate name</em></strong><small>{{ profile.identity.headline || "No headline" }} · {{ profile.projects.length }} projects · {{ new Date(profile.updatedAt).toLocaleDateString() }} · {{ profile.id.slice(-8) }}</small></button>
+                    <button class="profile-card__select" type="button" @click="startEdit(profile)"><strong>{{ profile.identity.fullName }} <em v-if="duplicateName(profile)" class="duplicate-warning">Duplicate name</em></strong><small class="profile-card__headline">{{ profile.identity.headline || "No headline" }}</small><small>{{ profile.projects.length }} projects · {{ new Date(profile.updatedAt).toLocaleDateString() }} · {{ profile.id.slice(-8) }}</small></button>
                     <div class="profile-card__actions"><button type="button" @click="renameProfile(profile)">Rename</button><button type="button" @click="duplicateProfile(profile)">Duplicate</button><button class="profile-delete" type="button" :aria-label="`Delete ${profile.identity.fullName}`" @click="remove(profile)">×</button></div>
                 </article>
             </nav>
@@ -643,20 +643,23 @@ const runApply = async () => {
 <style scoped>
 .profiles-page { display: grid; grid-template-rows: minmax(0, 1fr); min-width: 0; min-height: 0; height: 100%; overflow: hidden; background: var(--bg-base, #111); color: var(--fg-text, #ddd); font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .profiles-list { box-sizing: border-box; height: 100%; padding: 14px 12px; overflow: auto; background: var(--bg-mantle, #171717); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
-.profiles-list__header { margin: 0 4px 12px; color: var(--fg-subtext0, #888); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
+.profiles-list__header { margin: 0 4px 12px; color: var(--fg-subtext1, #bac2de); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
 .profiles-new, .profile-card { width: 100%; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: inherit; font: inherit; text-align: left; }
-.profile-card__select { display: grid; flex: 1; min-width: 0; gap: 4px; border: 0 !important; text-align: left !important; cursor: pointer; }
-.profile-card__actions { display: flex; gap: 3px; align-items: center; }
-.profile-card__actions button { padding: 4px 6px !important; font-size: 10px !important; }
-.duplicate-warning { color: var(--warning, #f9e2af); font-size: 10px; font-weight: 400; }
+.profile-card__select { display: grid; flex: 1; min-width: 0; gap: 4px; border: 0 !important; background: transparent; text-align: left !important; cursor: pointer; }
+.profile-card__actions { display: flex; gap: 6px; align-items: center; }
+.profile-card__actions button { padding: 4px 8px !important; background: var(--bg-surface0, #313244); font-size: 12px !important; }
+.duplicate-warning { display: inline-block; padding: 1px 6px; border-radius: 999px; background: var(--yellow, #f9e2af); color: #11111b; font-size: 12px; font-style: normal; font-weight: 600; white-space: nowrap; }
 .profiles-new { padding: 9px; margin-bottom: 12px; }
-.profiles-new:hover, .profile-card:hover, .profile-card.active { border-color: var(--accent, #89b4fa); background: var(--bg-surface0, #242424); }
-.profiles-empty { color: var(--fg-subtext0, #888); font-size: 11px; }
+.profiles-new:hover, .profile-card:hover, .profile-card.active { border-color: var(--accent, #89b4fa); background: var(--bg-base, #1e1e2e); }
+.profiles-empty { color: var(--fg-subtext1, #bac2de); font-size: 12px; }
 .profile-card { display: flex; justify-content: space-between; gap: 8px; padding: 10px; margin-bottom: 7px; }
 .profile-card span:first-child { display: grid; min-width: 0; gap: 4px; }
-.profile-card strong, .profile-card small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.profile-card small { color: var(--fg-subtext0, #888); font-size: 10px; }
-.profile-delete { padding: 0 3px; color: var(--fg-subtext0, #888); }
+.profile-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-card small { white-space: normal; overflow-wrap: break-word; }
+.profile-card small { color: var(--fg-subtext1, #bac2de); font-size: 12px; line-height: 1.45; }
+.profile-card__headline { color: var(--fg-text, #cdd6f4); }
+.profile-delete { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; margin-left: 6px; padding: 0 3px; background: transparent !important; color: var(--fg-text, #cdd6f4); font-size: 14px; }
+.profile-delete:hover { color: var(--red, #f38ba8); }
 
 /* Shared controls */
 .profiles-page button { border: 1px solid var(--border, #333); border-radius: 3px; padding: 6px 10px; background: transparent; color: inherit; font: inherit; cursor: pointer; white-space: nowrap; }
