@@ -255,6 +255,32 @@ const removeEntry = (section: EntrySection, index: number) => {
     for (const key of Object.keys(savedFlash)) if (key.startsWith(`${section}.`)) delete savedFlash[key];
     persistDraft();
 };
+const pendingSections: Exclude<EntrySection, "languages">[] = ["contacts", "experiences", "skills", "certifications", "education", "projects"];
+const cancelAllPending = async () => {
+    if (!pendingCount.value) return;
+    if (!await appDialog.confirm({
+        title: "Cancel all incomplete entries?",
+        message: `${pendingCount.value} incomplete ${pendingCount.value === 1 ? "entry isn't" : "entries aren't"} saved yet. Cancelling removes ${pendingCount.value === 1 ? "it" : "them"} from this profile; saved entries won't change.`,
+        confirmLabel: "Cancel all incomplete",
+        cancelLabel: "Keep editing",
+        danger: true,
+    })) return;
+    for (const section of pendingSections) {
+        const entries = draft.value[section] as unknown[];
+        let removedAny = false;
+        for (let index = entries.length - 1; index >= 0; index--) {
+            if (!entryPending(section, index)) continue;
+            entries.splice(index, 1);
+            removedAny = true;
+        }
+        if (!removedAny) continue;
+        for (const key of [...touched]) if (key.startsWith(`${section}.`)) touched.delete(key);
+        for (const key of [...unsavedKeys]) if (key.startsWith(`${section}.`)) unsavedKeys.delete(key);
+        for (const key of Object.keys(savedFlash)) if (key.startsWith(`${section}.`)) delete savedFlash[key];
+        if (autoEditKey.value?.startsWith(`${section}.`)) autoEditKey.value = null;
+    }
+    persistDraft();
+};
 const splitList = parseTechnologies;
 const splitLines = (value: string) => value.split("\n").filter(line => line.trim());
 const contactKinds: CvContactKind[] = ["email", "phone", "linkedin", "github", "website", "other"];
@@ -442,7 +468,10 @@ const runApply = async () => {
                     <button type="button" @click="openTransfer('import')">Import</button>
                     <button type="button" :disabled="!profiles.length" @click="openTransfer('export', profiles)">Export all</button>
                 </div>
-                <p v-if="!profiles.length" class="profiles-empty">No local profiles yet.</p>
+                <p v-if="!profiles.length && editingId !== ''" class="profiles-empty">No local profiles yet.</p>
+                <article v-if="editingId === ''" class="profile-card profile-card--draft active">
+                    <div class="profile-card__select"><strong>{{ draft.identity.fullName || "Untitled profile" }} <em class="draft-badge">Draft</em></strong><small class="profile-card__headline">{{ draft.identity.headline || "No headline" }}</small><small>{{ blank(draft.identity.fullName) ? "Not saved yet — add a full name to save it." : "Not saved yet." }}</small></div>
+                </article>
                 <article v-for="profile in profiles" :key="profile.id" class="profile-card" :class="{ active: editingId === profile.id }">
                     <button class="profile-card__select" type="button" @click="startEdit(profile)"><strong>{{ profile.identity.fullName }} <em v-if="duplicateName(profile)" class="duplicate-warning">Duplicate name</em></strong><small class="profile-card__headline">{{ profile.identity.headline || "No headline" }}</small><small>{{ profile.projects.length }} projects · {{ new Date(profile.updatedAt).toLocaleDateString() }} · {{ profile.id.slice(-8) }}</small></button>
                     <div class="profile-card__actions"><button type="button" @click="renameProfile(profile)">Rename</button><button type="button" @click="duplicateProfile(profile)">Duplicate</button><button class="profile-delete" type="button" :aria-label="`Delete ${profile.identity.fullName}`" @click="remove(profile)">×</button></div>
@@ -476,6 +505,11 @@ const runApply = async () => {
                     </header>
 
                     <section class="profile-section profile-name-section">
+                    <div v-if="pendingCount" class="profile-pending-bar">
+                        <span>{{ pendingCount }} incomplete {{ pendingCount === 1 ? "entry isn't" : "entries aren't" }} saved yet — finish the missing fields or cancel {{ pendingCount === 1 ? "it" : "them" }}.</span>
+                        <button type="button" @click="cancelAllPending">Cancel all incomplete</button>
+                    </div>
+
                         <div class="profile-section-heading"><h2>Profile identity</h2></div>
                         <EditableField class="identity-name" label="Full name" placeholder="Your name" maxlength="120" autocomplete="name" v-bind="field('identity.fullName')" :model-value="draft.identity.fullName" @commit="draft.identity.fullName = $event; commit('identity.fullName')" />
                     </section>
@@ -693,6 +727,10 @@ const runApply = async () => {
 .profile-toolbar__mode:hover { text-decoration: underline; }
 .profile-toolbar__actions { display: flex; flex-wrap: wrap; gap: 6px; }
 
+.profile-pending-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 16px; padding: 9px 12px; border: 1px solid var(--warning, #f9e2af); border-radius: 4px; background: color-mix(in srgb, var(--warning, #f9e2af) 12%, transparent); font-size: 12px; }
+.profile-card--draft { border-style: dashed; }
+.profile-card--draft .profile-card__select { cursor: default; }
+.draft-badge { color: var(--warning, #f9e2af); font-style: normal; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 .profile-identity { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px 14px; }
 .profile-section { min-width: 0; margin-top: 22px; }
 .profile-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border, #333); }
