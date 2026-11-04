@@ -193,7 +193,7 @@ const save = () => {
 .detect-field--missing { opacity: .5; cursor: default; }
 .detect-panel__footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--border, #333); }
 .detect-panel__footer select { max-width: 220px; height: 24px; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: inherit; font: inherit; }
-.detect-save { height: 24px; padding: 0 10px; border: 1px solid var(--accent, #89b4fa); border-radius: 4px; background: var(--accent, #89b4fa); color: #111; font: inherit; cursor: pointer; }
+.detect-save { height: 24px; padding: 0 10px; border: 1px solid var(--accent, #89b4fa); border-radius: 4px; background: var(--accent, #89b4fa); color: var(--bg-crust, #11111b); font: inherit; cursor: pointer; }
 .detect-save:disabled { opacity: .5; cursor: default; }
 .detect-panel__error { color: var(--red, #f38ba8); }
 .detect-panel__status { color: var(--green, #a6e3a1); }

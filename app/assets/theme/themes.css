@@ -59,11 +59,11 @@
   --bg-overlay2:  #7c7f93;
 
   --fg-text:      #4c4f69;
-  --fg-subtext1:  #5c5f77;
-  --fg-subtext0:  #6c6f85;
+  --fg-subtext1:  #505268;
+  --fg-subtext0:  #53566e;
 
-  --accent:       #1e66f5;
-  --accent-hover: #04a5e5;
+  --accent:       #164cc0;
+  --accent-hover: #1445b0;
   --accent-muted: #ccd0da;
 
   --pink:         #ea76cb;

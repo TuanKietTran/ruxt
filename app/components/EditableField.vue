@@ -198,7 +198,7 @@ onBeforeUnmount(() => {
 .editable-field__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
 .editable-field__hint { flex-basis: 100%; color: var(--fg-subtext0, #777); font-size: 10px; text-align: right; }
 .editable-field__actions button { padding: 4px 10px; border: 1px solid var(--border, #333); border-radius: 3px; background: transparent; color: var(--fg-text, #ddd); font: inherit; cursor: pointer; }
-.editable-field__actions .editable-field__save { border-color: var(--accent, #89b4fa); background: var(--accent, #89b4fa); color: #111; }
+.editable-field__actions .editable-field__save { border-color: var(--accent, #89b4fa); background: var(--accent, #89b4fa); color: var(--bg-crust, #11111b); }
 .editable-field--collapsed { align-self: start; padding-top: 19px; }
 .editable-field__add { justify-self: start; padding: 4px 8px; border: 1px dashed var(--border, #333); border-radius: 3px; background: transparent; color: var(--fg-subtext0, #888); font: inherit; font-size: 11px; cursor: pointer; }
 .editable-field__add:hover, .editable-field__add:focus-visible { outline: none; border-color: var(--accent, #89b4fa); color: var(--fg-text, #ddd); }
