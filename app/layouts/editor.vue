@@ -195,8 +195,23 @@ const refreshDocuments = async () => {
 };
 const contextMenu = ref<{ x: number; y: number; document: CvDocumentSummary } | null>(null);
 const operationError = ref("");
+/** Element that opened the session menu (the row's ... button, or the row link on right-click); focus returns here when the menu or a dialog it launched closes, instead of landing on body. */
+const sessionMenuTrigger = ref<HTMLElement | null>(null);
+const restoreSessionMenuFocus = async () => {
+    const trigger = sessionMenuTrigger.value;
+    sessionMenuTrigger.value = null;
+    if (!trigger) return;
+    await nextTick();
+    if (trigger.isConnected) trigger.focus();
+};
 const openDocumentMenu = (event: MouseEvent, document: CvDocumentSummary) => {
+    sessionMenuTrigger.value = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     contextMenu.value = { x: Math.min(event.clientX, window.innerWidth - 170), y: Math.min(event.clientY, window.innerHeight - 126), document };
+};
+const closeDocumentMenuOnEscape = (event: KeyboardEvent) => {
+    if (event.key !== "Escape" || !contextMenu.value) return;
+    contextMenu.value = null;
+    void restoreSessionMenuFocus();
 };
 const startRename = async () => {
     if (!contextMenu.value) return;
@@ -216,6 +231,7 @@ const startRename = async () => {
             return duplicate ? "A session with this name already exists." : undefined;
         },
     });
+    await restoreSessionMenuFocus();
     const title = response?.trim();
     if (!title || title === documentLabel(selected)) return;
     try {
@@ -228,6 +244,7 @@ const forkSelectedDocument = async () => {
     if (!contextMenu.value) return;
     const source = contextMenu.value.document;
     contextMenu.value = null;
+    sessionMenuTrigger.value = null;
     const nextId = crypto.randomUUID();
     try {
         const base = documentLabel(source);
@@ -251,7 +268,8 @@ const deleteSelectedDocument = async () => {
         cancelLabel: "Keep session",
         destructive: true,
     });
-    if (!confirmed) return;
+    if (!confirmed) { await restoreSessionMenuFocus(); return; }
+    sessionMenuTrigger.value = null;
     try {
         await sessionActions.deleteDocument(selected.id);
         if (isActiveDocument(selected.id)) await navigateTo("/");
@@ -513,6 +531,7 @@ onMounted(() => {
     window.addEventListener("storage", recoverLocalSessions);
     window.addEventListener("click", closeDocumentMenu);
     window.addEventListener("blur", closeDocumentMenu);
+    window.addEventListener("keydown", closeDocumentMenuOnEscape);
 
     for (const context of editorContexts) {
         if (context.id === editorContext.value.id) continue;
@@ -537,13 +556,14 @@ onMounted(() => {
     }
 });
 
-const closeDocumentMenu = () => { contextMenu.value = null; };
+const closeDocumentMenu = () => { contextMenu.value = null; sessionMenuTrigger.value = null; };
 
 onBeforeUnmount(() => {
     compactMedia?.removeEventListener("change", syncCompact);
     window.removeEventListener("storage", recoverLocalSessions);
     window.removeEventListener("click", closeDocumentMenu);
     window.removeEventListener("blur", closeDocumentMenu);
+    window.removeEventListener("keydown", closeDocumentMenuOnEscape);
     previewObserver?.disconnect();
     canvasObserver?.disconnect();
 });
