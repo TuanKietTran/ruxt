@@ -6,6 +6,7 @@ import type { CvSessionBackupEntry } from "@ruxt/shared/cv";
 import { hasEditorFeature, listEditorContexts, resolveEditorContext, type EditorContext, type EditorFeature } from "~/utils/editorContexts";
 import { reuseFor } from "~/utils/fetchCache";
 import { readLocalCvTemplates } from "~/utils/localCvTemplates";
+import { cvSessionLabel } from "~/utils/cv-session-label";
 
 const LIST_REUSE_MS = 60_000;
 
@@ -736,7 +737,7 @@ const handleLogout = async () => {
                         @focus="warmDocument(document.id)"
                         @contextmenu.prevent="openDocumentMenu($event, document)"
                     >
-                        <span>{{ documentLabel(document) }}</span>
+                        <span>{{ cvSessionLabel(document) }}</span>
                         <small title="Stored in this browser">local · r{{ document.revision }}</small>
                     </NuxtLink>
                 </section>
