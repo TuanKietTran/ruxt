@@ -41,6 +41,7 @@ const persist = (items: LocalProfile[]) => {
 // while typing or only on an explicit Save is the `profileSaveMode` preference.
 const { preferences, load: loadPreferences, signedIn } = usePreferences();
 const appDialog = useAppDialog();
+const toast = useToast();
 const saveMode = computed(() => preferences.value.profileSaveMode);
 type EntrySection = "contacts" | "experiences" | "skills" | "certifications" | "education" | "projects" | "languages";
 const touched = reactive(new Set<string>());
@@ -147,7 +148,7 @@ const confirmDiscard = async () => !unsavedKeys.size || await appDialog.confirm(
     message: `Discard ${unsavedKeys.size} unsaved ${unsavedKeys.size === 1 ? "edit" : "edits"}?`,
     confirmLabel: "Discard changes",
     cancelLabel: "Keep editing",
-    destructive: true,
+    danger: true,
 });
 const warnUnsaved = (event: BeforeUnloadEvent) => {
     if (!unsavedKeys.size) return;
@@ -184,10 +185,10 @@ const renameProfile = async (profile: LocalProfile) => {
     const response = await appDialog.prompt({
         title: "Rename profile",
         message: "Choose a name for this profile.",
-        inputLabel: "Profile name",
-        initialValue: profile.identity.fullName,
+        label: "Profile name",
+        initial: profile.identity.fullName,
         confirmLabel: "Save name",
-        validate: value => value.trim() ? undefined : "Enter a profile name.",
+        validate: value => value.trim() ? null : "Enter a profile name.",
     });
     const name = response?.trim();
     if (!name || name === profile.identity.fullName) return;
@@ -204,17 +205,24 @@ const renameProfile = async (profile: LocalProfile) => {
 };
 const duplicateProfile = async (profile: LocalProfile) => {
     if (!await confirmDiscard()) return;
-    const copy = saveLocalProfile(toProfileProps(profile));
+    const base = profile.identity.fullName;
+    const taken = new Set(profiles.value.map(item => item.identity.fullName.trim().toLocaleLowerCase()));
+    let candidate = `${base} (copy)`;
+    for (let n = 2; taken.has(candidate.toLocaleLowerCase()); n++) candidate = `${base} (copy ${n})`;
+    const props = toProfileProps(profile);
+    props.identity = { ...props.identity, fullName: candidate };
+    const copy = saveLocalProfile(props);
     readProfiles();
+    toast.push("Profile duplicated", { tone: "success" });
     await startEdit(copy, true);
 };
 const remove = async (profile: LocalProfile) => {
     if (!await appDialog.confirm({
         title: "Delete profile?",
-        message: `Delete ${profile.identity.fullName}'s profile? This cannot be undone.`,
+        message: `Delete ${profile.identity.fullName}'s profile — ${profile.identity.headline || "No headline"}? This cannot be undone.`,
         confirmLabel: "Delete profile",
         cancelLabel: "Keep profile",
-        destructive: true,
+        danger: true,
     })) return;
     persist(profiles.value.filter(item => item.id !== profile.id));
     if (editingId.value === profile.id) {
@@ -245,6 +253,32 @@ const removeEntry = (section: EntrySection, index: number) => {
     for (const key of [...touched]) if (key.startsWith(`${section}.`)) touched.delete(key);
     for (const key of [...unsavedKeys]) if (key.startsWith(`${section}.`)) unsavedKeys.delete(key);
     for (const key of Object.keys(savedFlash)) if (key.startsWith(`${section}.`)) delete savedFlash[key];
+    persistDraft();
+};
+const pendingSections: Exclude<EntrySection, "languages">[] = ["contacts", "experiences", "skills", "certifications", "education", "projects"];
+const cancelAllPending = async () => {
+    if (!pendingCount.value) return;
+    if (!await appDialog.confirm({
+        title: "Cancel all incomplete entries?",
+        message: `${pendingCount.value} incomplete ${pendingCount.value === 1 ? "entry isn't" : "entries aren't"} saved yet. Cancelling removes ${pendingCount.value === 1 ? "it" : "them"} from this profile; saved entries won't change.`,
+        confirmLabel: "Cancel all incomplete",
+        cancelLabel: "Keep editing",
+        danger: true,
+    })) return;
+    for (const section of pendingSections) {
+        const entries = draft.value[section] as unknown[];
+        let removedAny = false;
+        for (let index = entries.length - 1; index >= 0; index--) {
+            if (!entryPending(section, index)) continue;
+            entries.splice(index, 1);
+            removedAny = true;
+        }
+        if (!removedAny) continue;
+        for (const key of [...touched]) if (key.startsWith(`${section}.`)) touched.delete(key);
+        for (const key of [...unsavedKeys]) if (key.startsWith(`${section}.`)) unsavedKeys.delete(key);
+        for (const key of Object.keys(savedFlash)) if (key.startsWith(`${section}.`)) delete savedFlash[key];
+        if (autoEditKey.value?.startsWith(`${section}.`)) autoEditKey.value = null;
+    }
     persistDraft();
 };
 const splitList = parseTechnologies;
@@ -346,6 +380,8 @@ const openApply = async (profile: LocalProfile) => {
     sessionActions.reloadDocuments();
 };
 const closeApply = () => { if (!apply.busy) apply.open = false; };
+const applyDialogElement = ref<HTMLElement | null>(null);
+useModalBehavior({ isOpen: () => apply.open, onClose: closeApply, container: () => applyDialogElement.value });
 const toggleAllSessions = () => {
     apply.selected = apply.selected.length === applySessions.value.length ? [] : applySessions.value.map(session => session.id);
 };
@@ -434,9 +470,12 @@ const runApply = async () => {
                     <button type="button" @click="openTransfer('import')">Import</button>
                     <button type="button" :disabled="!profiles.length" @click="openTransfer('export', profiles)">Export all</button>
                 </div>
-                <p v-if="!profiles.length" class="profiles-empty">No local profiles yet.</p>
+                <p v-if="!profiles.length && editingId !== ''" class="profiles-empty">No local profiles yet.</p>
+                <article v-if="editingId === ''" class="profile-card profile-card--draft active">
+                    <div class="profile-card__select"><strong>{{ draft.identity.fullName || "Untitled profile" }} <em class="draft-badge">Draft</em></strong><small class="profile-card__headline">{{ draft.identity.headline || "No headline" }}</small><small>{{ blank(draft.identity.fullName) ? "Not saved yet — add a full name to save it." : "Not saved yet." }}</small></div>
+                </article>
                 <article v-for="profile in profiles" :key="profile.id" class="profile-card" :class="{ active: editingId === profile.id }">
-                    <button class="profile-card__select" type="button" @click="startEdit(profile)"><strong>{{ profile.identity.fullName }} <em v-if="duplicateName(profile)" class="duplicate-warning">Duplicate name</em></strong><small>{{ profile.identity.headline || "No headline" }} · {{ profile.projects.length }} projects · {{ new Date(profile.updatedAt).toLocaleDateString() }} · {{ profile.id.slice(-8) }}</small></button>
+                    <button class="profile-card__select" type="button" @click="startEdit(profile)"><strong>{{ profile.identity.fullName }} <em v-if="duplicateName(profile)" class="duplicate-warning">Duplicate name</em></strong><small class="profile-card__headline">{{ profile.identity.headline || "No headline" }}</small><small>{{ profile.projects.length }} projects · {{ new Date(profile.updatedAt).toLocaleDateString() }} · {{ profile.id.slice(-8) }}</small></button>
                     <div class="profile-card__actions"><button type="button" @click="renameProfile(profile)">Rename</button><button type="button" @click="duplicateProfile(profile)">Duplicate</button><button class="profile-delete" type="button" :aria-label="`Delete ${profile.identity.fullName}`" @click="remove(profile)">×</button></div>
                 </article>
             </nav>
@@ -447,6 +486,7 @@ const runApply = async () => {
             <section class="profile-form">
                 <div v-if="editingId === null" class="profile-placeholder">
                     <p>{{ profiles.length ? "Select a profile or create a new one." : "No local profiles yet." }}</p>
+                    <p>Save mode: <NuxtLink to="/settings" class="profile-toolbar__mode" title="Change in settings">{{ saveMode === "auto" ? "Auto-save" : "Save with button" }}</NuxtLink></p>
                     <div><button type="button" class="profile-save" @click="startCreate">＋ New profile</button><button type="button" @click="openTransfer('import')">Import</button></div>
                 </div>
                 <div v-else :key="formKey" class="profile-sheet">
@@ -466,6 +506,11 @@ const runApply = async () => {
                             <button type="button" class="profile-danger" @click="remove(currentProfile)">Delete</button>
                         </div>
                     </header>
+
+                    <div v-if="pendingCount" class="profile-pending-bar">
+                        <span>{{ pendingCount }} incomplete {{ pendingCount === 1 ? "entry isn't" : "entries aren't" }} saved yet — finish the missing fields or cancel {{ pendingCount === 1 ? "it" : "them" }}.</span>
+                        <button type="button" @click="cancelAllPending">Cancel all incomplete</button>
+                    </div>
 
                     <section class="profile-section profile-name-section">
                         <div class="profile-section-heading"><h2>Profile identity</h2></div>
@@ -598,8 +643,8 @@ const runApply = async () => {
                     </footer>
                 </form>
             </div>
-            <div v-if="apply.open" class="transfer-backdrop" @click.self="closeApply" @keydown.esc="closeApply">
-                <form class="transfer-dialog apply-dialog" role="dialog" aria-modal="true" aria-labelledby="apply-title" @submit.prevent="runApply">
+            <div v-if="apply.open" class="transfer-backdrop" @click.self="closeApply">
+                <form ref="applyDialogElement" class="transfer-dialog apply-dialog" role="dialog" aria-modal="true" aria-labelledby="apply-title" @submit.prevent="runApply">
                     <h2 id="apply-title">Apply {{ apply.profile?.identity.fullName }} to sessions</h2>
                     <p class="transfer-hint">Each selected session keeps its layout (or switches to the chosen template) and gets this profile's personal content. Sessions are updated independently.</p>
                     <label>Layout
@@ -643,20 +688,23 @@ const runApply = async () => {
 <style scoped>
 .profiles-page { display: grid; grid-template-rows: minmax(0, 1fr); min-width: 0; min-height: 0; height: 100%; overflow: hidden; background: var(--bg-base, #111); color: var(--fg-text, #ddd); font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .profiles-list { box-sizing: border-box; height: 100%; padding: 14px 12px; overflow: auto; background: var(--bg-mantle, #171717); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
-.profiles-list__header { margin: 0 4px 12px; color: var(--fg-subtext0, #888); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
+.profiles-list__header { margin: 0 4px 12px; color: var(--fg-subtext1, #bac2de); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
 .profiles-new, .profile-card { width: 100%; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: inherit; font: inherit; text-align: left; }
-.profile-card__select { display: grid; flex: 1; min-width: 0; gap: 4px; border: 0 !important; text-align: left !important; cursor: pointer; }
-.profile-card__actions { display: flex; gap: 3px; align-items: center; }
-.profile-card__actions button { padding: 4px 6px !important; font-size: 10px !important; }
-.duplicate-warning { color: var(--warning, #f9e2af); font-size: 10px; font-weight: 400; }
+.profile-card__select { display: grid; flex: 1; min-width: 0; gap: 4px; border: 0 !important; background: transparent; text-align: left !important; cursor: pointer; }
+.profile-card__actions { display: flex; gap: 6px; align-items: center; }
+.profile-card__actions button { padding: 4px 8px !important; background: var(--bg-surface0, #313244); font-size: 12px !important; }
+.duplicate-warning { display: inline-block; padding: 1px 6px; border-radius: 999px; background: var(--yellow, #f9e2af); color: #11111b; font-size: 12px; font-style: normal; font-weight: 600; white-space: nowrap; }
 .profiles-new { padding: 9px; margin-bottom: 12px; }
-.profiles-new:hover, .profile-card:hover, .profile-card.active { border-color: var(--accent, #89b4fa); background: var(--bg-surface0, #242424); }
-.profiles-empty { color: var(--fg-subtext0, #888); font-size: 11px; }
+.profiles-new:hover, .profile-card:hover, .profile-card.active { border-color: var(--accent, #89b4fa); background: var(--bg-base, #1e1e2e); }
+.profiles-empty { color: var(--fg-subtext1, #bac2de); font-size: 12px; }
 .profile-card { display: flex; justify-content: space-between; gap: 8px; padding: 10px; margin-bottom: 7px; }
 .profile-card span:first-child { display: grid; min-width: 0; gap: 4px; }
-.profile-card strong, .profile-card small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.profile-card small { color: var(--fg-subtext0, #888); font-size: 10px; }
-.profile-delete { padding: 0 3px; color: var(--fg-subtext0, #888); }
+.profile-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-card small { white-space: normal; overflow-wrap: break-word; }
+.profile-card small { color: var(--fg-subtext1, #bac2de); font-size: 12px; line-height: 1.45; }
+.profile-card__headline { color: var(--fg-text, #cdd6f4); }
+.profile-delete { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; margin-left: 6px; padding: 0 3px; background: transparent !important; color: var(--fg-text, #cdd6f4); font-size: 14px; }
+.profile-delete:hover { color: var(--red, #f38ba8); }
 
 /* Shared controls */
 .profiles-page button { border: 1px solid var(--border, #333); border-radius: 3px; padding: 6px 10px; background: transparent; color: inherit; font: inherit; cursor: pointer; white-space: nowrap; }
@@ -681,6 +729,10 @@ const runApply = async () => {
 .profile-toolbar__mode { color: var(--accent, #89b4fa); text-decoration: none; }
 .profile-toolbar__mode:hover { text-decoration: underline; }
 .profile-toolbar__actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.profile-pending-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 16px; padding: 9px 12px; border: 1px solid var(--warning, #f9e2af); border-radius: 4px; background: color-mix(in srgb, var(--warning, #f9e2af) 12%, transparent); font-size: 12px; }
+.profile-card--draft { border-style: dashed; }
+.profile-card--draft .profile-card__select { cursor: default; }
+.draft-badge { color: var(--warning, #f9e2af); font-style: normal; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 
 .profile-identity { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px 14px; }
 .profile-section { min-width: 0; margin-top: 22px; }

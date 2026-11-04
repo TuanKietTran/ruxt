@@ -10,5 +10,6 @@ const { authenticated } = useFeatureFlags();
     </NuxtLayout>
     <AuthDialog v-if="authenticated" />
     <AppDialogHost />
+    <ToastHost />
   </div>
 </template>
