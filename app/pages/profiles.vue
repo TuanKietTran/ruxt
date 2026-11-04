@@ -41,6 +41,7 @@ const persist = (items: LocalProfile[]) => {
 // while typing or only on an explicit Save is the `profileSaveMode` preference.
 const { preferences, load: loadPreferences, signedIn } = usePreferences();
 const appDialog = useAppDialog();
+const toast = useToast();
 const saveMode = computed(() => preferences.value.profileSaveMode);
 type EntrySection = "contacts" | "experiences" | "skills" | "certifications" | "education" | "projects" | "languages";
 const touched = reactive(new Set<string>());
@@ -204,8 +205,15 @@ const renameProfile = async (profile: LocalProfile) => {
 };
 const duplicateProfile = async (profile: LocalProfile) => {
     if (!await confirmDiscard()) return;
-    const copy = saveLocalProfile(toProfileProps(profile));
+    const base = profile.identity.fullName;
+    const taken = new Set(profiles.value.map(item => item.identity.fullName.trim().toLocaleLowerCase()));
+    let candidate = `${base} (copy)`;
+    for (let n = 2; taken.has(candidate.toLocaleLowerCase()); n++) candidate = `${base} (copy ${n})`;
+    const props = toProfileProps(profile);
+    props.identity = { ...props.identity, fullName: candidate };
+    const copy = saveLocalProfile(props);
     readProfiles();
+    toast.push("Profile duplicated", { tone: "success" });
     await startEdit(copy, true);
 };
 const remove = async (profile: LocalProfile) => {
