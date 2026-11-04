@@ -125,7 +125,7 @@ export function createLocalCvStore(storage: () => Storage | undefined = () => {
         fork(sourceId, newId, title) {
             const source = read(sourceId);
             if (!source || read(newId)) return null;
-            return store.create({ id: newId, title: title ?? `${titleOf(source)} Copy`, markdown: source.markdown, css: source.css });
+            return store.create({ id: newId, title: title ?? `${titleOf(source)} (copy)`, markdown: source.markdown, css: source.css });
         },
         remove(id) {
             const target = storage();

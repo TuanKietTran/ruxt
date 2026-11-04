@@ -229,7 +229,11 @@ const forkSelectedDocument = async () => {
     contextMenu.value = null;
     const nextId = crypto.randomUUID();
     try {
-        await sessionActions.forkDocument(source.id, nextId, `${documentLabel(source)} Copy`);
+        const base = documentLabel(source);
+        const taken = new Set(sessions.value.map(document => documentLabel(document).trim().toLowerCase()));
+        let candidate = `${base} (copy)`;
+        for (let n = 2; taken.has(candidate.toLowerCase()); n++) candidate = `${base} (copy ${n})`;
+        await sessionActions.forkDocument(source.id, nextId, candidate);
         await navigateTo(documentPath(nextId));
     } catch (error: any) {
         operationError.value = error?.statusMessage || error?.message || "Could not fork session.";
