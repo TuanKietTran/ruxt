@@ -28,7 +28,28 @@ const KEY_LABELS: Record<string, string> = {
     description: "Description", technology: "Tech", skill: "Skill", language: "Language",
 };
 
+const PLACEHOLDER_VALUES = new Set(["your name", "john doe", "jane doe", "city, country", "email@example.com", "your headline", "your email", "your phone", "university name", "organization name", "previous organization", "organization or program", "project name", "project.example", "month year", "job title", "previous job title", "degree, field of study", "course one", "course two", "course three", "language or tool", "platform or framework", "language (proficiency)", "interest, interest, interest", "+1 555 0100"]);
+const PLACEHOLDER_PREFIXES = ["start each bullet", "quantify the", "keep each bullet", "describe a meaningful", "include the tools", "explain your contribution", "highlight your technical", "list a measurable", "one sentence describing"];
+const isPlaceholderValue = (value: string): boolean => {
+    const trimmed = value.trim();
+    const lower = trimmed.toLowerCase();
+    if (!lower) return false;
+    if (PLACEHOLDER_VALUES.has(lower)) return true;
+    if (PLACEHOLDER_PREFIXES.some(prefix => lower.startsWith(prefix))) return true;
+    if (lower.includes("@example.") || lower.includes("example.com") || lower.endsWith(".example")) return true;
+    if (lower.includes("lorem ipsum") || lower.includes("month year") || lower.includes("your-name") || lower.includes("x.xx")) return true;
+    if (/555[- ]01\d{2}\b/.test(lower)) return true;
+    if (trimmed === trimmed.toUpperCase() && /\b(YOUR|NAME|ORGANIZATION)\b/.test(trimmed)) return true;
+    if (/^\[.*\]$/.test(trimmed) || /^<.*>$/.test(trimmed)) return true;
+    return false;
+};
+const defaultIncluded = (detection: CvProfileDetection | null): Set<CvProfileSection> => {
+    if (!detection) return new Set(CV_PROFILE_SECTIONS);
+    return new Set(CV_PROFILE_SECTIONS.filter(section => detection.fields.filter(field => field.section === section).every(field => !isPlaceholderValue(field.value))));
+};
 const included = ref<Set<CvProfileSection>>(new Set(CV_PROFILE_SECTIONS));
+const includedSignature = computed(() => props.detection ? props.detection.fields.map(field => `${field.section}:${isPlaceholderValue(field.value) ? "p" : "r"}`).join("|") : "");
+watch(includedSignature, () => { included.value = defaultIncluded(props.detection); }, { immediate: true });
 const target = ref("");
 const profiles = ref<LocalProfile[]>([]);
 const status = ref("");
@@ -43,7 +64,7 @@ onMounted(refreshProfiles);
 
 const groups = computed(() => CV_PROFILE_SECTIONS.map(section => {
     const fields = props.detection?.fields.filter(field => field.section === section) ?? [];
-    return { section, fields, located: fields.filter(field => field.ranges.length).length };
+    return { section, fields, located: fields.filter(field => field.ranges.length).length, placeholders: fields.filter(field => isPlaceholderValue(field.value)).length };
 }).filter(group => group.fields.length));
 
 const toggled = (set: Set<CvProfileSection>, section: CvProfileSection) => {
@@ -107,6 +128,7 @@ const save = () => {
                         {{ SECTION_LABELS[group.section] }}
                         <small>{{ group.located }}/{{ group.fields.length }}</small>
                     </button>
+                    <small v-if="group.placeholders" class="detect-group__placeholder">placeholder — off by default</small>
                 </div>
                 <ul v-if="expanded.has(group.section)">
                     <li v-for="field in group.fields" :key="field.path">
@@ -119,7 +141,7 @@ const save = () => {
                             @click="emit('reveal', field)"
                         >
                             <span>{{ fieldLabel(field) }}</span>
-                            <span class="detect-field__value">{{ field.value }}</span>
+                            <span class="detect-field__value">{{ field.value }}<em v-if="isPlaceholderValue(field.value)" class="detect-field__placeholder">placeholder</em></span>
                         </button>
                     </li>
                 </ul>
@@ -148,10 +170,12 @@ const save = () => {
 .cm-profile-field--skills { --highlight-color: var(--yellow, #f9e2af); }
 .cm-profile-field--certifications { --highlight-color: var(--teal, #94e2d5); }
 .cm-profile-field--languages { --highlight-color: var(--sapphire, #74c7ec); }
+/* Taller detecting layout (item 6): the host (CvSessionEditor.vue, not A3-owned) sizes this panel's grid row at minmax(160px, 42%) in a scoped rule. That rule lives here instead — the --detecting class is only present while this panel is mounted, and !important (used elsewhere in this codebase for layout overrides) makes it win over the host's scoped rule. */
+.session-source--detecting { grid-template-rows: minmax(0, 1fr) minmax(280px, 60%) !important; }
 </style>
 
 <style scoped>
-.detect-panel { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-height: 0; max-height: 100%; border-top: 1px solid var(--border, #333); background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font-size: 12px; }
+.detect-panel { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-height: 0; height: 100%; max-height: 100%; border-top: 1px solid var(--border, #333); background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font-size: 12px; }
 .detect-panel__header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border, #333); }
 .detect-panel__header small { color: var(--fg-subtext0, #888); }
 .detect-panel__header button { margin-left: auto; border: 0; background: transparent; color: var(--fg-subtext0, #888); font: inherit; font-size: 16px; cursor: pointer; }
@@ -174,4 +198,6 @@ const save = () => {
 .detect-panel__error { color: var(--red, #f38ba8); }
 .detect-panel__status { color: var(--green, #a6e3a1); }
 .detect-panel__status a { color: var(--accent, #89b4fa); }
+.detect-group__placeholder { color: var(--yellow, #f9e2af); white-space: nowrap; }
+.detect-field__placeholder { font-style: normal; color: var(--yellow, #f9e2af); margin-left: 6px; }
 </style>
