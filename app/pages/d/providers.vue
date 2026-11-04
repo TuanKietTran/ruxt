@@ -172,7 +172,9 @@ const loading = computed(() => status.value === "pending");
     width: 280px;
     transition: border-color 0.15s;
 }
-.search::placeholder { color: var(--bg-overlay1); }
+.search::placeholder { color: var(--fg-subtext1); }
+/* Latte: subtext1 on surface0 is 4.05:1; the darkened mix is 5.46:1. */
+[data-theme="latte"] .search::placeholder { color: color-mix(in srgb, var(--fg-subtext1) 80%, #000); }
 .search:focus { border-color: var(--accent); }
 
 .provider-list { display: flex; flex-direction: column; gap: 32px; }
@@ -257,4 +259,8 @@ const loading = computed(() => status.value === "pending");
     border-color: var(--yellow);
     background: color-mix(in srgb, var(--yellow) 10%, transparent);
 }
+
+/* Latte: raw --green/--yellow badge text is ~3.0:1 / ~2.3:1 on the tinted background. */
+[data-theme="latte"] .badge-public { color: color-mix(in srgb, var(--green) 62%, #000); border-color: color-mix(in srgb, var(--green) 62%, #000); }
+[data-theme="latte"] .badge-private { color: color-mix(in srgb, var(--yellow) 58%, #000); border-color: color-mix(in srgb, var(--yellow) 58%, #000); }
 </style>
