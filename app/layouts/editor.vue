@@ -124,7 +124,7 @@ const statusStats = computed<EditorStats>(() =>
         : { line: props.cursorLine, column: props.cursorColumn, words: props.wordCount },
 );
 const isCloningTemplate = ref(false);
-const sourceFormattingEnabled = computed(() => props.formattingEnabled && !selectedTemplate.value);
+const sourceFormattingEnabled = computed(() => props.formattingEnabled && !selectedTemplate.value && !showTemplatePicker.value);
 const indicatorsVisible = computed(() => selectedTemplate.value ? showTemplateIndicators.value : props.showIndicators);
 const toggleIndicators = () => {
     if (selectedTemplate.value) showTemplateIndicators.value = !showTemplateIndicators.value;
