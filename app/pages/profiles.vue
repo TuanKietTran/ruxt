@@ -308,6 +308,8 @@ const openTransfer = (mode: TransferMode, targets: LocalProfile[] = []) => {
     Object.assign(transfer, { mode, targets, passphrase: "", confirm: "", input: "", fileName: "", error: "", status: "", busy: false });
 };
 const closeTransfer = () => { if (!transfer.busy) transfer.mode = null; };
+const transferDialogElement = ref<HTMLElement | null>(null);
+useModalBehavior({ isOpen: () => transfer.mode !== null, onClose: closeTransfer, container: () => transferDialogElement.value });
 const transferLabel = computed(() => transfer.targets.length === 1
     ? transfer.targets[0]!.identity.fullName || "profile"
     : `${transfer.targets.length} profiles`);
@@ -618,8 +620,8 @@ const runApply = async () => {
                     </div>
                 </div>
             </section>
-            <div v-if="transfer.mode" class="transfer-backdrop" @click.self="closeTransfer" @keydown.esc="closeTransfer">
-                <form class="transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="transfer-title" @submit.prevent="runTransfer">
+            <div v-if="transfer.mode" class="transfer-backdrop" @click.self="closeTransfer">
+                <form ref="transferDialogElement" class="transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="transfer-title" @submit.prevent="runTransfer">
                     <h2 id="transfer-title">
                         {{ transfer.mode === "import" ? "Import encrypted profiles" : transfer.mode === "copy" ? `Copy ${transferLabel} encrypted` : `Export ${transferLabel} encrypted` }}
                     </h2>

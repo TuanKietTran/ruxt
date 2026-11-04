@@ -75,25 +75,7 @@ const switchError = ref("");
 const switchDialog = reactive({ open: false, profile: null as LocalProfile | null, before: null as CvDocument | null, after: null as { markdown: string; css: string } | null, layout: "", appliedRevision: 0, confirmed: false });
 const switchDialogElement = useTemplateRef<HTMLElement>("switchDialogElement");
 const switchDialogCancel = useTemplateRef<HTMLButtonElement>("switchDialogCancel");
-let switchDialogReturnFocus: HTMLElement | null = null;
-watch(() => switchDialog.open, async (open) => {
-    if (open) {
-        switchDialogReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-        await nextTick(); switchDialogCancel.value?.focus();
-    } else {
-        const restore = switchDialogReturnFocus; switchDialogReturnFocus = null;
-        await nextTick(); if (restore?.isConnected) restore.focus();
-    }
-});
-const onSwitchDialogKeydown = (event: KeyboardEvent) => {
-    if (event.key === "Escape") { event.preventDefault(); switchDialog.open = false; return; }
-    if (event.key !== "Tab" || !switchDialogElement.value) return;
-    const items = [...switchDialogElement.value.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])')].filter(item => item.offsetParent !== null);
-    const first = items[0]; const last = items.at(-1);
-    if (!first || !last) { event.preventDefault(); switchDialogElement.value.focus(); return; }
-    if (event.shiftKey && (document.activeElement === first || !switchDialogElement.value.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
-    else if (!event.shiftKey && (document.activeElement === last || !switchDialogElement.value.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
-};
+useModalBehavior({ isOpen: () => switchDialog.open, onClose: () => { switchDialog.open = false; }, container: () => switchDialogElement.value, initialFocus: () => switchDialogCancel.value });
 const readLocalProfiles = () => {
     localProfiles.value = loadLocalProfiles().filter(profile => profile.identity.fullName.trim());
 };
@@ -243,7 +225,7 @@ const activeSource = computed({
                 </select>
                 <span v-if="switchError" class="profile-switch__error" role="alert" :title="switchError">{{ switchError }}</span>
                 <div v-if="switchDialog.open" class="profile-overwrite-backdrop" @click.self="switchDialog.open = false">
-                    <section ref="switchDialogElement" class="profile-overwrite" role="dialog" aria-modal="true" aria-labelledby="switch-preview-title" aria-describedby="switch-preview-description" tabindex="-1" @keydown="onSwitchDialogKeydown">
+                    <section ref="switchDialogElement" class="profile-overwrite" role="dialog" aria-modal="true" aria-labelledby="switch-preview-title" aria-describedby="switch-preview-description" tabindex="-1">
                         <h2 id="switch-preview-title">Review profile overwrite</h2>
                         <p id="switch-preview-description">Switching to {{ switchDialog.profile?.identity.fullName }} replaces the session Markdown and may replace its layout.</p>
                         <div class="switch-diff"><section><h3>Before · Markdown</h3><pre>{{ switchDialog.before?.markdown }}</pre><h3>Before · CSS</h3><pre>{{ switchDialog.before?.css }}</pre></section><section><h3>After · Markdown</h3><pre>{{ switchDialog.after?.markdown }}</pre><h3>After · CSS</h3><pre>{{ switchDialog.after?.css }}</pre></section></div>
