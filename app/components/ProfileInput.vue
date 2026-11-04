@@ -75,6 +75,7 @@ const onBlur = () => {
     background: var(--bg-mantle, #171717);
     color: var(--fg-text, #ddd);
     font: inherit;
+    font-size: 13px;
     line-height: 1.4;
     overflow-wrap: anywhere;
     resize: none;
