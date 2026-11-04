@@ -12,6 +12,7 @@ const handleLogout = async () => {
 
 <template>
     <div class="layout">
+        <a href="#main-content" class="skip-link">Skip to content</a>
         <header class="header">
             <div class="header-inner">
                 <NuxtLink to="/" class="logo">
@@ -48,7 +49,7 @@ const handleLogout = async () => {
             </div>
         </header>
 
-        <main id="main-content" class="main">
+        <main id="main-content" class="main" tabindex="-1">
             <slot />
         </main>
     </div>
@@ -59,6 +60,35 @@ const handleLogout = async () => {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+}
+
+.skip-link {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+.skip-link:focus-visible {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 200;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    padding: 8px 14px;
+    background: var(--accent);
+    color: var(--bg-crust);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 /* Header */

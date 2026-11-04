@@ -2,7 +2,19 @@
 import { useTheme, type ThemeId } from "~/composables/useTheme";
 
 const { current, themes, apply } = useTheme();
+const { push: pushToast } = useToast();
 const themeReady = ref(false);
+
+function onThemeChange(event: Event) {
+    const id = (event.target as HTMLSelectElement).value as ThemeId;
+    try {
+        apply(id);
+        const label = themes.find((theme) => theme.id === id)?.label ?? id;
+        pushToast(`Theme changed to ${label}.`, { tone: "success" });
+    } catch {
+        pushToast("The theme could not be saved.", { tone: "error" });
+    }
+}
 onMounted(() => {
     useTheme().init();
     themeReady.value = true;
@@ -15,7 +27,7 @@ onMounted(() => {
         class="theme-select"
         :value="current"
         aria-label="Select theme"
-        @change="apply(($event.target as HTMLSelectElement).value as ThemeId)"
+        @change="onThemeChange"
     >
         <option v-for="theme in themes" :key="theme.id" :value="theme.id">
             {{ theme.label }}

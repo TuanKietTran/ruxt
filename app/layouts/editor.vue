@@ -592,6 +592,7 @@ const handleLogout = async () => {
         :style="layoutStyle"
         @keydown.esc="closeDrawer"
     >
+        <a href="#main-content" class="skip-link">Skip to content</a>
         <header class="editor-header">
             <section class="editor-header__identity">
                 <button
@@ -774,7 +775,8 @@ const handleLogout = async () => {
 
         <!-- The layout owns the split; pages only provide editor and preview content. -->
         <main
-            id="main-editor"
+            id="main-content"
+            tabindex="-1"
             ref="workspace"
             class="editor-workspace"
             :class="{ 'editor-workspace--resizing': isResizing, 'editor-workspace--page': $slots.workspace, 'editor-workspace--picker': showTemplatePicker }"
@@ -994,6 +996,35 @@ const handleLogout = async () => {
 </template>
 
 <style scoped>
+.skip-link {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+.skip-link:focus-visible {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 200;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    padding: 8px 14px;
+    background: var(--accent);
+    color: var(--bg-crust);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
 .editor-layout {
     position: fixed;
     z-index: 100;
