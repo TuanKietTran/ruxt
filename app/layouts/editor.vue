@@ -6,6 +6,7 @@ import type { CvSessionBackupEntry } from "@ruxt/shared/cv";
 import { hasEditorFeature, listEditorContexts, resolveEditorContext, type EditorContext, type EditorFeature } from "~/utils/editorContexts";
 import { reuseFor } from "~/utils/fetchCache";
 import { readLocalCvTemplates } from "~/utils/localCvTemplates";
+import { cvSessionLabel } from "~/utils/cv-session-label";
 
 const LIST_REUSE_MS = 60_000;
 
@@ -83,6 +84,7 @@ const { user, logout } = useAppAuth();
 const { authenticated } = useFeatureFlags();
 const { openAuthDialog } = useAuthDialog();
 const appDialog = useAppDialog();
+const toast = useToast();
 // CV sessions live in this browser; listing them makes no request.
 const sessionsLoading = ref(false);
 const reloadCvDocuments = async () => { sessionActions.reloadDocuments(); };
@@ -169,6 +171,7 @@ const createSessionFromTemplate = async (template: CvTemplate) => {
         const id = crypto.randomUUID();
         await sessionActions.createFromTemplate(template, id);
         await navigateTo(documentPath(id));
+        toast.push(`New session created from ${template.name}`, { tone: "success" });
     } catch (error: any) {
         operationError.value = error?.statusMessage || error?.message || "Could not create session.";
     } finally {
@@ -189,13 +192,34 @@ const startBlankSession = () => {
     emit("createDocument");
 };
 const refreshDocuments = async () => {
-    await reloadCvDocuments();
+    try {
+        await reloadCvDocuments();
+    } catch (error) {
+        toast.push("Could not refresh sessions", { tone: "error" });
+        throw error;
+    }
     emit("refreshDocuments");
+    toast.push("Sessions refreshed", { tone: "success" });
 };
 const contextMenu = ref<{ x: number; y: number; document: CvDocumentSummary } | null>(null);
 const operationError = ref("");
+/** Element that opened the session menu (the row's ... button, or the row link on right-click); focus returns here when the menu or a dialog it launched closes, instead of landing on body. */
+const sessionMenuTrigger = ref<HTMLElement | null>(null);
+const restoreSessionMenuFocus = async () => {
+    const trigger = sessionMenuTrigger.value;
+    sessionMenuTrigger.value = null;
+    if (!trigger) return;
+    await nextTick();
+    if (trigger.isConnected) trigger.focus();
+};
 const openDocumentMenu = (event: MouseEvent, document: CvDocumentSummary) => {
+    sessionMenuTrigger.value = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     contextMenu.value = { x: Math.min(event.clientX, window.innerWidth - 170), y: Math.min(event.clientY, window.innerHeight - 126), document };
+};
+const closeDocumentMenuOnEscape = (event: KeyboardEvent) => {
+    if (event.key !== "Escape" || !contextMenu.value) return;
+    contextMenu.value = null;
+    void restoreSessionMenuFocus();
 };
 const startRename = async () => {
     if (!contextMenu.value) return;
@@ -208,8 +232,14 @@ const startRename = async () => {
         inputLabel: "Session name",
         initialValue: documentLabel(selected),
         confirmLabel: "Rename session",
-        validate: value => value.trim() ? undefined : "Enter a valid session name.",
+        validate: value => {
+            const name = value.trim();
+            if (!name) return "Enter a valid session name.";
+            const duplicate = sessions.value.some(document => document.id !== selected.id && documentLabel(document).trim().toLowerCase() === name.toLowerCase());
+            return duplicate ? "A session with this name already exists." : undefined;
+        },
     });
+    await restoreSessionMenuFocus();
     const title = response?.trim();
     if (!title || title === documentLabel(selected)) return;
     try {
@@ -222,9 +252,14 @@ const forkSelectedDocument = async () => {
     if (!contextMenu.value) return;
     const source = contextMenu.value.document;
     contextMenu.value = null;
+    sessionMenuTrigger.value = null;
     const nextId = crypto.randomUUID();
     try {
-        await sessionActions.forkDocument(source.id, nextId, `${documentLabel(source)} Copy`);
+        const base = documentLabel(source);
+        const taken = new Set(sessions.value.map(document => documentLabel(document).trim().toLowerCase()));
+        let candidate = `${base} (copy)`;
+        for (let n = 2; taken.has(candidate.toLowerCase()); n++) candidate = `${base} (copy ${n})`;
+        await sessionActions.forkDocument(source.id, nextId, candidate);
         await navigateTo(documentPath(nextId));
     } catch (error: any) {
         operationError.value = error?.statusMessage || error?.message || "Could not fork session.";
@@ -241,7 +276,8 @@ const deleteSelectedDocument = async () => {
         cancelLabel: "Keep session",
         destructive: true,
     });
-    if (!confirmed) return;
+    if (!confirmed) { await restoreSessionMenuFocus(); return; }
+    sessionMenuTrigger.value = null;
     try {
         await sessionActions.deleteDocument(selected.id);
         if (isActiveDocument(selected.id)) await navigateTo("/");
@@ -503,6 +539,7 @@ onMounted(() => {
     window.addEventListener("storage", recoverLocalSessions);
     window.addEventListener("click", closeDocumentMenu);
     window.addEventListener("blur", closeDocumentMenu);
+    window.addEventListener("keydown", closeDocumentMenuOnEscape);
 
     for (const context of editorContexts) {
         if (context.id === editorContext.value.id) continue;
@@ -527,13 +564,14 @@ onMounted(() => {
     }
 });
 
-const closeDocumentMenu = () => { contextMenu.value = null; };
+const closeDocumentMenu = () => { contextMenu.value = null; sessionMenuTrigger.value = null; };
 
 onBeforeUnmount(() => {
     compactMedia?.removeEventListener("change", syncCompact);
     window.removeEventListener("storage", recoverLocalSessions);
     window.removeEventListener("click", closeDocumentMenu);
     window.removeEventListener("blur", closeDocumentMenu);
+    window.removeEventListener("keydown", closeDocumentMenuOnEscape);
     previewObserver?.disconnect();
     canvasObserver?.disconnect();
 });
@@ -717,19 +755,27 @@ const handleLogout = async () => {
                         <span v-for="n in 3" :key="n" />
                     </div>
                     <p v-else-if="!sessions.length" class="document-tree__empty">No sessions yet</p>
-                    <NuxtLink
-                        v-for="document in sessions"
-                        :key="document.id"
-                        class="document-tree__item"
-                        :class="{ 'document-tree__item--active': isActiveDocument(document.id) }"
-                        :to="documentPath(document.id)"
-                        @pointerenter="warmDocument(document.id)"
-                        @focus="warmDocument(document.id)"
-                        @contextmenu.prevent="openDocumentMenu($event, document)"
-                    >
-                        <span>{{ documentLabel(document) }}</span>
-                        <small title="Stored in this browser">local · r{{ document.revision }}</small>
-                    </NuxtLink>
+                    <div v-for="document in sessions" :key="document.id" class="document-tree__row">
+                        <NuxtLink
+                            class="document-tree__item"
+                            :class="{ 'document-tree__item--active': isActiveDocument(document.id) }"
+                            :to="documentPath(document.id)"
+                            @pointerenter="warmDocument(document.id)"
+                            @focus="warmDocument(document.id)"
+                            @contextmenu.prevent="openDocumentMenu($event, document)"
+                        >
+                            <span>{{ cvSessionLabel(document) }}</span>
+                            <small title="Stored in this browser">local · r{{ document.revision }}</small>
+                        </NuxtLink>
+                        <button
+                            type="button"
+                            class="document-tree__menu-button"
+                            :aria-label="`Session actions for ${documentLabel(document)}`"
+                            aria-haspopup="menu"
+                            :aria-expanded="contextMenu?.document.id === document.id"
+                            @click.stop.prevent="openDocumentMenu($event, document)"
+                        >…</button>
+                    </div>
                 </section>
                 <section class="document-group template-group">
                     <header class="document-group__header">
@@ -1359,6 +1405,33 @@ button {
     font-size: 12px;
     text-decoration: none;
 }
+
+.document-tree__row { position: relative; }
+
+.document-tree__row > .document-tree__item { padding-right: 38px; }
+
+.document-tree__menu-button {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-subtext1);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.document-tree__menu-button:hover { background: var(--bg-surface1); color: var(--fg-text); }
+
+.document-tree__menu-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; background: var(--bg-surface1); color: var(--fg-text); }
 
 .document-tree__item:hover,
 .document-tree__item--active {
