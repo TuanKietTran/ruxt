@@ -115,13 +115,7 @@ onBeforeUnmount(() => {
         <button type="button" class="editable-field__add" @click="startEdit">＋ {{ label }}</button>
     </div>
     <div v-else ref="root" class="editable-field" :class="{ 'editable-field--editing': editing, 'editable-field--error': error }" @focusout="onFocusOut">
-        <span :id="`${id}-label`" class="editable-field__label">
-            {{ label }}
-            <Transition name="editable-field-fade">
-                <span v-if="saved && !error && !editing" class="editable-field__saved">✓ saved</span>
-            </Transition>
-            <span v-if="dirty" class="editable-field__unsaved">unsaved</span>
-        </span>
+        <span :id="`${id}-label`" class="editable-field__label">{{ label }}</span>
         <div
             v-if="!editing"
             role="button"
@@ -130,6 +124,7 @@ onBeforeUnmount(() => {
             :class="{ 'editable-field__display--empty': !modelValue.trim(), 'editable-field__display--multiline': multiline }"
             :aria-labelledby="`${id}-label`"
             :aria-describedby="error ? `${id}-error` : undefined"
+            :title="modelValue.trim() ? modelValue : undefined"
             @click="startEdit"
             @keydown.enter.self.prevent="startEdit"
             @keydown.space.self.prevent="startEdit"
@@ -155,13 +150,20 @@ onBeforeUnmount(() => {
                 <span class="editable-field__hint">{{ multiline ? "Ctrl/⌘ + Enter" : "Enter" }} to save · Esc to cancel</span>
             </div>
         </div>
-        <small v-if="error" :id="`${id}-error`" class="editable-field__error" role="alert">{{ error }}</small>
+        <div class="editable-field__status">
+            <Transition name="editable-field-fade">
+                <span v-if="saved && !error && !editing" class="editable-field__saved">✓ saved</span>
+            </Transition>
+            <span v-if="dirty" class="editable-field__unsaved">unsaved</span>
+            <small v-if="error" :id="`${id}-error`" class="editable-field__error" role="alert">{{ error }}</small>
+        </div>
     </div>
 </template>
 
 <style scoped>
 .editable-field { display: grid; align-content: start; gap: 5px; min-width: 0; color: var(--fg-subtext1, #aaa); font-size: 11px; }
 .editable-field__label { display: flex; align-items: baseline; gap: 8px; min-height: 14px; }
+.editable-field__status { display: flex; align-items: baseline; gap: 8px; min-height: 14px; line-height: 1.4; }
 .editable-field__saved { color: var(--success, #a6e3a1); font-size: 10px; }
 .editable-field__unsaved { color: var(--warning, #f9e2af); font-size: 10px; }
 .editable-field__error { color: var(--danger, #f38ba8); font-size: 10px; }
@@ -180,14 +182,15 @@ onBeforeUnmount(() => {
     font-size: 13px;
     line-height: 1.4;
     text-align: left;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     cursor: text;
 }
 .editable-field__display:hover { border-color: var(--border, #333); background: var(--bg-mantle, #171717); }
 .editable-field__display:focus-visible { outline: none; border-color: var(--accent, #89b4fa); }
 .editable-field__display--empty { color: var(--fg-subtext0, #777); font-style: italic; }
-.editable-field__display--multiline { min-height: calc(2.8em + 18px); }
+.editable-field__display--multiline { min-height: calc(2.8em + 18px); white-space: pre-wrap; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 .editable-field--error .editable-field__display { border-bottom-color: var(--danger, #f38ba8); }
 .editable-field__control { display: grid; gap: 6px; min-width: 0; }
 .editable-field__control select { box-sizing: border-box; width: 100%; min-height: 34px; padding: 7px 8px; border: 1px solid var(--accent, #89b4fa); border-radius: 3px; outline: none; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; font-size: 13px; }
