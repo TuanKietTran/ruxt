@@ -147,7 +147,7 @@ const confirmDiscard = async () => !unsavedKeys.size || await appDialog.confirm(
     message: `Discard ${unsavedKeys.size} unsaved ${unsavedKeys.size === 1 ? "edit" : "edits"}?`,
     confirmLabel: "Discard changes",
     cancelLabel: "Keep editing",
-    destructive: true,
+    danger: true,
 });
 const warnUnsaved = (event: BeforeUnloadEvent) => {
     if (!unsavedKeys.size) return;
@@ -184,10 +184,10 @@ const renameProfile = async (profile: LocalProfile) => {
     const response = await appDialog.prompt({
         title: "Rename profile",
         message: "Choose a name for this profile.",
-        inputLabel: "Profile name",
-        initialValue: profile.identity.fullName,
+        label: "Profile name",
+        initial: profile.identity.fullName,
         confirmLabel: "Save name",
-        validate: value => value.trim() ? undefined : "Enter a profile name.",
+        validate: value => value.trim() ? null : "Enter a profile name.",
     });
     const name = response?.trim();
     if (!name || name === profile.identity.fullName) return;
@@ -211,10 +211,10 @@ const duplicateProfile = async (profile: LocalProfile) => {
 const remove = async (profile: LocalProfile) => {
     if (!await appDialog.confirm({
         title: "Delete profile?",
-        message: `Delete ${profile.identity.fullName}'s profile? This cannot be undone.`,
+        message: `Delete ${profile.identity.fullName}'s profile — ${profile.identity.headline || "No headline"}? This cannot be undone.`,
         confirmLabel: "Delete profile",
         cancelLabel: "Keep profile",
-        destructive: true,
+        danger: true,
     })) return;
     persist(profiles.value.filter(item => item.id !== profile.id));
     if (editingId.value === profile.id) {
