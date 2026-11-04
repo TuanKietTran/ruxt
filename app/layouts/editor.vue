@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useTheme, type ThemeId } from "~/composables/useTheme";
 import type { EditorStats } from "@ruxt/editor/composables/useCodeMirror";
 import type { CvDocumentSummary, CvTemplate } from "@ruxt/shared/cv";
 import type { CvSessionBackupEntry } from "@ruxt/shared/cv";
@@ -79,7 +78,6 @@ watch(
     { immediate: true },
 );
 
-const { current, themes, apply } = useTheme();
 const sessionActions = useCvSessionActions();
 const { user, logout } = useAppAuth();
 const { authenticated } = useFeatureFlags();
@@ -664,16 +662,7 @@ const handleLogout = async () => {
                 <button v-if="authenticated && user && hasFeature('import')" class="header-button" type="button" @click="isImportOpen = true">Import</button>
                 <button v-if="hasFeature('export')" class="header-button header-button--primary" type="button" @click="isExportOpen = true">Export</button>
                 <button v-if="hasFeature('export')" class="header-button" type="button" data-pdf-export-trigger="true" @click="emit('exportPdf')">Export PDF</button>
-                <select
-                    class="theme-select"
-                    :value="current"
-                    aria-label="Select theme"
-                    @change="apply(($event.target as HTMLSelectElement).value as ThemeId)"
-                >
-                    <option v-for="theme in themes" :key="theme.id" :value="theme.id">
-                        {{ theme.label }}
-                    </option>
-                </select>
+                <ThemeSelect />
             </section>
         </header>
 
@@ -692,7 +681,6 @@ const handleLogout = async () => {
 
             <div class="activity-bar__bottom">
                 <NuxtLink class="activity-button" to="/about" aria-label="Help"><AppIcon name="lucide:circle-help" /></NuxtLink>
-                <NuxtLink class="activity-button" to="/settings" aria-label="Settings"><AppIcon name="lucide:settings" /></NuxtLink>
                 <template v-if="authenticated">
                     <button
                         v-if="user"
@@ -1151,8 +1139,7 @@ button {
     cursor: pointer;
 }
 
-.header-button,
-.theme-select {
+.header-button {
     height: 28px;
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-sm);
@@ -1165,8 +1152,7 @@ button {
     padding: 0 11px;
 }
 
-.header-button:hover,
-.theme-select:hover {
+.header-button:hover {
     background: var(--bg-surface0);
     color: var(--fg-text);
 }
@@ -1175,11 +1161,6 @@ button {
     border-color: var(--accent);
     background: var(--accent);
     color: var(--bg-crust);
-}
-
-.theme-select {
-    max-width: 150px;
-    padding: 0 7px;
 }
 
 .activity-bar {
