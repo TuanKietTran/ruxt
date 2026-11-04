@@ -1330,7 +1330,7 @@ button {
 .document-tree__empty {
     margin: 0;
     padding: 6px 16px;
-    color: var(--bg-overlay1);
+    color: var(--fg-subtext1);
     font-size: 12px;
 }
 
@@ -1465,10 +1465,10 @@ button {
 .template-card__preview i { display: block; height: 4px; border-radius: 2px; background: var(--bg-surface1); }
 .template-card__preview i:nth-last-child(2) { width: 82%; }
 .template-card__preview i:last-child { width: 60%; }
-.template-card--blank .template-card__preview { align-items: center; justify-content: center; color: var(--fg-overlay1); font-size: 40px; font-weight: 200; }
+.template-card--blank .template-card__preview { align-items: center; justify-content: center; color: var(--fg-subtext0); font-size: 40px; font-weight: 200; }
 .template-card__title { font-size: 13px; font-weight: 600; }
 .template-card__meta, .template-picker__empty { color: var(--fg-subtext0); font-size: 11px; }
-.template-picker__error { margin-top: 20px; color: var(--error, #f38ba8); font-size: 12px; }
+.template-picker__error { margin-top: 20px; color: var(--red); font-size: 12px; }
 .template-card--loading { height: 310px; border-radius: 4px; background: var(--bg-mantle); animation: tree-skeleton-pulse 1.2s ease-in-out infinite; }
 
 .source-editor {
@@ -1553,7 +1553,7 @@ button {
     padding: 0 8px;
     background: var(--bg-mantle);
     border-top: 1px solid var(--border);
-    color: var(--bg-overlay1);
+    color: var(--fg-subtext1);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 10px;
 }
@@ -1563,11 +1563,11 @@ button {
     gap: 12px;
 }
 
-.save-state { color: var(--green); }
-.save-state--saving { color: var(--yellow); }
+.save-state { color: color-mix(in srgb, var(--green) 32%, var(--fg-text)); }
+.save-state--saving { color: color-mix(in srgb, var(--yellow) 32%, var(--fg-text)); }
 .save-state--conflict,
-.save-state--offline { color: var(--red); }
-.save-retry { padding: 1px 5px; border: 1px solid currentColor; border-radius: 3px; background: transparent; color: var(--red); font: inherit; cursor: pointer; }
+.save-state--offline { color: color-mix(in srgb, var(--red) 85%, var(--fg-text)); }
+.save-retry { padding: 1px 5px; border: 1px solid currentColor; border-radius: 3px; background: transparent; color: color-mix(in srgb, var(--red) 85%, var(--fg-text)); font: inherit; cursor: pointer; }
 .save-retry:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .document-context-menu {
