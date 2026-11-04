@@ -11,6 +11,9 @@ import { isRef, nextTick, onBeforeUnmount, watch, type Ref } from "vue";
  * isOpen, container and initialFocus accept refs, getters, or plain values.
  * The keydown listener is only attached while the modal is open and is
  * removed on close and on unmount.
+ *
+ * When several modals are open at once, only the most recently opened
+ * (topmost) one reacts to Escape/Tab, so one Escape closes one dialog.
  */
 export type ModalValueSource<T> = Ref<T> | (() => T) | T;
 
@@ -23,6 +26,9 @@ export interface UseModalBehaviorOptions {
 
 const focusableSelector = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
 
+/* Open modals in open order; the last entry is the topmost dialog. */
+const openModalStack: object[] = [];
+
 function readValue<T>(source: ModalValueSource<T>): T {
     if (typeof source === "function") return (source as () => T)();
     if (isRef(source)) return source.value;
@@ -32,6 +38,10 @@ function readValue<T>(source: ModalValueSource<T>): T {
 export function useModalBehavior(options: UseModalBehaviorOptions) {
     let opener: HTMLElement | null = null;
     let listening = false;
+    const stackEntry = {};
+    const joinStack = () => { if (!openModalStack.includes(stackEntry)) openModalStack.push(stackEntry); };
+    const leaveStack = () => { const index = openModalStack.indexOf(stackEntry); if (index >= 0) openModalStack.splice(index, 1); };
+    const isTopmost = () => openModalStack[openModalStack.length - 1] === stackEntry;
 
     const isOpenNow = () => Boolean(readValue(options.isOpen));
     const containerElement = () => readValue(options.container) ?? null;
@@ -57,6 +67,8 @@ export function useModalBehavior(options: UseModalBehaviorOptions) {
 
     const handleKeydown = (event: KeyboardEvent) => {
         if (!isOpenNow()) return;
+        if (event.defaultPrevented) return;
+        if (!isTopmost()) return;
         if (event.key === "Escape") {
             event.preventDefault();
             options.onClose();
@@ -97,10 +109,12 @@ export function useModalBehavior(options: UseModalBehaviorOptions) {
     const stopWatching = watch(() => isOpenNow(), (open) => {
         if (typeof document === "undefined") return;
         if (open) {
+            joinStack();
             if (!opener && document.activeElement instanceof HTMLElement) opener = document.activeElement;
             startListening();
             void focusInitial();
         } else {
+            leaveStack();
             stopListening();
             restoreFocus();
         }
@@ -109,6 +123,7 @@ export function useModalBehavior(options: UseModalBehaviorOptions) {
     onBeforeUnmount(() => {
         stopWatching();
         stopListening();
+        leaveStack();
     });
 
     return { handleKeydown };
