@@ -84,6 +84,7 @@ const { user, logout } = useAppAuth();
 const { authenticated } = useFeatureFlags();
 const { openAuthDialog } = useAuthDialog();
 const appDialog = useAppDialog();
+const toast = useToast();
 // CV sessions live in this browser; listing them makes no request.
 const sessionsLoading = ref(false);
 const reloadCvDocuments = async () => { sessionActions.reloadDocuments(); };
@@ -170,6 +171,7 @@ const createSessionFromTemplate = async (template: CvTemplate) => {
         const id = crypto.randomUUID();
         await sessionActions.createFromTemplate(template, id);
         await navigateTo(documentPath(id));
+        toast.push(`New session created from ${template.name}`, { tone: "success" });
     } catch (error: any) {
         operationError.value = error?.statusMessage || error?.message || "Could not create session.";
     } finally {
@@ -190,8 +192,14 @@ const startBlankSession = () => {
     emit("createDocument");
 };
 const refreshDocuments = async () => {
-    await reloadCvDocuments();
+    try {
+        await reloadCvDocuments();
+    } catch (error) {
+        toast.push("Could not refresh sessions", { tone: "error" });
+        throw error;
+    }
     emit("refreshDocuments");
+    toast.push("Sessions refreshed", { tone: "success" });
 };
 const contextMenu = ref<{ x: number; y: number; document: CvDocumentSummary } | null>(null);
 const operationError = ref("");
