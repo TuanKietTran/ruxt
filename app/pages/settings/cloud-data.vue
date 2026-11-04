@@ -7,6 +7,11 @@ type ConsentView = {
 };
 
 const { user } = useAppAuth();
+const { push: pushToast } = useToast();
+const categoryLabels: Record<ConsentCategory, string> = {
+    cloudSessions: "Cloud session recovery",
+    cloudTemplates: "Cloud templates",
+};
 const accountFetch = useAccountFetch();
 const { data: consent, status, error: loadError } = await useAsyncData("cloud-consent", () => accountFetch<ConsentView>("/api/cloud-data/consent"), { watch: [user] });
 const saving = ref<ConsentCategory | null>(null);
@@ -22,9 +27,11 @@ async function setConsent(category: ConsentCategory, input: HTMLInputElement) {
             method: "PUT",
             body: { category, granted },
         });
+        pushToast(`${categoryLabels[category]} ${granted ? "allowed" : "not allowed"}.`, { tone: "success" });
     } catch (error: any) {
         input.checked = consent.value?.[category].granted ?? false;
         mutationError.value = error?.data?.statusMessage || "The consent change could not be saved.";
+        pushToast(mutationError.value, { tone: "error" });
     } finally {
         saving.value = null;
     }

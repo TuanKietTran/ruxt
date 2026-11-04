@@ -80,30 +80,31 @@ const nextBilling = computed(() => {
     return dates[0] ? dates[0].slice(0, 10) : "—";
 });
 
+/* Stat colours mixed toward --fg-text (cf. editor save-state): raw accents are 2.2-2.8:1 in Latte on --bg-mantle; at 32% they pass >=4.6:1 in all 3 themes. */
 const stats = computed(() => [
     {
         label: "Active subs",
         value: String(activeSubs.value.length),
         delta: `${subs.value.length} total`,
-        color: "var(--green)",
+        color: "color-mix(in srgb, var(--green) 32%, var(--fg-text))",
     },
     {
         label: "Monthly spend",
         value: monthlySpendDisplay.value,
         delta: "across active plans",
-        color: "var(--peach)",
+        color: "color-mix(in srgb, var(--peach) 32%, var(--fg-text))",
     },
     {
         label: "Next billing",
         value: nextBilling.value,
         delta: "earliest renewal",
-        color: "var(--yellow)",
+        color: "color-mix(in srgb, var(--yellow) 32%, var(--fg-text))",
     },
     {
         label: "Plans available",
         value: String(plans.value.length),
         delta: "in catalog",
-        color: "var(--sapphire)",
+        color: "color-mix(in srgb, var(--sapphire) 32%, var(--fg-text))",
     },
 ]);
 
@@ -121,15 +122,6 @@ const filteredSubs = computed(() => {
         return matchesSearch && matchesStatus;
     });
 });
-
-const statusColor: Record<StatusCode, string> = {
-    active:    "var(--green)",
-    trialing:  "var(--sapphire)",
-    paused:    "var(--fg-subtext0)",
-    past_due:  "var(--yellow)",
-    cancelled: "var(--red)",
-    expired:   "var(--red)",
-};
 
 const loading = computed(
     () => plansStatus.value === "pending" || subsStatus.value === "pending",
@@ -461,7 +453,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
                                     <td>
                                         <span
                                             class="status-badge"
-                                            :style="{ color: statusColor[sub.status], borderColor: statusColor[sub.status] }"
+                                            :data-status="sub.status"
                                         >
                                             {{ sub.status }}
                                         </span>
@@ -1142,7 +1134,9 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     width: 200px;
     transition: border-color 0.15s;
 }
-.search::placeholder { color: var(--bg-overlay1); }
+.search::placeholder { color: var(--fg-subtext1); }
+/* Latte: subtext1 on surface0 is 4.05:1; the darkened mix is 5.46:1. */
+[data-theme="latte"] .search::placeholder { color: color-mix(in srgb, var(--fg-subtext1) 80%, #000); }
 .search:focus { border-color: var(--accent); }
 
 .table-wrap {
@@ -1189,6 +1183,19 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     text-transform: capitalize;
     background: color-mix(in srgb, currentColor 10%, transparent);
 }
+/* Status colours in CSS, not inline, so Latte can darken them (cf. providers.vue badges):
+   raw accents are 2.2-4.5:1 as 11px text on the mantle/surface0 row backgrounds. */
+.status-badge[data-status="active"] { color: var(--green); border-color: var(--green); }
+.status-badge[data-status="trialing"] { color: var(--sapphire); border-color: var(--sapphire); }
+.status-badge[data-status="paused"] { color: var(--fg-subtext0); border-color: var(--fg-subtext0); }
+.status-badge[data-status="past_due"] { color: var(--yellow); border-color: var(--yellow); }
+.status-badge[data-status="cancelled"], .status-badge[data-status="expired"] { color: var(--red); border-color: var(--red); }
+/* Latte: mix toward black, ~6pts under the max % still passing 4.5:1 on both row backgrounds incl. the 10% tint. */
+[data-theme="latte"] .status-badge[data-status="active"] { color: color-mix(in srgb, var(--green) 50%, #000); border-color: color-mix(in srgb, var(--green) 50%, #000); }
+[data-theme="latte"] .status-badge[data-status="trialing"] { color: color-mix(in srgb, var(--sapphire) 48%, #000); border-color: color-mix(in srgb, var(--sapphire) 48%, #000); }
+[data-theme="latte"] .status-badge[data-status="paused"] { color: color-mix(in srgb, var(--fg-subtext0) 66%, #000); border-color: color-mix(in srgb, var(--fg-subtext0) 66%, #000); }
+[data-theme="latte"] .status-badge[data-status="past_due"] { color: color-mix(in srgb, var(--yellow) 44%, #000); border-color: color-mix(in srgb, var(--yellow) 44%, #000); }
+[data-theme="latte"] .status-badge[data-status="cancelled"], [data-theme="latte"] .status-badge[data-status="expired"] { color: color-mix(in srgb, var(--red) 68%, #000); border-color: color-mix(in srgb, var(--red) 68%, #000); }
 
 .row-actions {
     display: flex;

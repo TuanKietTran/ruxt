@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useTheme, type ThemeId } from "~/composables/useTheme";
 import type { EditorStats } from "@ruxt/editor/composables/useCodeMirror";
 import type { CvDocumentSummary, CvTemplate } from "@ruxt/shared/cv";
 import type { CvSessionBackupEntry } from "@ruxt/shared/cv";
 import { hasEditorFeature, listEditorContexts, resolveEditorContext, type EditorContext, type EditorFeature } from "~/utils/editorContexts";
 import { reuseFor } from "~/utils/fetchCache";
 import { readLocalCvTemplates } from "~/utils/localCvTemplates";
+import { cvSessionLabel } from "~/utils/cv-session-label";
 
 const LIST_REUSE_MS = 60_000;
 
@@ -79,12 +79,12 @@ watch(
     { immediate: true },
 );
 
-const { current, themes, apply } = useTheme();
 const sessionActions = useCvSessionActions();
 const { user, logout } = useAppAuth();
 const { authenticated } = useFeatureFlags();
 const { openAuthDialog } = useAuthDialog();
 const appDialog = useAppDialog();
+const toast = useToast();
 // CV sessions live in this browser; listing them makes no request.
 const sessionsLoading = ref(false);
 const reloadCvDocuments = async () => { sessionActions.reloadDocuments(); };
@@ -124,7 +124,7 @@ const statusStats = computed<EditorStats>(() =>
         : { line: props.cursorLine, column: props.cursorColumn, words: props.wordCount },
 );
 const isCloningTemplate = ref(false);
-const sourceFormattingEnabled = computed(() => props.formattingEnabled && !selectedTemplate.value);
+const sourceFormattingEnabled = computed(() => props.formattingEnabled && !selectedTemplate.value && !showTemplatePicker.value);
 const indicatorsVisible = computed(() => selectedTemplate.value ? showTemplateIndicators.value : props.showIndicators);
 const toggleIndicators = () => {
     if (selectedTemplate.value) showTemplateIndicators.value = !showTemplateIndicators.value;
@@ -171,6 +171,7 @@ const createSessionFromTemplate = async (template: CvTemplate) => {
         const id = crypto.randomUUID();
         await sessionActions.createFromTemplate(template, id);
         await navigateTo(documentPath(id));
+        toast.push(`New session created from ${template.name}`, { tone: "success" });
     } catch (error: any) {
         operationError.value = error?.statusMessage || error?.message || "Could not create session.";
     } finally {
@@ -191,13 +192,34 @@ const startBlankSession = () => {
     emit("createDocument");
 };
 const refreshDocuments = async () => {
-    await reloadCvDocuments();
+    try {
+        await reloadCvDocuments();
+    } catch (error) {
+        toast.push("Could not refresh sessions", { tone: "error" });
+        throw error;
+    }
     emit("refreshDocuments");
+    toast.push("Sessions refreshed", { tone: "success" });
 };
 const contextMenu = ref<{ x: number; y: number; document: CvDocumentSummary } | null>(null);
 const operationError = ref("");
+/** Element that opened the session menu (the row's ... button, or the row link on right-click); focus returns here when the menu or a dialog it launched closes, instead of landing on body. */
+const sessionMenuTrigger = ref<HTMLElement | null>(null);
+const restoreSessionMenuFocus = async () => {
+    const trigger = sessionMenuTrigger.value;
+    sessionMenuTrigger.value = null;
+    if (!trigger) return;
+    await nextTick();
+    if (trigger.isConnected) trigger.focus();
+};
 const openDocumentMenu = (event: MouseEvent, document: CvDocumentSummary) => {
+    sessionMenuTrigger.value = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     contextMenu.value = { x: Math.min(event.clientX, window.innerWidth - 170), y: Math.min(event.clientY, window.innerHeight - 126), document };
+};
+const closeDocumentMenuOnEscape = (event: KeyboardEvent) => {
+    if (event.key !== "Escape" || !contextMenu.value) return;
+    contextMenu.value = null;
+    void restoreSessionMenuFocus();
 };
 const startRename = async () => {
     if (!contextMenu.value) return;
@@ -210,8 +232,14 @@ const startRename = async () => {
         inputLabel: "Session name",
         initialValue: documentLabel(selected),
         confirmLabel: "Rename session",
-        validate: value => value.trim() ? undefined : "Enter a valid session name.",
+        validate: value => {
+            const name = value.trim();
+            if (!name) return "Enter a valid session name.";
+            const duplicate = sessions.value.some(document => document.id !== selected.id && documentLabel(document).trim().toLowerCase() === name.toLowerCase());
+            return duplicate ? "A session with this name already exists." : undefined;
+        },
     });
+    await restoreSessionMenuFocus();
     const title = response?.trim();
     if (!title || title === documentLabel(selected)) return;
     try {
@@ -224,9 +252,14 @@ const forkSelectedDocument = async () => {
     if (!contextMenu.value) return;
     const source = contextMenu.value.document;
     contextMenu.value = null;
+    sessionMenuTrigger.value = null;
     const nextId = crypto.randomUUID();
     try {
-        await sessionActions.forkDocument(source.id, nextId, `${documentLabel(source)} Copy`);
+        const base = documentLabel(source);
+        const taken = new Set(sessions.value.map(document => documentLabel(document).trim().toLowerCase()));
+        let candidate = `${base} (copy)`;
+        for (let n = 2; taken.has(candidate.toLowerCase()); n++) candidate = `${base} (copy ${n})`;
+        await sessionActions.forkDocument(source.id, nextId, candidate);
         await navigateTo(documentPath(nextId));
     } catch (error: any) {
         operationError.value = error?.statusMessage || error?.message || "Could not fork session.";
@@ -243,7 +276,8 @@ const deleteSelectedDocument = async () => {
         cancelLabel: "Keep session",
         destructive: true,
     });
-    if (!confirmed) return;
+    if (!confirmed) { await restoreSessionMenuFocus(); return; }
+    sessionMenuTrigger.value = null;
     try {
         await sessionActions.deleteDocument(selected.id);
         if (isActiveDocument(selected.id)) await navigateTo("/");
@@ -505,6 +539,7 @@ onMounted(() => {
     window.addEventListener("storage", recoverLocalSessions);
     window.addEventListener("click", closeDocumentMenu);
     window.addEventListener("blur", closeDocumentMenu);
+    window.addEventListener("keydown", closeDocumentMenuOnEscape);
 
     for (const context of editorContexts) {
         if (context.id === editorContext.value.id) continue;
@@ -529,13 +564,14 @@ onMounted(() => {
     }
 });
 
-const closeDocumentMenu = () => { contextMenu.value = null; };
+const closeDocumentMenu = () => { contextMenu.value = null; sessionMenuTrigger.value = null; };
 
 onBeforeUnmount(() => {
     compactMedia?.removeEventListener("change", syncCompact);
     window.removeEventListener("storage", recoverLocalSessions);
     window.removeEventListener("click", closeDocumentMenu);
     window.removeEventListener("blur", closeDocumentMenu);
+    window.removeEventListener("keydown", closeDocumentMenuOnEscape);
     previewObserver?.disconnect();
     canvasObserver?.disconnect();
 });
@@ -594,6 +630,7 @@ const handleLogout = async () => {
         :style="layoutStyle"
         @keydown.esc="closeDrawer"
     >
+        <a href="#main-content" class="skip-link">Skip to content</a>
         <header class="editor-header">
             <section class="editor-header__identity">
                 <button
@@ -659,21 +696,12 @@ const handleLogout = async () => {
                     </button>
                     <button class="template-back-button" type="button" @click="closeTemplate">Back to CV</button>
                 </div>
-                <NuxtLink class="header-button" to="/settings">Settings</NuxtLink>
+                <NuxtLink class="header-button header-button--settings" to="/settings">Settings</NuxtLink>
                 <button v-if="authenticated && user" class="header-button" type="button" @click="handleLogout">Logout</button>
                 <button v-if="authenticated && user && hasFeature('import')" class="header-button" type="button" @click="isImportOpen = true">Import</button>
-                <button v-if="hasFeature('export')" class="header-button header-button--primary" type="button" @click="isExportOpen = true">Export</button>
-                <button v-if="hasFeature('export')" class="header-button" type="button" data-pdf-export-trigger="true" @click="emit('exportPdf')">Export PDF</button>
-                <select
-                    class="theme-select"
-                    :value="current"
-                    aria-label="Select theme"
-                    @change="apply(($event.target as HTMLSelectElement).value as ThemeId)"
-                >
-                    <option v-for="theme in themes" :key="theme.id" :value="theme.id">
-                        {{ theme.label }}
-                    </option>
-                </select>
+                <button v-if="hasFeature('export')" class="header-button header-button--primary" type="button" :disabled="showTemplatePicker" @click="isExportOpen = true">Export</button>
+                <button v-if="hasFeature('export')" class="header-button" type="button" data-pdf-export-trigger="true" :disabled="showTemplatePicker" @click="emit('exportPdf')">Export PDF</button>
+                <ThemeSelect />
             </section>
         </header>
 
@@ -692,7 +720,6 @@ const handleLogout = async () => {
 
             <div class="activity-bar__bottom">
                 <NuxtLink class="activity-button" to="/about" aria-label="Help"><AppIcon name="lucide:circle-help" /></NuxtLink>
-                <NuxtLink class="activity-button" to="/settings" aria-label="Settings"><AppIcon name="lucide:settings" /></NuxtLink>
                 <template v-if="authenticated">
                     <button
                         v-if="user"
@@ -728,19 +755,27 @@ const handleLogout = async () => {
                         <span v-for="n in 3" :key="n" />
                     </div>
                     <p v-else-if="!sessions.length" class="document-tree__empty">No sessions yet</p>
-                    <NuxtLink
-                        v-for="document in sessions"
-                        :key="document.id"
-                        class="document-tree__item"
-                        :class="{ 'document-tree__item--active': isActiveDocument(document.id) }"
-                        :to="documentPath(document.id)"
-                        @pointerenter="warmDocument(document.id)"
-                        @focus="warmDocument(document.id)"
-                        @contextmenu.prevent="openDocumentMenu($event, document)"
-                    >
-                        <span>{{ documentLabel(document) }}</span>
-                        <small title="Stored in this browser">local · r{{ document.revision }}</small>
-                    </NuxtLink>
+                    <div v-for="document in sessions" :key="document.id" class="document-tree__row">
+                        <NuxtLink
+                            class="document-tree__item"
+                            :class="{ 'document-tree__item--active': isActiveDocument(document.id) }"
+                            :to="documentPath(document.id)"
+                            @pointerenter="warmDocument(document.id)"
+                            @focus="warmDocument(document.id)"
+                            @contextmenu.prevent="openDocumentMenu($event, document)"
+                        >
+                            <span>{{ cvSessionLabel(document) }}</span>
+                            <small title="Stored in this browser">local · r{{ document.revision }}</small>
+                        </NuxtLink>
+                        <button
+                            type="button"
+                            class="document-tree__menu-button"
+                            :aria-label="`Session actions for ${documentLabel(document)}`"
+                            aria-haspopup="menu"
+                            :aria-expanded="contextMenu?.document.id === document.id"
+                            @click.stop.prevent="openDocumentMenu($event, document)"
+                        >…</button>
+                    </div>
                 </section>
                 <section class="document-group template-group">
                     <header class="document-group__header">
@@ -786,7 +821,8 @@ const handleLogout = async () => {
 
         <!-- The layout owns the split; pages only provide editor and preview content. -->
         <main
-            id="main-editor"
+            id="main-content"
+            tabindex="-1"
             ref="workspace"
             class="editor-workspace"
             :class="{ 'editor-workspace--resizing': isResizing, 'editor-workspace--page': $slots.workspace, 'editor-workspace--picker': showTemplatePicker }"
@@ -1006,6 +1042,35 @@ const handleLogout = async () => {
 </template>
 
 <style scoped>
+.skip-link {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+.skip-link:focus-visible {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 200;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    padding: 8px 14px;
+    background: var(--accent);
+    color: var(--bg-crust);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
 .editor-layout {
     position: fixed;
     z-index: 100;
@@ -1151,8 +1216,7 @@ button {
     cursor: pointer;
 }
 
-.header-button,
-.theme-select {
+.header-button {
     height: 28px;
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-sm);
@@ -1165,8 +1229,7 @@ button {
     padding: 0 11px;
 }
 
-.header-button:hover,
-.theme-select:hover {
+.header-button:hover {
     background: var(--bg-surface0);
     color: var(--fg-text);
 }
@@ -1177,9 +1240,15 @@ button {
     color: var(--bg-crust);
 }
 
-.theme-select {
-    max-width: 150px;
-    padding: 0 7px;
+.header-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.header-button--primary:disabled {
+    border-color: var(--border-strong);
+    background: var(--bg-surface0);
+    color: var(--fg-subtext0);
 }
 
 .activity-bar {
@@ -1319,7 +1388,7 @@ button {
 .document-tree__empty {
     margin: 0;
     padding: 6px 16px;
-    color: var(--bg-overlay1);
+    color: var(--fg-subtext1);
     font-size: 12px;
 }
 
@@ -1336,6 +1405,33 @@ button {
     font-size: 12px;
     text-decoration: none;
 }
+
+.document-tree__row { position: relative; }
+
+.document-tree__row > .document-tree__item { padding-right: 38px; }
+
+.document-tree__menu-button {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-subtext1);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.document-tree__menu-button:hover { background: var(--bg-surface1); color: var(--fg-text); }
+
+.document-tree__menu-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; background: var(--bg-surface1); color: var(--fg-text); }
 
 .document-tree__item:hover,
 .document-tree__item--active {
@@ -1454,10 +1550,10 @@ button {
 .template-card__preview i { display: block; height: 4px; border-radius: 2px; background: var(--bg-surface1); }
 .template-card__preview i:nth-last-child(2) { width: 82%; }
 .template-card__preview i:last-child { width: 60%; }
-.template-card--blank .template-card__preview { align-items: center; justify-content: center; color: var(--fg-overlay1); font-size: 40px; font-weight: 200; }
+.template-card--blank .template-card__preview { align-items: center; justify-content: center; color: var(--fg-subtext0); font-size: 40px; font-weight: 200; }
 .template-card__title { font-size: 13px; font-weight: 600; }
 .template-card__meta, .template-picker__empty { color: var(--fg-subtext0); font-size: 11px; }
-.template-picker__error { margin-top: 20px; color: var(--error, #f38ba8); font-size: 12px; }
+.template-picker__error { margin-top: 20px; color: var(--red); font-size: 12px; }
 .template-card--loading { height: 310px; border-radius: 4px; background: var(--bg-mantle); animation: tree-skeleton-pulse 1.2s ease-in-out infinite; }
 
 .source-editor {
@@ -1542,7 +1638,7 @@ button {
     padding: 0 8px;
     background: var(--bg-mantle);
     border-top: 1px solid var(--border);
-    color: var(--bg-overlay1);
+    color: var(--fg-subtext1);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 10px;
 }
@@ -1552,11 +1648,11 @@ button {
     gap: 12px;
 }
 
-.save-state { color: var(--green); }
-.save-state--saving { color: var(--yellow); }
+.save-state { color: color-mix(in srgb, var(--green) 32%, var(--fg-text)); }
+.save-state--saving { color: color-mix(in srgb, var(--yellow) 32%, var(--fg-text)); }
 .save-state--conflict,
-.save-state--offline { color: var(--red); }
-.save-retry { padding: 1px 5px; border: 1px solid currentColor; border-radius: 3px; background: transparent; color: var(--red); font: inherit; cursor: pointer; }
+.save-state--offline { color: color-mix(in srgb, var(--red) 85%, var(--fg-text)); }
+.save-retry { padding: 1px 5px; border: 1px solid currentColor; border-radius: 3px; background: transparent; color: color-mix(in srgb, var(--red) 85%, var(--fg-text)); font: inherit; cursor: pointer; }
 .save-retry:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .document-context-menu {
@@ -1708,6 +1804,20 @@ button {
     .editor-header__actions .header-button:not(.header-button--primary),
     .editor-statusbar__left span:not(.save-state) {
         display: none;
+    }
+}
+
+@media (max-width: 400px) {
+    .editor-header__actions .header-button.header-button--settings {
+        display: inline-flex;
+        padding: 0 7px;
+    }
+
+    .editor-header__actions .theme-select {
+        display: block;
+        max-width: 88px;
+        padding: 0 4px;
+        font-size: 11px;
     }
 }
 

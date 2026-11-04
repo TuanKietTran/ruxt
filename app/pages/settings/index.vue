@@ -7,6 +7,7 @@ definePageMeta({ public: true });
 useSeoMeta({ title: "Settings", ogTitle: "Settings" });
 
 const { preferences, source, signedIn, load, update } = usePreferences();
+const { push: pushToast } = useToast();
 const saving = ref(false);
 const status = ref("");
 const error = ref("");
@@ -40,8 +41,10 @@ async function setSaveMode(mode: ProfileSaveMode) {
     try {
         await update({ profileSaveMode: mode });
         status.value = source.value === "account" ? "Saved to your account." : "Saved in this browser.";
+        pushToast(status.value, { tone: "success" });
     } catch (cause: any) {
         error.value = cause?.data?.statusMessage || "The setting could not be saved.";
+        pushToast(error.value, { tone: "error" });
     } finally {
         saving.value = false;
     }
@@ -58,7 +61,7 @@ async function setSaveMode(mode: ProfileSaveMode) {
 
         <section class="settings-card" aria-labelledby="profile-save-title">
             <h2 id="profile-save-title">Profile editor</h2>
-            <p class="detail">Fields are read-only until you click them. Choose what happens while you edit one.</p>
+            <p class="detail">Profile fields are read-only until you click one to edit it. Current save mode: {{ modeCopy[preferences.profileSaveMode].title }} — {{ modeCopy[preferences.profileSaveMode].detail }} Change it below; the profile editor header shows the same mode.</p>
             <div class="choice-list" role="radiogroup" aria-labelledby="profile-save-title">
                 <label v-for="mode in PROFILE_SAVE_MODES" :key="mode" class="choice" :class="{ 'choice--active': preferences.profileSaveMode === mode }">
                     <input

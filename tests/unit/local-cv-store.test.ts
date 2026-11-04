@@ -34,7 +34,7 @@ describe("browser-local CV store", () => {
         expect(store.save("a", { markdown: "# Changed", css: "" })?.revision).toBe(2);
         const renamed = store.rename("a", "Role");
         expect(renamed?.revision).toBe(2);
-        expect(store.fork("a", "b")?.title).toBe("Role Copy");
+        expect(store.fork("a", "b")?.title).toBe("Role (copy)");
         expect(store.get("b")?.markdown).toBe("# Changed");
         store.remove("a");
         expect(store.list().map(doc => doc.id)).toEqual(["b"]);
