@@ -484,6 +484,7 @@ const runApply = async () => {
             <section class="profile-form">
                 <div v-if="editingId === null" class="profile-placeholder">
                     <p>{{ profiles.length ? "Select a profile or create a new one." : "No local profiles yet." }}</p>
+                    <p>Save mode: <NuxtLink to="/settings" class="profile-toolbar__mode" title="Change in settings">{{ saveMode === "auto" ? "Auto-save" : "Save with button" }}</NuxtLink></p>
                     <div><button type="button" class="profile-save" @click="startCreate">＋ New profile</button><button type="button" @click="openTransfer('import')">Import</button></div>
                 </div>
                 <div v-else :key="formKey" class="profile-sheet">
@@ -509,8 +510,8 @@ const runApply = async () => {
                         <button type="button" @click="cancelAllPending">Cancel all incomplete</button>
                     </div>
 
-                        <div class="profile-section-heading"><h2>Profile identity</h2></div>
                     <section class="profile-section profile-name-section">
+                        <div class="profile-section-heading"><h2>Profile identity</h2></div>
                         <EditableField class="identity-name" label="Full name" placeholder="Your name" maxlength="120" autocomplete="name" v-bind="field('identity.fullName')" :model-value="draft.identity.fullName" @commit="draft.identity.fullName = $event; commit('identity.fullName')" />
                     </section>
 
@@ -730,8 +731,8 @@ const runApply = async () => {
 .profile-card--draft { border-style: dashed; }
 .profile-card--draft .profile-card__select { cursor: default; }
 .draft-badge { color: var(--warning, #f9e2af); font-style: normal; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
-.profile-identity { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px 14px; }
 
+.profile-identity { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px 14px; }
 .profile-section { min-width: 0; margin-top: 22px; }
 .profile-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border, #333); }
 .profile-section-heading h2 { margin: 0; font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
