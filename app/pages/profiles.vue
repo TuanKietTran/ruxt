@@ -380,6 +380,8 @@ const openApply = async (profile: LocalProfile) => {
     sessionActions.reloadDocuments();
 };
 const closeApply = () => { if (!apply.busy) apply.open = false; };
+const applyDialogElement = ref<HTMLElement | null>(null);
+useModalBehavior({ isOpen: () => apply.open, onClose: closeApply, container: () => applyDialogElement.value });
 const toggleAllSessions = () => {
     apply.selected = apply.selected.length === applySessions.value.length ? [] : applySessions.value.map(session => session.id);
 };
@@ -641,8 +643,8 @@ const runApply = async () => {
                     </footer>
                 </form>
             </div>
-            <div v-if="apply.open" class="transfer-backdrop" @click.self="closeApply" @keydown.esc="closeApply">
-                <form class="transfer-dialog apply-dialog" role="dialog" aria-modal="true" aria-labelledby="apply-title" @submit.prevent="runApply">
+            <div v-if="apply.open" class="transfer-backdrop" @click.self="closeApply">
+                <form ref="applyDialogElement" class="transfer-dialog apply-dialog" role="dialog" aria-modal="true" aria-labelledby="apply-title" @submit.prevent="runApply">
                     <h2 id="apply-title">Apply {{ apply.profile?.identity.fullName }} to sessions</h2>
                     <p class="transfer-hint">Each selected session keeps its layout (or switches to the chosen template) and gets this profile's personal content. Sessions are updated independently.</p>
                     <label>Layout
