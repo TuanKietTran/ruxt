@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useTheme, type ThemeId } from "~/composables/useTheme";
 import type { EditorStats } from "@ruxt/editor/composables/useCodeMirror";
 import type { CvDocumentSummary, CvTemplate } from "@ruxt/shared/cv";
 import type { CvSessionBackupEntry } from "@ruxt/shared/cv";
@@ -79,7 +78,6 @@ watch(
     { immediate: true },
 );
 
-const { current, themes, apply } = useTheme();
 const sessionActions = useCvSessionActions();
 const { user, logout } = useAppAuth();
 const { authenticated } = useFeatureFlags();
@@ -124,7 +122,7 @@ const statusStats = computed<EditorStats>(() =>
         : { line: props.cursorLine, column: props.cursorColumn, words: props.wordCount },
 );
 const isCloningTemplate = ref(false);
-const sourceFormattingEnabled = computed(() => props.formattingEnabled && !selectedTemplate.value);
+const sourceFormattingEnabled = computed(() => props.formattingEnabled && !selectedTemplate.value && !showTemplatePicker.value);
 const indicatorsVisible = computed(() => selectedTemplate.value ? showTemplateIndicators.value : props.showIndicators);
 const toggleIndicators = () => {
     if (selectedTemplate.value) showTemplateIndicators.value = !showTemplateIndicators.value;
@@ -599,6 +597,7 @@ const handleLogout = async () => {
         :style="layoutStyle"
         @keydown.esc="closeDrawer"
     >
+        <a href="#main-content" class="skip-link">Skip to content</a>
         <header class="editor-header">
             <section class="editor-header__identity">
                 <button
@@ -664,21 +663,12 @@ const handleLogout = async () => {
                     </button>
                     <button class="template-back-button" type="button" @click="closeTemplate">Back to CV</button>
                 </div>
-                <NuxtLink class="header-button" to="/settings">Settings</NuxtLink>
+                <NuxtLink class="header-button header-button--settings" to="/settings">Settings</NuxtLink>
                 <button v-if="authenticated && user" class="header-button" type="button" @click="handleLogout">Logout</button>
                 <button v-if="authenticated && user && hasFeature('import')" class="header-button" type="button" @click="isImportOpen = true">Import</button>
-                <button v-if="hasFeature('export')" class="header-button header-button--primary" type="button" @click="isExportOpen = true">Export</button>
-                <button v-if="hasFeature('export')" class="header-button" type="button" data-pdf-export-trigger="true" @click="emit('exportPdf')">Export PDF</button>
-                <select
-                    class="theme-select"
-                    :value="current"
-                    aria-label="Select theme"
-                    @change="apply(($event.target as HTMLSelectElement).value as ThemeId)"
-                >
-                    <option v-for="theme in themes" :key="theme.id" :value="theme.id">
-                        {{ theme.label }}
-                    </option>
-                </select>
+                <button v-if="hasFeature('export')" class="header-button header-button--primary" type="button" :disabled="showTemplatePicker" @click="isExportOpen = true">Export</button>
+                <button v-if="hasFeature('export')" class="header-button" type="button" data-pdf-export-trigger="true" :disabled="showTemplatePicker" @click="emit('exportPdf')">Export PDF</button>
+                <ThemeSelect />
             </section>
         </header>
 
@@ -697,7 +687,6 @@ const handleLogout = async () => {
 
             <div class="activity-bar__bottom">
                 <NuxtLink class="activity-button" to="/about" aria-label="Help"><AppIcon name="lucide:circle-help" /></NuxtLink>
-                <NuxtLink class="activity-button" to="/settings" aria-label="Settings"><AppIcon name="lucide:settings" /></NuxtLink>
                 <template v-if="authenticated">
                     <button
                         v-if="user"
@@ -791,7 +780,8 @@ const handleLogout = async () => {
 
         <!-- The layout owns the split; pages only provide editor and preview content. -->
         <main
-            id="main-editor"
+            id="main-content"
+            tabindex="-1"
             ref="workspace"
             class="editor-workspace"
             :class="{ 'editor-workspace--resizing': isResizing, 'editor-workspace--page': $slots.workspace, 'editor-workspace--picker': showTemplatePicker }"
@@ -1011,6 +1001,35 @@ const handleLogout = async () => {
 </template>
 
 <style scoped>
+.skip-link {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+.skip-link:focus-visible {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 200;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    padding: 8px 14px;
+    background: var(--accent);
+    color: var(--bg-crust);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
 .editor-layout {
     position: fixed;
     z-index: 100;
@@ -1156,8 +1175,7 @@ button {
     cursor: pointer;
 }
 
-.header-button,
-.theme-select {
+.header-button {
     height: 28px;
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-sm);
@@ -1170,8 +1188,7 @@ button {
     padding: 0 11px;
 }
 
-.header-button:hover,
-.theme-select:hover {
+.header-button:hover {
     background: var(--bg-surface0);
     color: var(--fg-text);
 }
@@ -1182,9 +1199,15 @@ button {
     color: var(--bg-crust);
 }
 
-.theme-select {
-    max-width: 150px;
-    padding: 0 7px;
+.header-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.header-button--primary:disabled {
+    border-color: var(--border-strong);
+    background: var(--bg-surface0);
+    color: var(--fg-subtext0);
 }
 
 .activity-bar {
@@ -1324,7 +1347,7 @@ button {
 .document-tree__empty {
     margin: 0;
     padding: 6px 16px;
-    color: var(--bg-overlay1);
+    color: var(--fg-subtext1);
     font-size: 12px;
 }
 
@@ -1459,10 +1482,10 @@ button {
 .template-card__preview i { display: block; height: 4px; border-radius: 2px; background: var(--bg-surface1); }
 .template-card__preview i:nth-last-child(2) { width: 82%; }
 .template-card__preview i:last-child { width: 60%; }
-.template-card--blank .template-card__preview { align-items: center; justify-content: center; color: var(--fg-overlay1); font-size: 40px; font-weight: 200; }
+.template-card--blank .template-card__preview { align-items: center; justify-content: center; color: var(--fg-subtext0); font-size: 40px; font-weight: 200; }
 .template-card__title { font-size: 13px; font-weight: 600; }
 .template-card__meta, .template-picker__empty { color: var(--fg-subtext0); font-size: 11px; }
-.template-picker__error { margin-top: 20px; color: var(--error, #f38ba8); font-size: 12px; }
+.template-picker__error { margin-top: 20px; color: var(--red); font-size: 12px; }
 .template-card--loading { height: 310px; border-radius: 4px; background: var(--bg-mantle); animation: tree-skeleton-pulse 1.2s ease-in-out infinite; }
 
 .source-editor {
@@ -1547,7 +1570,7 @@ button {
     padding: 0 8px;
     background: var(--bg-mantle);
     border-top: 1px solid var(--border);
-    color: var(--bg-overlay1);
+    color: var(--fg-subtext1);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 10px;
 }
@@ -1557,11 +1580,11 @@ button {
     gap: 12px;
 }
 
-.save-state { color: var(--green); }
-.save-state--saving { color: var(--yellow); }
+.save-state { color: color-mix(in srgb, var(--green) 32%, var(--fg-text)); }
+.save-state--saving { color: color-mix(in srgb, var(--yellow) 32%, var(--fg-text)); }
 .save-state--conflict,
-.save-state--offline { color: var(--red); }
-.save-retry { padding: 1px 5px; border: 1px solid currentColor; border-radius: 3px; background: transparent; color: var(--red); font: inherit; cursor: pointer; }
+.save-state--offline { color: color-mix(in srgb, var(--red) 85%, var(--fg-text)); }
+.save-retry { padding: 1px 5px; border: 1px solid currentColor; border-radius: 3px; background: transparent; color: color-mix(in srgb, var(--red) 85%, var(--fg-text)); font: inherit; cursor: pointer; }
 .save-retry:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .document-context-menu {
@@ -1713,6 +1736,20 @@ button {
     .editor-header__actions .header-button:not(.header-button--primary),
     .editor-statusbar__left span:not(.save-state) {
         display: none;
+    }
+}
+
+@media (max-width: 400px) {
+    .editor-header__actions .header-button.header-button--settings {
+        display: inline-flex;
+        padding: 0 7px;
+    }
+
+    .editor-header__actions .theme-select {
+        display: block;
+        max-width: 88px;
+        padding: 0 4px;
+        font-size: 11px;
     }
 }
 

@@ -1,12 +1,4 @@
 <script setup lang="ts">
-import { useTheme, type ThemeId } from "~/composables/useTheme";
-
-const { current, themes, apply } = useTheme();
-const themeReady = ref(false);
-onMounted(() => {
-    useTheme().init();
-    themeReady.value = true;
-});
 const route = useRoute();
 
 const { user, logout } = useAppAuth();
@@ -20,6 +12,7 @@ const handleLogout = async () => {
 
 <template>
     <div class="layout">
+        <a href="#main-content" class="skip-link">Skip to content</a>
         <header class="header">
             <div class="header-inner">
                 <NuxtLink to="/" class="logo">
@@ -33,22 +26,7 @@ const handleLogout = async () => {
                 </nav>
 
                 <div class="header-actions">
-                    <select
-                        v-if="themeReady"
-                        class="theme-select"
-                        :value="current"
-                        aria-label="Select theme"
-                        @change="
-                            apply(
-                                ($event.target as HTMLSelectElement)
-                                    .value as ThemeId,
-                            )
-                        "
-                    >
-                        <option v-for="t in themes" :key="t.id" :value="t.id">
-                            {{ t.label }}
-                        </option>
-                    </select>
+                    <ThemeSelect />
                     <NuxtLink to="/settings" class="btn btn-ghost btn-sm">Settings</NuxtLink>
                     <template v-if="authenticated">
                         <template v-if="user">
@@ -71,7 +49,7 @@ const handleLogout = async () => {
             </div>
         </header>
 
-        <main id="main-content" class="main">
+        <main id="main-content" class="main" tabindex="-1">
             <slot />
         </main>
     </div>
@@ -82,6 +60,35 @@ const handleLogout = async () => {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+}
+
+.skip-link {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+.skip-link:focus-visible {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 200;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    padding: 8px 14px;
+    background: var(--accent);
+    color: var(--bg-crust);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 /* Header */
@@ -161,22 +168,6 @@ const handleLogout = async () => {
     margin-left: auto;
 }
 
-.theme-select {
-    background: var(--bg-surface0);
-    color: var(--fg-subtext1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 5px 10px;
-    font-size: 12px;
-    cursor: pointer;
-    outline: none;
-}
-.theme-select:focus-visible {
-    border-color: var(--accent);
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-}
-
 /* Buttons */
 .btn {
     display: inline-flex;
@@ -233,5 +224,10 @@ const handleLogout = async () => {
     .header-actions { flex-wrap: wrap; gap: 6px; margin-left: 0; }
     .header-actions .btn-sm { padding: 5px 8px; }
     .user-email { max-width: 100px; }
+}
+
+@media (max-width: 400px) {
+    .header-actions { width: 100%; }
+    .header-actions .theme-select { max-width: 100%; }
 }
 </style>
