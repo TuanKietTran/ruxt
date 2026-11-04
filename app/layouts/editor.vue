@@ -659,11 +659,11 @@ const handleLogout = async () => {
                     </button>
                     <button class="template-back-button" type="button" @click="closeTemplate">Back to CV</button>
                 </div>
-                <NuxtLink class="header-button" to="/settings">Settings</NuxtLink>
+                <NuxtLink class="header-button header-button--settings" to="/settings">Settings</NuxtLink>
                 <button v-if="authenticated && user" class="header-button" type="button" @click="handleLogout">Logout</button>
                 <button v-if="authenticated && user && hasFeature('import')" class="header-button" type="button" @click="isImportOpen = true">Import</button>
-                <button v-if="hasFeature('export')" class="header-button header-button--primary" type="button" @click="isExportOpen = true">Export</button>
-                <button v-if="hasFeature('export')" class="header-button" type="button" data-pdf-export-trigger="true" @click="emit('exportPdf')">Export PDF</button>
+                <button v-if="hasFeature('export')" class="header-button header-button--primary" type="button" :disabled="showTemplatePicker" @click="isExportOpen = true">Export</button>
+                <button v-if="hasFeature('export')" class="header-button" type="button" data-pdf-export-trigger="true" :disabled="showTemplatePicker" @click="emit('exportPdf')">Export PDF</button>
                 <select
                     class="theme-select"
                     :value="current"
@@ -1175,6 +1175,17 @@ button {
     border-color: var(--accent);
     background: var(--accent);
     color: var(--bg-crust);
+}
+
+.header-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.header-button--primary:disabled {
+    border-color: var(--border-strong);
+    background: var(--bg-surface0);
+    color: var(--fg-subtext0);
 }
 
 .theme-select {
@@ -1708,6 +1719,20 @@ button {
     .editor-header__actions .header-button:not(.header-button--primary),
     .editor-statusbar__left span:not(.save-state) {
         display: none;
+    }
+}
+
+@media (max-width: 400px) {
+    .editor-header__actions .header-button.header-button--settings {
+        display: inline-flex;
+        padding: 0 7px;
+    }
+
+    .editor-header__actions .theme-select {
+        display: block;
+        max-width: 88px;
+        padding: 0 4px;
+        font-size: 11px;
     }
 }
 
