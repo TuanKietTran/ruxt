@@ -4,12 +4,15 @@ export interface ConfirmDialogOptions {
     confirmLabel?: string;
     cancelLabel?: string;
     destructive?: boolean;
+    danger?: boolean;
 }
 
 export interface PromptDialogOptions extends ConfirmDialogOptions {
-    inputLabel: string;
+    inputLabel?: string;
+    label?: string;
     initialValue?: string;
-    validate?: (value: string) => string | undefined;
+    initial?: string;
+    validate?: (value: string) => string | null | undefined;
 }
 
 export interface DialogRequest {
@@ -24,12 +27,12 @@ export interface DialogRequest {
     initialValue?: string;
 }
 
-const validators = new Map<string, (value: string) => string | undefined>();
+const validators = new Map<string, (value: string) => string | null | undefined>();
 const resolvers = new Map<string, (value: boolean | string | undefined) => void>();
 const queueKey = "ruxt-app-dialog-queue";
 
 export function validateAppDialogInput(id: string, value: string): string | undefined {
-    return validators.get(id)?.(value);
+    return validators.get(id)?.(value) ?? undefined;
 }
 
 export function resolveAppDialog(id: string, value: boolean | string | undefined): void {
@@ -55,10 +58,10 @@ export function useAppDialog() {
             message: options.message,
             confirmLabel: options.confirmLabel ?? (kind === "prompt" ? "Save" : "Confirm"),
             cancelLabel: options.cancelLabel ?? "Cancel",
-            destructive: options.destructive ?? false,
+            destructive: options.destructive ?? options.danger ?? false,
             ...(kind === "prompt" ? {
-                inputLabel: (options as PromptDialogOptions).inputLabel,
-                initialValue: (options as PromptDialogOptions).initialValue ?? "",
+                inputLabel: (options as PromptDialogOptions).inputLabel ?? (options as PromptDialogOptions).label ?? "",
+                initialValue: (options as PromptDialogOptions).initialValue ?? (options as PromptDialogOptions).initial ?? "",
             } : {}),
         };
         resolvers.set(id, value => resolve(value as T));

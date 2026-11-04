@@ -19,7 +19,7 @@ const terminal = new Set(["succeeded", "failed", "cancelled"]);
 const input = ref<HTMLInputElement | null>(null);
 const dialogElement = ref<HTMLElement | null>(null);
 const initialControl = ref<HTMLButtonElement | null>(null);
-let previousFocus: HTMLElement | null = null;
+useModalBehavior({ isOpen: () => true, onClose: () => emit("close"), container: () => dialogElement.value, initialFocus: () => initialControl.value });
 const file = ref<File | null>(null);
 const dragging = ref(false);
 const busy = ref(false);
@@ -138,24 +138,8 @@ const commit = async () => {
 };
 
 watch(user, (value) => { if (!value && pollTimer) clearTimeout(pollTimer); });
-const handleDialogKeydown = (event: KeyboardEvent) => {
-    if (event.key === "Escape") { event.preventDefault(); emit("close"); return; }
-    if (event.key !== "Tab" || !dialogElement.value) return;
-    const focusable = [...dialogElement.value.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled):not([type='hidden']), select:not(:disabled), [tabindex]:not([tabindex='-1'])")].filter(element => element.offsetParent !== null);
-    const first = focusable[0]; const last = focusable.at(-1);
-    if (!first || !last) { event.preventDefault(); dialogElement.value.focus(); return; }
-    if (event.shiftKey && (document.activeElement === first || !dialogElement.value.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
-    else if (!event.shiftKey && (document.activeElement === last || !dialogElement.value.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
-};
-onMounted(() => {
-    previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    initialControl.value?.focus();
-    window.addEventListener("keydown", handleDialogKeydown);
-});
 onBeforeUnmount(() => {
     if (pollTimer) clearTimeout(pollTimer);
-    window.removeEventListener("keydown", handleDialogKeydown);
-    if (previousFocus?.isConnected) previousFocus.focus();
 });
 </script>
 
