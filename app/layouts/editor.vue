@@ -727,19 +727,27 @@ const handleLogout = async () => {
                         <span v-for="n in 3" :key="n" />
                     </div>
                     <p v-else-if="!sessions.length" class="document-tree__empty">No sessions yet</p>
-                    <NuxtLink
-                        v-for="document in sessions"
-                        :key="document.id"
-                        class="document-tree__item"
-                        :class="{ 'document-tree__item--active': isActiveDocument(document.id) }"
-                        :to="documentPath(document.id)"
-                        @pointerenter="warmDocument(document.id)"
-                        @focus="warmDocument(document.id)"
-                        @contextmenu.prevent="openDocumentMenu($event, document)"
-                    >
-                        <span>{{ cvSessionLabel(document) }}</span>
-                        <small title="Stored in this browser">local · r{{ document.revision }}</small>
-                    </NuxtLink>
+                    <div v-for="document in sessions" :key="document.id" class="document-tree__row">
+                        <NuxtLink
+                            class="document-tree__item"
+                            :class="{ 'document-tree__item--active': isActiveDocument(document.id) }"
+                            :to="documentPath(document.id)"
+                            @pointerenter="warmDocument(document.id)"
+                            @focus="warmDocument(document.id)"
+                            @contextmenu.prevent="openDocumentMenu($event, document)"
+                        >
+                            <span>{{ cvSessionLabel(document) }}</span>
+                            <small title="Stored in this browser">local · r{{ document.revision }}</small>
+                        </NuxtLink>
+                        <button
+                            type="button"
+                            class="document-tree__menu-button"
+                            :aria-label="`Session actions for ${documentLabel(document)}`"
+                            aria-haspopup="menu"
+                            :aria-expanded="contextMenu?.document.id === document.id"
+                            @click.stop.prevent="openDocumentMenu($event, document)"
+                        >…</button>
+                    </div>
                 </section>
                 <section class="document-group template-group">
                     <header class="document-group__header">
@@ -1369,6 +1377,33 @@ button {
     font-size: 12px;
     text-decoration: none;
 }
+
+.document-tree__row { position: relative; }
+
+.document-tree__row > .document-tree__item { padding-right: 38px; }
+
+.document-tree__menu-button {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-subtext1);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.document-tree__menu-button:hover { background: var(--bg-surface1); color: var(--fg-text); }
+
+.document-tree__menu-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; background: var(--bg-surface1); color: var(--fg-text); }
 
 .document-tree__item:hover,
 .document-tree__item--active {
