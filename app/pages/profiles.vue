@@ -504,13 +504,13 @@ const runApply = async () => {
                         </div>
                     </header>
 
-                    <section class="profile-section profile-name-section">
                     <div v-if="pendingCount" class="profile-pending-bar">
                         <span>{{ pendingCount }} incomplete {{ pendingCount === 1 ? "entry isn't" : "entries aren't" }} saved yet — finish the missing fields or cancel {{ pendingCount === 1 ? "it" : "them" }}.</span>
                         <button type="button" @click="cancelAllPending">Cancel all incomplete</button>
                     </div>
 
                         <div class="profile-section-heading"><h2>Profile identity</h2></div>
+                    <section class="profile-section profile-name-section">
                         <EditableField class="identity-name" label="Full name" placeholder="Your name" maxlength="120" autocomplete="name" v-bind="field('identity.fullName')" :model-value="draft.identity.fullName" @commit="draft.identity.fullName = $event; commit('identity.fullName')" />
                     </section>
 
@@ -726,12 +726,12 @@ const runApply = async () => {
 .profile-toolbar__mode { color: var(--accent, #89b4fa); text-decoration: none; }
 .profile-toolbar__mode:hover { text-decoration: underline; }
 .profile-toolbar__actions { display: flex; flex-wrap: wrap; gap: 6px; }
-
 .profile-pending-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 16px; padding: 9px 12px; border: 1px solid var(--warning, #f9e2af); border-radius: 4px; background: color-mix(in srgb, var(--warning, #f9e2af) 12%, transparent); font-size: 12px; }
 .profile-card--draft { border-style: dashed; }
 .profile-card--draft .profile-card__select { cursor: default; }
 .draft-badge { color: var(--warning, #f9e2af); font-style: normal; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 .profile-identity { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px 14px; }
+
 .profile-section { min-width: 0; margin-top: 22px; }
 .profile-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border, #333); }
 .profile-section-heading h2 { margin: 0; font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
