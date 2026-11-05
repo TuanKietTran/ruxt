@@ -1,0 +1,27 @@
+name: Mobile iOS Canary
+
+"on":
+  workflow_dispatch:
+  push:
+    paths:
+      - "mobile/ios/**"
+      - ".github/workflows/mobile-ios-canary.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Swift test, theme drift, and Canary build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift tests
+        working-directory: mobile/ios/RuxtKit
+        run: swift test
+      - name: Theme drift check
+        working-directory: mobile/ios
+        run: sh Tools/check-theme-drift.sh
+      - name: Build Ruxt-Canary
+        working-directory: mobile/ios
+        run: xcodebuild -project Ruxt.xcodeproj -scheme Ruxt-Canary -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build

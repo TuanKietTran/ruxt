@@ -11,6 +11,7 @@
 | [Local sessions](cv-documents-realtime.md) | Browser storage, autosave, recovery |
 | [CV workflows](cv-server-workflows.md) | Import, templates, profile transformations |
 | [MCP](mcp-automation.md) | Authenticated transport and rendering automation |
+| [iOS platform](platform-ios.md) | Native iOS app: architecture, flavors, theme, auth, testing |
 
 ### Accounts and storage
 
