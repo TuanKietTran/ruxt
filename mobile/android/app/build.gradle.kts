@@ -14,10 +14,26 @@ android {
         versionCode = 1
         versionName = "0.1.0"
     }
+    flavorDimensions += "channel"
+    productFlavors {
+        create("prod") {
+            dimension = "channel"
+            buildConfigField("String", "API_BASE_URL", "\"https://ruxt.mashallow.cloud\"")
+        }
+        create("canary") {
+            dimension = "channel"
+            applicationIdSuffix = ".canary"
+            versionNameSuffix = "-canary.1"
+            buildConfigField("String", "API_BASE_URL", "\"https://ruxt-canary.mashallow.cloud\"")
+        }
+    }
     buildTypes {
         release { isMinifyEnabled = false }
     }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
