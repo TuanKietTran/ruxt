@@ -38,3 +38,7 @@ __pycache__/
 
 # Wrangler local state
 .wrangler
+
+# Platform control plane local records (not committed)
+tools/platform/data/plans/
+tools/platform/data/audit/

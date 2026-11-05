@@ -1,0 +1,60 @@
+{
+  "providers": [
+    {
+      "provider": "clerk",
+      "sunsetDate": "2027-01",
+      "dependents": [
+        "authenticated application routes (CV imports, template writes, cloud data, subscriptions, MCP)",
+        "analytics owner resolution (server/plugins/analytics.ts)",
+        "admin application (Clerk requireAdmin, privateMetadata.role recheck per request)",
+        "clerk:-prefixed stored owner ids"
+      ],
+      "checklist": [
+        { "id": "clerk-1", "label": "Promote local session authentication (NUXT_SESSION_SECRET) to primary identity", "state": "pending" },
+        { "id": "clerk-2", "label": "Migrate or re-key clerk:-prefixed owner ids", "state": "pending" },
+        { "id": "clerk-3", "label": "Replace clerkClient user lookup in me.get.ts and admin role check with local role records", "state": "pending" },
+        { "id": "clerk-4", "label": "Remove @clerk/nuxt from both applications", "state": "pending" },
+        { "id": "clerk-5", "label": "Retire CLERK_* environment names and telemetry flag", "state": "pending" }
+      ],
+      "replacement": "local session authentication through the server/utils/auth-user.ts seam"
+    },
+    {
+      "provider": "cloudflare",
+      "sunsetDate": "2027-01",
+      "dependents": [
+        "production hosting target (Worker ruxt)",
+        "custom domain ruxt.mashallow.cloud",
+        "D1 database ruxt-dev and its migrations",
+        "KV namespace RUXT_KV",
+        "tag-gated deploy job"
+      ],
+      "checklist": [
+        { "id": "cf-1", "label": "Stand up native hosting target and verify it through the domain registry verification flow", "state": "pending" },
+        { "id": "cf-2", "label": "Migrate D1 and KV data with the plan/apply/verify flow and matching manifest checksums", "state": "pending" },
+        { "id": "cf-3", "label": "Move the domain binding ruxt.mashallow.cloud to the native adapter", "state": "pending" },
+        { "id": "cf-4", "label": "Retire wrangler.json bindings (ASSETS, RUXT_DB, RUXT_KV) and resource identifiers", "state": "pending" },
+        { "id": "cf-5", "label": "Retire cf:build / cf:deploy", "state": "pending" }
+      ],
+      "replacement": "native self-hosted adapter serving the same build output, with SQLite as the data path"
+    },
+    {
+      "provider": "deno",
+      "sunsetDate": "2027-01",
+      "dependents": [
+        "default build output storage (RUXT_DENO_STORAGE=1)",
+        "seven KV repositories in infra/deploy/deno/",
+        "Deno.openKv in infra/kv.ts",
+        "chunked Deno KV driver shared with the admin application",
+        "celld/MinIO local emulation stack"
+      ],
+      "checklist": [
+        { "id": "deno-1", "label": "Flip strategy weights to default SQLite and verify before retiring any legacy adapter", "state": "pending" },
+        { "id": "deno-2", "label": "Port the seven KV repositories to the native data path", "state": "pending" },
+        { "id": "deno-3", "label": "Replace Deno.openKv in infra/kv.ts", "state": "pending" },
+        { "id": "deno-4", "label": "Change the build presets in both applications", "state": "pending" },
+        { "id": "deno-5", "label": "Keep or replace the celld/MinIO local emulation stack", "state": "pending" }
+      ],
+      "replacement": "SQLite via infra/db/sqlite.ts as the native data path"
+    }
+  ]
+}

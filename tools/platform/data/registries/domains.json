@@ -1,0 +1,15 @@
+{
+  "domains": [
+    {
+      "domain": "ruxt.mashallow.cloud",
+      "registrar": "Cloudflare",
+      "providerAdapter": "cloudflare",
+      "binding": { "app": "ruxt", "environment": "production", "target": "worker:ruxt" },
+      "verification": { "state": "verified", "checkedAt": "2026-11-04T00:00:00Z", "detail": "Custom domain active on the Worker route" },
+      "tls": { "status": "active" },
+      "records": [
+        { "type": "CNAME", "name": "ruxt.mashallow.cloud", "value": "ruxt (custom domain)", "proxied": true }
+      ]
+    }
+  ]
+}

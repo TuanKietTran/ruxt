@@ -1,0 +1,28 @@
+{
+  "databases": [
+    {
+      "id": "local-sqlite",
+      "environment": "development",
+      "adapter": "sqlite",
+      "reference": "local.db",
+      "migrationState": { "applied": [], "lastAppliedAt": null, "checksum": null },
+      "health": "unknown"
+    },
+    {
+      "id": "prod-d1",
+      "environment": "production",
+      "adapter": "cloudflare-d1",
+      "reference": "RUXT_DB",
+      "migrationState": { "applied": ["0001_init"], "lastAppliedAt": null, "checksum": null },
+      "health": "unknown"
+    },
+    {
+      "id": "dev-kv",
+      "environment": "development",
+      "adapter": "deno-kv",
+      "reference": "RUXT_KV",
+      "migrationState": { "applied": [], "lastAppliedAt": null, "checksum": null },
+      "health": "unknown"
+    }
+  ]
+}

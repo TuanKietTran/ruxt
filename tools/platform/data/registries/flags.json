@@ -1,0 +1,6 @@
+{
+  "flags": [
+    { "id": "auth.routes", "kind": "route-list", "values": [], "environment": "development", "source": "env" },
+    { "id": "auth.disabledHosts", "kind": "host-list", "values": [], "environment": "development", "source": "env" }
+  ]
+}
