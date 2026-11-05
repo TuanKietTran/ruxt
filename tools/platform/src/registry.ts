@@ -259,8 +259,11 @@ function validateLegacyRegistry(data: unknown): ValidationError[] {
     const prefix = `providers[${index}]`;
     errors.push(...requiredString(provider, 'provider'), ...requiredEnum(provider, 'provider', ['clerk', 'cloudflare', 'deno']),
       ...requiredString(provider, 'sunsetDate'), ...requiredStringArray(provider, 'dependents'),
-      ...requiredObject(provider, 'checklist'), ...requiredString(provider, 'replacement'));
+      ...requiredString(provider, 'replacement'));
     const checklist = (provider as Record<string, unknown>).checklist as unknown[] | undefined;
+    if (!Array.isArray(checklist)) {
+      errors.push({ field: `${prefix}.checklist`, message: 'must be an array' });
+    }
     if (Array.isArray(checklist)) {
       for (const [itemIndex, item] of checklist.entries()) {
         const itemObject = item as Record<string, unknown>;
