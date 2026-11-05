@@ -104,7 +104,7 @@ No development team is configured for the project, so the documented builds disa
 
 | Area | Status |
 | --- | --- |
-| RuxtKit package tests | Verified: 24/24 pass (ContractTests 11, LocalCvStoreTests 9, ThemeTests 4) |
+| RuxtKit package tests | Verified: 32/32 pass (expanded in ios-test: APIClientExtendedTests added; LocalCvStoreTests 9, ThemeTests 4) |
 | Token generator + drift check | Verified: regeneration from design/tokens.json is byte-identical |
 | App build, both flavors | Verified: `xcodebuild` BUILD SUCCEEDED for Ruxt-Canary and Ruxt; built app Info.plists checked (bundle id, display name, version, API URL per flavor) |
 | Sessions list + Editor | Implemented on LocalCvStore: create/open/rename/fork/delete, autosave drafts, markdown preview |
