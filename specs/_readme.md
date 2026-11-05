@@ -8,6 +8,7 @@
 | --- | --- |
 | [Architecture](architecture-runtime.md) | Runtime, ownership, packages, boot |
 | [Editor](cv-editor.md) | Layout, profiles, rendering, exports |
+| [Admin desktop app (GPUI)](platform-gpui-admin.md) | Native admin app scope, backends, themes, layout |
 | [Local sessions](cv-documents-realtime.md) | Browser storage, autosave, recovery |
 | [CV workflows](cv-server-workflows.md) | Import, templates, profile transformations |
 | [MCP](mcp-automation.md) | Authenticated transport and rendering automation |
