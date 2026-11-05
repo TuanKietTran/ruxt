@@ -1,0 +1,15 @@
+[package]
+name = "ruxt-admin-desktop"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gpui = "0.2.2"
+serde = { workspace = true }
+serde_json = { workspace = true }
+ruxt-ui-kit = { path = "../../crates/ruxt-ui-kit" }
+ruxt-api = { path = "../../crates/ruxt-api" }
+
+[lib]
+name = "ruxt_admin_desktop"
+path = "src/lib.rs"
