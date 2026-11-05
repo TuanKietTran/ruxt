@@ -1,0 +1,369 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		485AEACF8A143D8BC4D7BA4E /* RuxtKit in Frameworks */ = {isa = PBXBuildFile; productRef = 78CCACABC880B0825C46F803 /* RuxtKit */; };
+		61F2140D49480514F127AF70 /* RuxtApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89EAA33AD61102B96BF83217 /* RuxtApp.swift */; };
+		72342668FE4A5E12746D770D /* DestinationViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E114CD3EF74C52B69F28D20 /* DestinationViews.swift */; };
+		76682E597EC9BE4994EA96CA /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6802F36759223A05C93F74F /* RootView.swift */; };
+		7F483D9D2F537709E1109061 /* StateViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 936E37028FFDCB427DBFB244 /* StateViews.swift */; };
+		9485B9F7911E6ABC0D248BE2 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 562114249BE7E6FE95B19139 /* AppTheme.swift */; };
+		B38191032515B2283861B05B /* AppModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E167860C177B90FE110BCE5 /* AppModels.swift */; };
+		D28A48BB3DA102D49D12CA9B /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA7B88102E859F630A486B72 /* LoginView.swift */; };
+		F7FC70E7DBBE92C5794F702C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84BC45326B3B703F27674BBB /* SettingsView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1E167860C177B90FE110BCE5 /* AppModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModels.swift; sourceTree = "<group>"; };
+		4949DA3EAED30E53F209C793 /* Canary.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Canary.xcconfig; sourceTree = "<group>"; };
+		4E114CD3EF74C52B69F28D20 /* DestinationViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DestinationViews.swift; sourceTree = "<group>"; };
+		562114249BE7E6FE95B19139 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		84BC45326B3B703F27674BBB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		89EAA33AD61102B96BF83217 /* RuxtApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuxtApp.swift; sourceTree = "<group>"; };
+		936E37028FFDCB427DBFB244 /* StateViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateViews.swift; sourceTree = "<group>"; };
+		CA7B88102E859F630A486B72 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		CCFFD9D6948AD523DD421B75 /* RuxtKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RuxtKit; path = RuxtKit; sourceTree = SOURCE_ROOT; };
+		E6802F36759223A05C93F74F /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		F2F5482C8C0961F29A2B0655 /* RuxtApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = RuxtApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FFB26F1EC1A1EDBCBA1333EC /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		BE443219F18B63E6E84061C8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				485AEACF8A143D8BC4D7BA4E /* RuxtKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		355F76E3485E44E0723C1315 /* RuxtApp */ = {
+			isa = PBXGroup;
+			children = (
+				6E683F85D124890CCC4A3EDB /* Sources */,
+			);
+			path = RuxtApp;
+			sourceTree = "<group>";
+		};
+		3B9EE4C9FE30912C6A978EEF = {
+			isa = PBXGroup;
+			children = (
+				915ABCDD029051842B057A9C /* Config */,
+				BBEE965031D86D89A1AB4A7B /* Packages */,
+				355F76E3485E44E0723C1315 /* RuxtApp */,
+				7B808B8B4DFA2D1B9D3F185E /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		6E683F85D124890CCC4A3EDB /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				1E167860C177B90FE110BCE5 /* AppModels.swift */,
+				562114249BE7E6FE95B19139 /* AppTheme.swift */,
+				4E114CD3EF74C52B69F28D20 /* DestinationViews.swift */,
+				CA7B88102E859F630A486B72 /* LoginView.swift */,
+				E6802F36759223A05C93F74F /* RootView.swift */,
+				89EAA33AD61102B96BF83217 /* RuxtApp.swift */,
+				84BC45326B3B703F27674BBB /* SettingsView.swift */,
+				936E37028FFDCB427DBFB244 /* StateViews.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		7B808B8B4DFA2D1B9D3F185E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F2F5482C8C0961F29A2B0655 /* RuxtApp.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		915ABCDD029051842B057A9C /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				4949DA3EAED30E53F209C793 /* Canary.xcconfig */,
+				FFB26F1EC1A1EDBCBA1333EC /* Release.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		BBEE965031D86D89A1AB4A7B /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				CCFFD9D6948AD523DD421B75 /* RuxtKit */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AA61955532BAD846C4FCC688 /* RuxtApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E650FA35219E3C415B47F185 /* Build configuration list for PBXNativeTarget "RuxtApp" */;
+			buildPhases = (
+				14E56256FB878F93D6F264FF /* Sources */,
+				BE443219F18B63E6E84061C8 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RuxtApp;
+			packageProductDependencies = (
+				78CCACABC880B0825C46F803 /* RuxtKit */,
+			);
+			productName = RuxtApp;
+			productReference = F2F5482C8C0961F29A2B0655 /* RuxtApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		0A06F2B24A77A12A38784B0D /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					AA61955532BAD846C4FCC688 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 07AFF1B56BA7022166FFC7CB /* Build configuration list for PBXProject "Ruxt" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 3B9EE4C9FE30912C6A978EEF;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				887C8050C81C4A4DE45D8492 /* XCLocalSwiftPackageReference "RuxtKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 7B808B8B4DFA2D1B9D3F185E /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AA61955532BAD846C4FCC688 /* RuxtApp */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		14E56256FB878F93D6F264FF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B38191032515B2283861B05B /* AppModels.swift in Sources */,
+				9485B9F7911E6ABC0D248BE2 /* AppTheme.swift in Sources */,
+				72342668FE4A5E12746D770D /* DestinationViews.swift in Sources */,
+				D28A48BB3DA102D49D12CA9B /* LoginView.swift in Sources */,
+				76682E597EC9BE4994EA96CA /* RootView.swift in Sources */,
+				61F2140D49480514F127AF70 /* RuxtApp.swift in Sources */,
+				F7FC70E7DBBE92C5794F702C /* SettingsView.swift in Sources */,
+				7F483D9D2F537709E1109061 /* StateViews.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		30B3AF38B947B1D5FB31C1A0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = RuxtApp/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		3DDF0D004DE1480CE31D1A56 /* Canary */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 4949DA3EAED30E53F209C793 /* Canary.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Canary;
+		};
+		6903DEE4301E1E0DD43A13B6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = FFB26F1EC1A1EDBCBA1333EC /* Release.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		AF168DB1A84FBAF977C741D0 /* Canary */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = RuxtApp/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Canary;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		07AFF1B56BA7022166FFC7CB /* Build configuration list for PBXProject "Ruxt" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3DDF0D004DE1480CE31D1A56 /* Canary */,
+				6903DEE4301E1E0DD43A13B6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Canary;
+		};
+		E650FA35219E3C415B47F185 /* Build configuration list for PBXNativeTarget "RuxtApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AF168DB1A84FBAF977C741D0 /* Canary */,
+				30B3AF38B947B1D5FB31C1A0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Canary;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		887C8050C81C4A4DE45D8492 /* XCLocalSwiftPackageReference "RuxtKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = RuxtKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		78CCACABC880B0825C46F803 /* RuxtKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RuxtKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 0A06F2B24A77A12A38784B0D /* Project object */;
+}

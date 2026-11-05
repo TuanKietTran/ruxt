@@ -14,6 +14,16 @@ public enum RuxtEnvironment: String, CaseIterable, Sendable {
         case .prod: return URL(string: "https://ruxt.mashallow.cloud")!
         }
     }
+    /// Build-time switch: the app Info.plist key `RuxtAPIBaseURL` is filled
+    /// from the `RUXT_API_BASE_URL` build setting by Config/Canary.xcconfig
+    /// or Config/Release.xcconfig (see project.yml). Anything missing or
+    /// unrecognized falls back to prod.
+    public static func fromInfoPlist(_ info: [String: Any]? = Bundle.main.infoDictionary) -> RuxtEnvironment {
+        guard let raw = info?["RuxtAPIBaseURL"] as? String else { return .prod }
+        let trimmed = raw.hasSuffix("/") ? String(raw.dropLast()) : raw
+        return allCases.first { $0.baseURL.absoluteString == trimmed } ?? .prod
+    }
+    public static var current: RuxtEnvironment { fromInfoPlist() }
 }
 
 /// h3/Nitro error envelope: branch on HTTP status first, then `data.code`.

@@ -85,12 +85,25 @@ struct RootView: View {
         }
     }
 
+    /// Sidebar selection for the iOS `List(_:selection:rowContent:)` form,
+    /// which binds to the element ID, not the element. Backed by `selection`
+    /// so the tab and split layouts never diverge.
+    private var sidebarSelection: Binding<AppDestination.ID?> {
+        Binding(
+            get: { selection.id },
+            set: { newID in
+                if let newID, let destination = AppDestination.allCases.first(where: { $0.id == newID }) {
+                    selection = destination
+                }
+            }
+        )
+    }
+
     private var splitLayout: some View {
         NavigationSplitView {
-            List(AppDestination.allCases, selection: $selection) { destination in
+            List(AppDestination.allCases, selection: sidebarSelection) { destination in
                 Label(destination.title, systemImage: destination.systemImage)
                     .font(.body)
-                    .tag(destination)
             }
             .navigationTitle("Ruxt")
         } detail: {
