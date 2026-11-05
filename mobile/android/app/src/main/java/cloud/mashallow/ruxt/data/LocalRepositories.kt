@@ -4,9 +4,12 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-data class LocalSession(val id: String, val title: String, val content: String, val updatedAt: Long) {
-    fun toJson(): JSONObject = JSONObject().put("id", id).put("title", title).put("content", content).put("updatedAt", updatedAt)
-    companion object { fun fromJson(o: JSONObject): LocalSession = LocalSession(o.optString("id"), o.optString("title"), o.optString("content"), o.optLong("updatedAt")) }
+// Local-first session metadata, kept separate from CvDocumentStore:
+// sessions are UI-level entries (title + open document id), CV document
+// content itself lives in LocalCvRepository (LocalCvStore.kt).
+data class LocalSession(val id: String, val title: String, val documentId: String?, val updatedAt: Long) {
+    fun toJson(): JSONObject = JSONObject().put("id", id).put("title", title).put("documentId", documentId ?: JSONObject.NULL).put("updatedAt", updatedAt)
+    companion object { fun fromJson(o: JSONObject): LocalSession = LocalSession(o.optString("id"), o.optString("title"), if (o.isNull("documentId")) null else o.optString("documentId"), o.optLong("updatedAt")) }
 }
 
 class LocalSessionsRepository(private val file: File) {
@@ -30,14 +33,4 @@ class LocalSessionsRepository(private val file: File) {
     fun save(session: LocalSession) { val items = readAll().filter { it.id != session.id }.toMutableList(); items.add(session); writeAll(items) }
     fun delete(id: String) { writeAll(readAll().filter { it.id != id }) }
     fun clear() { writeAll(emptyList()) }
-}
-
-class LocalCvRepository(private val dir: File) {
-    private val draftFile get() = File(dir, "cv-draft.md")
-    private val profileFile get() = File(dir, "cv-profile.json")
-    fun saveDraft(markdown: String) { dir.mkdirs(); draftFile.writeText(markdown) }
-    fun loadDraft(): String? = if (draftFile.exists()) draftFile.readText() else null
-    fun clearDraft() { if (draftFile.exists()) draftFile.delete() }
-    fun saveProfile(profile: JSONObject) { dir.mkdirs(); profileFile.writeText(profile.toString()) }
-    fun loadProfile(): JSONObject? { if (!profileFile.exists()) return null; val text = profileFile.readText().trim(); return if (text.isEmpty()) null else JSONObject(text) }
 }
