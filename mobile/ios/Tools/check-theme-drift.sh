@@ -5,7 +5,7 @@ set -eu
 cd "$(dirname "$0")/.."
 TMP="$(mktemp -t theme-drift.XXXXXX.swift)"
 trap 'rm -f "$TMP"' EXIT
-swift Tools/generate-theme.swift Tools/provisional-tokens.json "$TMP" >/dev/null
+swift Tools/generate-theme.swift ../../design/tokens.json "$TMP" >/dev/null
 if diff -u RuxtKit/Sources/RuxtKit/Theme.swift "$TMP"; then
   echo "Theme.swift is up to date."
 else
