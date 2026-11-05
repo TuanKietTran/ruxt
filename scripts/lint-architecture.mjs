@@ -84,7 +84,8 @@ for (const file of ["nuxt.config.ts", "vitest.config.ts", "tsconfig.json", "infr
   const actual = trackedFiles.filter(file => file.startsWith("specs/") && file.endsWith(".md") && file !== "specs/_readme.md");
   for (const file of actual) if (mapped.filter(entry => entry === file).length !== 1) failures.push(`specs/_readme.md: ${file} must appear exactly once in the Subsystem Map`);
   for (const file of mapped) if (!actual.includes(file)) failures.push(`specs/_readme.md: dead Subsystem Map entry ${file}`);
-  for (const file of trackedFiles) if (/(^|\/)local\.db(?:-|$)|(^|\/)\.data\//.test(file) || /(^|\/)\.env(?:\.|$)/.test(file) && file !== ".env.example" || /(^|\/)(?:credentials|secrets?)(?:\.[^/]*)?$/i.test(file)) failures.push(`${file}: local data, credentials, and secrets must not be committed`);
+  // TypeScript sources named secrets/credentials (e.g. the spec-mandated tools/platform/src/secrets.ts presence checker) are code, not secret data; data files with those names are still blocked.
+  for (const file of trackedFiles) if (/(^|\/)local\.db(?:-|$)|(^|\/)\.data\//.test(file) || /(^|\/)\.env(?:\.|$)/.test(file) && file !== ".env.example" || /(^|\/)(?:credentials|secrets?)(?:\.[^/]*)?$/i.test(file) && !/\.(?:ts|tsx|mts|cts)$/.test(file)) failures.push(`${file}: local data, credentials, and secrets must not be committed`);
 }
 for (const file of ["server/plugins/analytics.ts", "server/plugins/init-cv.ts", "server/plugins/init-infra.ts"]) {
   if (/^\s*(?:setInterval|setTimeout|fetch|useStorage|openKv)\s*\(/m.test(readFileSync(file, "utf8"))) failures.push(`${file}: Worker global scope must not start timers or perform I/O`);
