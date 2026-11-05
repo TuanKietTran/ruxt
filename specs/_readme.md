@@ -8,6 +8,7 @@
 | --- | --- |
 | [Architecture](architecture-runtime.md) | Runtime, ownership, packages, boot |
 | [Editor](cv-editor.md) | Layout, profiles, rendering, exports |
+| [Desktop app (GPUI)](platform-gpui-ruxt.md) | Native app scope, tokens, themes, layout |
 | [Local sessions](cv-documents-realtime.md) | Browser storage, autosave, recovery |
 | [CV workflows](cv-server-workflows.md) | Import, templates, profile transformations |
 | [MCP](mcp-automation.md) | Authenticated transport and rendering automation |
