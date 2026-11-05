@@ -4694,6 +4694,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ruxt-desktop"
+version = "0.1.0"
+dependencies = [
+ "ruxt-api",
+ "ruxt-ui-kit",
+]
+
+[[package]]
 name = "ruxt-ui-kit"
 version = "0.1.0"
 dependencies = [

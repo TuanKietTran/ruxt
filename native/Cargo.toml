@@ -7,6 +7,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "apps/ruxt-desktop",
     "crates/ruxt-api",
     "crates/ruxt-ui-kit",
 ]
