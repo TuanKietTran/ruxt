@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- WiX config stub. package.ps1 copies this file and replaces the
+     __APP_NAME__, __BINARY__, __VERSION__ and __UPGRADE_CODE__ tokens
+     before invoking the WiX toolset. The UpgradeCode GUID must stay
+     stable per app across releases; generate one per app and commit it
+     in place of the placeholder before shipping an .msi. -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="__APP_NAME__" Manufacturer="Ruxt" Version="__VERSION__" UpgradeCode="__UPGRADE_CODE__">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of __APP_NAME__ is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="__APP_NAME__">
+        <Component Id="MainExecutable" Guid="*">
+          <File Id="MainExe" Source="__BINARY__" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AppProgramMenuDir" Name="__APP_NAME__" />
+    </StandardDirectory>
+    <Feature Id="Main" Title="__APP_NAME__" Level="1">
+      <ComponentRef Id="MainExecutable" />
+    </Feature>
+  </Package>
+</Wix>

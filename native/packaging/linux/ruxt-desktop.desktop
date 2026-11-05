@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Ruxt
+Comment=Ruxt CV editor
+Exec=__BINARY__
+Icon=__BINARY__
+Terminal=false
+Categories=Office;Utility;
+StartupWMClass=__BINARY__

@@ -1,0 +1,68 @@
+{
+  "providers": [
+    {
+      "provider": "clerk",
+      "sunsetDate": "2027-01",
+      "dependents": [
+        "app/components/AuthDialog.vue",
+        "app/composables/useAppAuth.ts",
+        "server/routes/api/auth/me.get.ts",
+        "server/plugins/analytics.ts",
+        "server/plugins/validate-deployment-env.ts",
+        "server/plugins/validate-cloudflare-deployment-env.ts",
+        "server/utils/auth-user.ts",
+        "ruxt-admin requireAdmin gate",
+        "stored owner keys prefixed clerk:<id>"
+      ],
+      "checklist": [
+        { "id": "promote-local-session-auth", "label": "Promote the shipped local session authentication (server/routes/api/auth login, register and logout routes with NUXT_SESSION_SECRET) to primary", "state": "pending" },
+        { "id": "migrate-clerk-owner-ids", "label": "Migrate or re-key clerk:-prefixed owner ids", "state": "pending" },
+        { "id": "replace-clerk-lookups", "label": "Replace the clerkClient user lookup in me.get.ts and the admin role check with local role records", "state": "pending" },
+        { "id": "remove-clerk-nuxt", "label": "Remove @clerk/nuxt from both applications", "state": "pending" },
+        { "id": "retire-clerk-env-names", "label": "Retire the CLERK_* environment names and the telemetry flag", "state": "pending" }
+      ],
+      "replacement": "Local session authentication as primary through the same auth-user.ts seam, with admin roles held as local records and the per-request server-side role recheck preserved"
+    },
+    {
+      "provider": "cloudflare",
+      "sunsetDate": "2027-01",
+      "dependents": [
+        "Cloudflare Worker ruxt (wrangler.json)",
+        "custom domain ruxt.mashallow.cloud",
+        "D1 database ruxt-dev (RUXT_DB binding, infra/deploy/cloudflare/migrations/)",
+        "KV namespace (RUXT_KV binding)",
+        "ASSETS binding (wrangler.json)",
+        "scripts/build-cloudflare.mjs (cf:build / cf:deploy)",
+        "tag-gated deploy workflow job (.github/workflows/deploy.yml)"
+      ],
+      "checklist": [
+        { "id": "stand-up-native-hosting", "label": "Stand up the native hosting target and verify it on the domain registry verification flow", "state": "pending" },
+        { "id": "migrate-d1-and-kv-data", "label": "Migrate D1 and KV data with the platform data plan/apply/verify flow and matching manifest checksums", "state": "pending" },
+        { "id": "move-domain-binding", "label": "Move the domain binding to the native adapter", "state": "pending" },
+        { "id": "retire-wrangler-bindings", "label": "Retire the wrangler.json bindings and resource identifiers", "state": "pending" },
+        { "id": "retire-cf-scripts", "label": "Retire cf:build / cf:deploy", "state": "pending" }
+      ],
+      "replacement": "Native/self-hosted adapter (tools/platform/src/adapters/native.ts) serving the same build output, with SQLite as the data path"
+    },
+    {
+      "provider": "deno",
+      "sunsetDate": "2027-01",
+      "dependents": [
+        "default build (RUXT_DENO_STORAGE=1 nuxt build, deno-server preset)",
+        "infra/kv.ts (Deno.openKv)",
+        "infra/deploy/deno/ (seven KV repositories)",
+        "server/storage/chunked-deno-kv.ts (ruxt-chunked-json-v1, 24 KB chunks, 8 MB cap)",
+        "ruxt-admin build (deno-server preset, shared chunked driver)",
+        "deploy/celld/ local emulation stack (celld with MinIO)"
+      ],
+      "checklist": [
+        { "id": "flip-strategy-weights", "label": "Flip the strategy weights and default to SQLite (or D1 while Cloudflare remains) first, and verify", "state": "pending" },
+        { "id": "port-kv-repositories", "label": "Port the seven KV repositories in infra/deploy/deno/", "state": "pending" },
+        { "id": "replace-deno-openkv", "label": "Replace Deno.openKv in infra/kv.ts", "state": "pending" },
+        { "id": "change-build-presets", "label": "Change the build presets in both applications", "state": "pending" },
+        { "id": "resolve-celld-stack", "label": "Keep or replace the deploy/celld/ local emulation stack (celld with MinIO) for local development", "state": "pending" }
+      ],
+      "replacement": "SQLite via infra/db/sqlite.ts as the native data path, with the strategy registry selecting it by default"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+[package]
+name = "ruxt-desktop"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gpui = "0.2.2"
+ruxt-ui-kit = { path = "../../crates/ruxt-ui-kit" }
+ruxt-api = { path = "../../crates/ruxt-api" }
+
+[lib]
+name = "ruxt_desktop"
+path = "src/lib.rs"

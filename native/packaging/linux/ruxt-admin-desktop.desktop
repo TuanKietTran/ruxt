@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Ruxt Admin
+Comment=Ruxt administration
+Exec=__BINARY__
+Icon=__BINARY__
+Terminal=false
+Categories=Office;Utility;
+StartupWMClass=__BINARY__
