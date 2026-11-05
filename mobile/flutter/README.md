@@ -1,9 +1,11 @@
-# Ruxt — Flutter app shell
+# Ruxt — Flutter app
 
-Flutter shell for Ruxt (write your CV in Markdown), mirroring the web app's
-information architecture and design system. This is a shell only: placeholder
-screens, the shared-token theme system, and navigation. No networking, no
-API/auth implementation, no real session/profile data.
+Flutter app for Ruxt (write your CV in Markdown), mirroring the web app's
+information architecture and design system. Built on the app shell
+(placeholder screens, the shared-token theme system, and navigation) with
+the full-build additions below: a local-first data layer under `lib/data/`
+and prod/canary flavors. The screens are still the shell placeholders —
+the data layer is implemented but not yet wired into the screens.
 
 Audit and governing specs: `../../notes/flutter-ux-audit.md`,
 `specs/design/{tokens,themes,layout,screens,accessibility,motion}.md`
@@ -14,14 +16,18 @@ Audit and governing specs: `../../notes/flutter-ux-audit.md`,
 
 ```sh
 flutter pub get
-flutter run            # Android / iOS, id com.ruxt.ruxt on both
+flutter run --flavor prod -t lib/main_prod.dart
+flutter run --flavor canary -t lib/main_canary.dart
+flutter run            # default entry point: prod, or --dart-define=FLAVOR=canary
 flutter test           # theme_test.dart + shell_test.dart
 flutter analyze
 ```
 
 Toolchain note (2026-11-05 lab): `flutter`/`dart` were not on PATH in the
-lab that produced this scaffold, so the Dart code is hand-written and the
-commands above are unverified there. What was verified:
+lab that produced this scaffold, and were still absent for the full build,
+so the Dart code is hand-written and the commands above (including
+`flutter pub get` / `analyze` / `test` for the data layer and flavors)
+are unverified there. What was verified:
 
 ```sh
 bash tool/check_theme_drift.sh        # OK — no drift vs design/tokens.json
@@ -29,21 +35,40 @@ python3 tool/validate_against_golden.py
 # golden cross-check OK (66 doubles, 12 strings, colors verified)
 ```
 
-## Platform identity
+## Platform identity and flavors
 
-- Android: `namespace` / `applicationId` = `com.ruxt.ruxt`
-  (`android/app/build.gradle`)
-- iOS: `PRODUCT_BUNDLE_IDENTIFIER` = `com.ruxt.ruxt`
-  (`ios/Runner.xcodeproj/project.pbxproj`; `Info.plist` uses the variable)
-- Flavors / AppConfig / per-flavor entry points are out of scope here;
-  they belong to the full app build (flu-build), not this shell.
+| Flavor | App name | Application / bundle id | API base |
+| --- | --- | --- | --- |
+| prod | Ruxt | `cloud.mashallow.ruxt` | `https://ruxt.mashallow.cloud` |
+| canary | Ruxt Canary | `cloud.mashallow.ruxt.canary` | `https://ruxt-canary.mashallow.cloud` |
+
+- Android: `productFlavors` in `android/app/build.gradle` (dimension
+  `channel`); canary uses `applicationIdSuffix .canary` and
+  `versionNameSuffix -canary`; the manifest label is `@string/app_name`
+  from the flavor `resValue`, which also carries `api_base_url`.
+- iOS: `ios/Flutter/Prod.xcconfig` and `ios/Flutter/Canary.xcconfig` set
+  `APP_BUNDLE_ID` / `APP_DISPLAY_NAME` / `API_BASE_URL`;
+  `project.pbxproj` defaults to the prod values with
+  `PRODUCT_BUNDLE_IDENTIFIER = $(APP_BUNDLE_ID)`, and `Info.plist` uses
+  `$(APP_DISPLAY_NAME)`.
+- Dart: `lib/app/app_config.dart` (`AppConfig.prod` / `.canary` /
+  `.fromEnvironment` for `FLAVOR` and `API_BASE_URL` defines), entry
+  points `lib/main_prod.dart` / `lib/main_canary.dart` / `lib/main.dart`,
+  shared startup in `lib/app/bootstrap.dart`; `RuxtApp` takes the config
+  and uses its app name as the app title.
+- The API hosts are the build convention for this app; no other API host
+  is referenced in the repo.
 
 ## Structure
 
 ```
 lib/
-  main.dart                  entry: loads prefs, then runs RuxtApp
+  main.dart                  default entry: AppConfig.fromEnvironment -> bootstrap
+  main_prod.dart             prod entry point
+  main_canary.dart           canary entry point
   app/
+    app_config.dart          flavors: prod/canary ids, names, API base URLs
+    bootstrap.dart           shared startup: loads prefs, runs RuxtApp with config
     ruxt_app.dart            MaterialApp, OS-brightness -> ThemeController
     ruxt_shell.dart          header + theme control, bottom nav / rail, skip link
     destinations.dart        primary + secondary destinations, in governing order
@@ -61,6 +86,12 @@ lib/
   features/
     editor/  sessions/  templates/  profiles/  settings/
     secondary/               Providers, Cloud data, About, Sign in
+  data/
+    models.dart              typed contract models (incl. CV import jobs)
+    api_client.dart          contract API client over a transport seam (dart:io default, fake in tests)
+    auth.dart                legacy cookie auth; Clerk stub behind the same interface
+    kv_store.dart            key-value storage seam (shared_preferences + in-memory)
+    local_stores.dart        local CV sessions / profiles / templates / preferences stores
 test/
   theme_test.dart            palette resolution, prefs fallback/persist, ThemeData
   shell_test.dart            compact bottom nav, wide rail, destination switching
@@ -112,11 +143,24 @@ real screen must handle — e.g. Editor's markdown field, Templates'
 `Classic` entry, Settings' theme/density controls (the one functional
 control in the shell). No screen performs I/O.
 
-## Out of scope / security
+## Data layer choices / security
 
-- Out of scope: API and auth, Clerk/session wiring, real CV/profile data,
-  PDF export, import pipeline, cloud sync, flavors.
+- No state-management or HTTP package was added: the data layer is plain
+  Dart classes over an abstract transport seam (`dart:io` by default) and
+  the existing `shared_preferences` dependency, so nothing new needs
+  resolving before the toolchain check can run.
+- CV sessions, profiles and private templates are local-only, mirroring
+  the web storage keys (`cv-sv:session-backup:<id>`,
+  `cv-sv:local-profiles:v1`, `cv-sv:local-templates:v1`,
+  `cv-sv:preferences:v1`). The API client covers health, auth,
+  preferences, consent, templates, capabilities, application/artifact
+  and CV-import (create, poll, preview, cancel, retry) routes only.
+- Auth is the legacy sealed `auth_session` cookie (no bearer token, no
+  refresh; a 401 means signed out). Clerk sits behind the same auth
+  interface as a stub that reports itself unavailable.
 - Legacy plans / subscriptions / IAM routes are deliberately omitted:
-  no screens and no clients for them in this shell. Where identity ever
-  applies in the full build, it comes from the session only — never a
-  caller-chosen user id. This shell does no networking at all.
+  no screens and no clients for them. Identity comes from the session
+  only — never a caller-chosen user id.
+- Still stubbed / unverified: Clerk auth, wiring the data layer into
+  the placeholder screens, and all `flutter` toolchain commands above
+  (no SDK in the lab, see the toolchain note).
