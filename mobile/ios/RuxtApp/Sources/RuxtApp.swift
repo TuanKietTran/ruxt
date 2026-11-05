@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// App entry point. No networking in this shell: every destination uses
-/// local placeholder view models and reusable empty/loading/error states.
+/// App entry point. Sessions are local-only (LocalCvStore); networking is
+/// cookie-session auth plus templates/preferences/consent via RuxtKit.
 @main
 struct RuxtApp: App {
     var body: some Scene {
