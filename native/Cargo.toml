@@ -1,0 +1,26 @@
+# Ruxt native workspace.
+#
+# Apps are added by later labs (do not create them here):
+#   apps/ruxt-desktop        (nat-ruxt)
+#   apps/ruxt-admin-desktop  (nat-admin)
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/ruxt-api",
+    "crates/ruxt-ui-kit",
+]
+
+[workspace.package]
+edition = "2021"
+
+[workspace.dependencies]
+gpui = "0.2.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "cookies", "rustls-tls"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+thiserror = "2"
+url = "2"
+pulldown-cmark = "0.13.6"
+printpdf = "0.12.8"

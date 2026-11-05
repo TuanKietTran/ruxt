@@ -1,0 +1,14 @@
+[package]
+name = "ruxt-ui-kit"
+version = "0.1.0"
+edition.workspace = true
+description = "Shared GPUI theme tokens and components for Ruxt native apps."
+
+[features]
+default = []
+# GPUI is feature-gated so `cargo check -p ruxt-api` and workspace metadata
+# work on machines without the Metal Toolchain / Linux GUI dependencies.
+gpui = ["dep:gpui"]
+
+[dependencies]
+gpui = { workspace = true, optional = true }
