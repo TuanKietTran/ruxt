@@ -4697,6 +4697,7 @@ dependencies = [
 name = "ruxt-desktop"
 version = "0.1.0"
 dependencies = [
+ "gpui",
  "ruxt-api",
  "ruxt-ui-kit",
 ]
