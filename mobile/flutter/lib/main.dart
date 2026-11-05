@@ -1,17 +1,8 @@
-import 'package:flutter/widgets.dart';
+import 'app/app_config.dart';
+import 'app/bootstrap.dart';
 
-import 'app/ruxt_app.dart';
-import 'theme/theme_controller.dart';
-import 'theme/theme_preferences.dart';
-
-/// Entry point: loads the device-local theme and density before the
-/// first frame, then runs the app. Flavor and API wiring are handled
-/// by the full app build; this shell needs neither.
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  final controller = ThemeController(
-    ThemePreferences(SharedPreferencesThemeStore()),
-  );
-  await controller.load();
-  runApp(RuxtApp(controller: controller));
-}
+/// Default entry point: prod flavor unless overridden with
+/// `--dart-define=FLAVOR=canary` (or an `API_BASE_URL` override).
+/// Prefer the explicit `main_prod.dart` / `main_canary.dart`
+/// entry points together with the matching native `--flavor`.
+Future<void> main() => bootstrap(AppConfig.fromEnvironment());
