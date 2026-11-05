@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "design/tokens.schema.json",
+  "title": "Design tokens",
+  "type": "object",
+  "required": ["version", "themes", "typography", "spacing", "radius", "elevation", "motion", "breakpoints", "density", "focusRing", "icons"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "description": { "type": "string" },
+    "themes": {
+      "type": "object",
+      "required": ["mocha", "latte", "opencode"],
+      "additionalProperties": false,
+      "properties": {
+        "mocha": { "$ref": "#/$defs/theme" },
+        "latte": { "$ref": "#/$defs/theme" },
+        "opencode": { "$ref": "#/$defs/theme" }
+      }
+    },
+    "typography": {
+      "type": "object",
+      "required": ["fontFamily", "baseSizePx", "weights", "scale"],
+      "additionalProperties": false,
+      "properties": {
+        "fontFamily": { "type": "object", "required": ["sans", "mono"], "additionalProperties": false, "properties": { "sans": { "type": "string", "minLength": 1 }, "mono": { "type": "string", "minLength": 1 } } },
+        "baseSizePx": { "type": "number", "exclusiveMinimum": 0 },
+        "weights": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "integer", "minimum": 100, "maximum": 900 } },
+        "scale": { "type": "object", "minProperties": 1, "additionalProperties": { "$ref": "#/$defs/typeStep" } }
+      }
+    },
+    "spacing": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "number", "minimum": 0 } },
+    "radius": { "type": "object", "required": ["sm", "md", "lg", "full"], "additionalProperties": { "type": "number", "minimum": 0 } },
+    "elevation": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "string", "minLength": 1 } },
+    "motion": {
+      "type": "object",
+      "required": ["durationMs", "easing"],
+      "additionalProperties": false,
+      "properties": {
+        "durationMs": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "number", "minimum": 0 } },
+        "easing": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "string", "minLength": 1 } },
+        "reducedMotion": { "type": "string" }
+      }
+    },
+    "breakpoints": {
+      "type": "object",
+      "required": ["valuesPx", "windowClasses"],
+      "additionalProperties": false,
+      "properties": {
+        "valuesPx": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "number", "exclusiveMinimum": 0 } },
+        "windowClasses": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["name", "minWidthPx", "maxWidthPx"], "additionalProperties": false, "properties": { "name": { "type": "string", "minLength": 1 }, "minWidthPx": { "type": "number", "minimum": 0 }, "maxWidthPx": { "type": ["number", "null"], "minimum": 0 } } } }
+      }
+    },
+    "density": { "type": "object", "required": ["comfortable", "compact"], "additionalProperties": { "type": "object", "required": ["scale", "controlHeightPx", "rowHeightPx"], "additionalProperties": false, "properties": { "scale": { "type": "number", "exclusiveMinimum": 0 }, "controlHeightPx": { "type": "number", "exclusiveMinimum": 0 }, "rowHeightPx": { "type": "number", "exclusiveMinimum": 0 } } } },
+    "focusRing": { "type": "object", "required": ["widthPx", "offsetPx", "style", "colorRole"], "additionalProperties": false, "properties": { "widthPx": { "type": "number", "exclusiveMinimum": 0 }, "offsetPx": { "type": "number", "minimum": 0 }, "style": { "type": "string", "minLength": 1 }, "colorRole": { "type": "string", "minLength": 1 } } },
+    "icons": { "type": "object", "required": ["set"], "additionalProperties": false, "properties": { "set": { "type": "string", "minLength": 1 }, "delivery": { "type": "string" } } }
+  },
+  "$defs": {
+    "hexColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+    "theme": {
+      "type": "object",
+      "required": ["colorScheme", "color"],
+      "additionalProperties": false,
+      "properties": {
+        "colorScheme": { "enum": ["dark", "light"] },
+        "color": {
+          "type": "object",
+          "required": ["bgBase", "bgMantle", "bgCrust", "bgSurface0", "bgSurface1", "bgSurface2", "bgOverlay0", "bgOverlay1", "bgOverlay2", "fgText", "fgSubtext1", "fgSubtext0", "accent", "accentHover", "accentMuted", "onAccent", "pink", "mauve", "red", "peach", "yellow", "green", "teal", "sky", "sapphire", "warning", "danger", "success", "info", "border", "borderStrong"],
+          "additionalProperties": false,
+          "properties": {
+            "bgBase": { "$ref": "#/$defs/hexColor" }, "bgMantle": { "$ref": "#/$defs/hexColor" }, "bgCrust": { "$ref": "#/$defs/hexColor" }, "bgSurface0": { "$ref": "#/$defs/hexColor" }, "bgSurface1": { "$ref": "#/$defs/hexColor" }, "bgSurface2": { "$ref": "#/$defs/hexColor" }, "bgOverlay0": { "$ref": "#/$defs/hexColor" }, "bgOverlay1": { "$ref": "#/$defs/hexColor" }, "bgOverlay2": { "$ref": "#/$defs/hexColor" },
+            "fgText": { "$ref": "#/$defs/hexColor" }, "fgSubtext1": { "$ref": "#/$defs/hexColor" }, "fgSubtext0": { "$ref": "#/$defs/hexColor" },
+            "accent": { "$ref": "#/$defs/hexColor" }, "accentHover": { "$ref": "#/$defs/hexColor" }, "accentMuted": { "$ref": "#/$defs/hexColor" }, "onAccent": { "$ref": "#/$defs/hexColor" },
+            "pink": { "$ref": "#/$defs/hexColor" }, "mauve": { "$ref": "#/$defs/hexColor" }, "red": { "$ref": "#/$defs/hexColor" }, "peach": { "$ref": "#/$defs/hexColor" }, "yellow": { "$ref": "#/$defs/hexColor" }, "green": { "$ref": "#/$defs/hexColor" }, "teal": { "$ref": "#/$defs/hexColor" }, "sky": { "$ref": "#/$defs/hexColor" }, "sapphire": { "$ref": "#/$defs/hexColor" },
+            "warning": { "$ref": "#/$defs/hexColor" }, "danger": { "$ref": "#/$defs/hexColor" }, "success": { "$ref": "#/$defs/hexColor" }, "info": { "$ref": "#/$defs/hexColor" },
+            "border": { "$ref": "#/$defs/hexColor" }, "borderStrong": { "$ref": "#/$defs/hexColor" }
+          }
+        }
+      }
+    },
+    "typeStep": { "type": "object", "required": ["sizePx", "lineHeight", "weight"], "additionalProperties": false, "properties": { "sizePx": { "type": "number", "exclusiveMinimum": 0 }, "lineHeight": { "type": "number", "exclusiveMinimum": 0 }, "weight": { "type": "integer", "minimum": 100, "maximum": 900 } } }
+  }
+}
