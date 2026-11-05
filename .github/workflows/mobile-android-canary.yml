@@ -1,0 +1,71 @@
+name: Mobile Android Canary
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "mobile/android/**"
+      - ".github/workflows/mobile-android-canary.yml"
+  pull_request:
+    paths:
+      - "mobile/android/**"
+      - ".github/workflows/mobile-android-canary.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Token drift check
+        run: bash mobile/android/tools/check-token-drift.sh
+      - name: Security gate (no legacy routes or bearer auth in app sources)
+        run: |
+          if grep -rnE "/api/(plans|subscriptions|iam)|Bearer" mobile/android/app/src/main; then
+            echo "forbidden pattern found in app sources"; exit 1
+          fi
+          echo "security gate clean"
+      - name: Unit tests (canary)
+        working-directory: mobile/android
+        run: gradle :app:testCanaryDebugUnitTest --stacktrace
+      - name: Assemble canary debug (artifact only, never published)
+        working-directory: mobile/android
+        run: gradle :app:assembleCanaryDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ruxt-canary-debug
+          path: mobile/android/app/build/outputs/apk/canary/debug/*.apk
+          if-no-files-found: error
+
+  prod:
+    # Prod is manual-only: it never runs on push or pull_request.
+    if: github.event_name == 'workflow_dispatch'
+    needs: canary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Unit tests (prod)
+        working-directory: mobile/android
+        run: gradle :app:testProdDebugUnitTest --stacktrace
+      - name: Assemble prod release (artifact only, never published)
+        working-directory: mobile/android
+        run: gradle :app:assembleProdRelease --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ruxt-prod-release
+          path: mobile/android/app/build/outputs/apk/prod/release/*.apk
+          if-no-files-found: error

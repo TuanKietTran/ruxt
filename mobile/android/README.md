@@ -96,3 +96,7 @@ Not verified / stubbed:
 - ViewModels expose the full UI state flow, but the Sessions/Templates/Profiles view models still return empty lists — binding them to `LocalCvRepository` / the template repository is the remaining wiring step, and the Editor draft write is marked at the persistence point in `EditorViewModel` rather than calling the store yet.
 - `LocalSessionsRepository` uses `org.json`, which is stubbed in JVM unit tests, so its file semantics are covered by code review only, not by the unit suite.
 - No live network call, sign-in, or cv-import run has been performed from the app.
+
+## Verification
+
+Local verification on the development machine (2026-11-05) is UNVERIFIED, with this exact toolchain blocker: OpenJDK 21.0.12.1 is present, but there is no Gradle wrapper in `mobile/android` (`gradlew` missing) and no Android SDK (`ANDROID_HOME` is empty, `~/Library/Android/sdk` does not exist), so the gradle attempt exits 127 before any code compiles; no unit test has run locally. Static checks performed locally instead: token drift script (`mobile/android/tools/check-token-drift.sh`), security grep for `/api/(plans|subscriptions|iam)` and `Bearer` in `app/src/main`, YAML parse of the canary workflow, and `git diff --check`. Compile and unit tests run in CI via `.github/workflows/mobile-android-canary.yml` (`gradle :app:testCanaryDebugUnitTest :app:assembleCanaryDebug`).
