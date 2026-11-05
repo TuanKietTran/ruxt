@@ -14,6 +14,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -32,6 +33,10 @@ import cloud.mashallow.ruxt.ui.components.EmptyState
 import cloud.mashallow.ruxt.ui.components.LoadingState
 import cloud.mashallow.ruxt.ui.components.OfflineState
 import cloud.mashallow.ruxt.ui.components.PlannedBadge
+import cloud.mashallow.ruxt.ui.EditorViewModel
+import cloud.mashallow.ruxt.ui.ProfilesViewModel
+import cloud.mashallow.ruxt.ui.SessionsViewModel
+import cloud.mashallow.ruxt.ui.TemplatesViewModel
 import kotlinx.coroutines.launch
 
 @Composable
@@ -39,39 +44,70 @@ private fun Modifier.screen(): Modifier = this.fillMaxSize().verticalScroll(reme
 
 @Composable
 fun SessionsScreen(onOpenEditor: () -> Unit = {}) {
+    val vm = remember { SessionsViewModel() }
+    val state by vm.state.collectAsState()
+    LaunchedEffect(Unit) { vm.refresh() }
     Column(Modifier.screen(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Sessions", style = MaterialTheme.typography.headlineMedium)
         Text("CV sessions are local to this device in this shell. No server session list is called.", style = MaterialTheme.typography.bodyMedium)
-        EmptyState("No sessions yet", "Start a session locally; it stays on this device until a later phase adds sync.")
+        when {
+            state.isLoading -> LoadingState("Loading sessions")
+            state.error != null -> { Text(state.error ?: "Unknown error", style = MaterialTheme.typography.bodyMedium); Button(onClick = { vm.refresh() }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Retry") } }
+            state.sessions.isNotEmpty() -> state.sessions.forEach { s -> OutlinedButton(onClick = onOpenEditor, modifier = Modifier.heightIn(min = 48.dp).fillMaxWidth()) { Text(if (s.updatedAt.isBlank()) s.title else "${s.title} - ${s.updatedAt}") } }
+            else -> EmptyState("No sessions yet", "Start a session locally; it stays on this device until a later phase adds sync.")
+        }
         Button(onClick = onOpenEditor, modifier = Modifier.heightIn(min = 48.dp)) { Text("Open editor placeholder") }
     }
 }
 
 @Composable
 fun EditorScreen() {
+    val vm = remember { EditorViewModel() }
+    val state by vm.state.collectAsState()
     Column(Modifier.screen(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Editor", style = MaterialTheme.typography.headlineMedium)
         Text("Contexts: cv and profiles only. The editor internals are not reimplemented in this shell.", style = MaterialTheme.typography.bodyMedium)
-        EmptyState("No document open", "Open a session (s=) or a template (t=), not both.")
-        LoadingState("Editor placeholder")
+        when {
+            state.isLoading -> LoadingState("Loading document")
+            state.error != null -> Text(state.error ?: "Unknown error", style = MaterialTheme.typography.bodyMedium)
+            state.sessionId == null && state.markdown.isBlank() -> EmptyState("No document open", "Open a session (s=) or a template (t=), not both.")
+            else -> { if (state.title.isNotBlank()) Text(state.title, style = MaterialTheme.typography.titleMedium); Text(state.markdown, style = MaterialTheme.typography.bodyMedium) }
+        }
+        Button(onClick = { vm.save() }, enabled = !state.isSaving, modifier = Modifier.heightIn(min = 48.dp)) { Text(if (state.isSaving) "Saving" else "Save") }
     }
 }
 
 @Composable
 fun TemplatesScreen() {
+    val vm = remember { TemplatesViewModel() }
+    val state by vm.state.collectAsState()
+    LaunchedEffect(Unit) { vm.refresh() }
     Column(Modifier.screen(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Templates", style = MaterialTheme.typography.headlineMedium)
-        EmptyState("No templates loaded", "Templates are local in this shell; cloud template behaviour follows the templates consent in Settings.")
+        when {
+            state.isLoading -> LoadingState("Loading templates")
+            state.error != null -> { Text(state.error ?: "Unknown error", style = MaterialTheme.typography.bodyMedium); Button(onClick = { vm.refresh() }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Retry") } }
+            state.templates.isNotEmpty() -> state.templates.forEach { t -> Text(t.name, style = MaterialTheme.typography.titleMedium); if (t.description.isNotBlank()) Text(t.description, style = MaterialTheme.typography.bodyMedium) }
+            else -> EmptyState("No templates loaded", "Templates are local in this shell; cloud template behaviour follows the templates consent in Settings.")
+        }
         OfflineState()
     }
 }
 
 @Composable
 fun ProfilesScreen() {
+    val vm = remember { ProfilesViewModel() }
+    val state by vm.state.collectAsState()
+    LaunchedEffect(Unit) { vm.refresh() }
     Column(Modifier.screen(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Profiles", style = MaterialTheme.typography.headlineMedium)
         Text("Profiles are local to this device in this shell.", style = MaterialTheme.typography.bodyMedium)
-        EmptyState("No profiles yet", "Create a profile locally; save mode (auto/manual) is set in Settings.")
+        when {
+            state.isLoading -> LoadingState("Loading profiles")
+            state.error != null -> { Text(state.error ?: "Unknown error", style = MaterialTheme.typography.bodyMedium); Button(onClick = { vm.refresh() }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Retry") } }
+            state.profiles.isNotEmpty() -> state.profiles.forEach { p -> Text(p.name, style = MaterialTheme.typography.titleMedium); if (p.headline.isNotBlank()) Text(p.headline, style = MaterialTheme.typography.bodyMedium) }
+            else -> EmptyState("No profiles yet", "Create a profile locally; save mode (auto/manual) is set in Settings.")
+        }
     }
 }
 
