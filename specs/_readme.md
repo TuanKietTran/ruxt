@@ -40,6 +40,18 @@
 | [Cloudflare runbook](cloudflare-migration-runbook.md) | Bindings, deployment, rollback |
 | [Follow-ups](TODO.md) | Deferred improvements |
 
+### Platform
+
+| Specification | Covers |
+| --- | --- |
+| [Platform control plane](platform-control-plane.md) | Principles, adapters, plans, audit, commands |
+| [Platform releases](platform-releases.md) | Versions, channels, changelog, promotion, rollback |
+| [Platform domains](platform-domains.md) | Domain registry, DNS plans, verification, TLS |
+| [Platform data](platform-data.md) | Database registry, migrations, backup, restore |
+| [Platform configuration](platform-config.md) | Environments, secrets by reference, flags, deployments |
+| [Platform legacy](platform-legacy.md) | Clerk, Cloudflare and Deno sunset tracking to 2027-01 |
+| [Platform admin](platform-admin.md) | Admin pages, API shapes, plan viewer |
+
 ## Cross-Cutting
 
 Source code defines current behavior. Planned behavior is labelled explicitly. Reusable domain/editor contracts belong to ruxt-core; administration contracts belong to ruxt-admin. Changes to a contract should update its owning specification.

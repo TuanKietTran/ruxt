@@ -1,0 +1,19 @@
+{
+  "environments": [
+    {
+      "name": "development",
+      "deploymentEnv": "development",
+      "databaseId": "local-sqlite",
+      "adapterId": "native",
+      "requiredEnv": ["NUXT_SESSION_SECRET", "RUXT_DEPLOYMENT_ENV"]
+    },
+    {
+      "name": "production",
+      "deploymentEnv": "production",
+      "domain": "ruxt.mashallow.cloud",
+      "databaseId": "prod-d1",
+      "adapterId": "cloudflare",
+      "requiredEnv": ["NUXT_SESSION_SECRET", "NUXT_CLERK_SECRET_KEY", "NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "RUXT_DEPLOYMENT_ENV"]
+    }
+  ]
+}

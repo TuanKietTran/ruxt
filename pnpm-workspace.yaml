@@ -1,5 +1,6 @@
 packages:
   - "infra"
+  - "tools/platform"
 overrides:
   '@codemirror/state': 6.7.3
   '@ruxt/shared': 0.1.0
