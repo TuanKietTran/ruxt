@@ -41,3 +41,4 @@
 ## Cross-Cutting
 
 Source code defines current behavior. Planned behavior is labelled explicitly. Reusable domain/editor contracts belong to ruxt-core; administration contracts belong to ruxt-admin. Changes to a contract should update its owning specification.
+- [Platform: Android](platform-android.md)
