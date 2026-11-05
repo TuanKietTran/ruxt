@@ -1,0 +1,103 @@
+name: Native
+
+on:
+  push:
+    paths:
+      - "native/**"
+      - ".github/workflows/native.yml"
+  pull_request:
+    paths:
+      - "native/**"
+      - ".github/workflows/native.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: Native (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    defaults:
+      run:
+        working-directory: native
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check client routes
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          targets=()
+          [ -d native/crates ] && targets+=(native/crates)
+          [ -d native/apps ] && targets+=(native/apps)
+          if [ "${#targets[@]}" -eq 0 ]; then
+            echo "no native client sources found"
+            exit 0
+          fi
+          pattern='(/api/)?(plans|subscriptions|iam)([/"])'
+          if grep -R -n -E --include='*.rs' "$pattern" "${targets[@]}"; then
+            echo "::error::client source references a disallowed route prefix (see above)"
+            exit 1
+          fi
+          echo "client route check passed"
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        working-directory: ${{ github.workspace }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential clang cmake pkg-config curl git \
+            libssl-dev libzstd-dev libvulkan-dev \
+            libfontconfig1-dev libfreetype6-dev \
+            libwayland-dev libwayland-egl1-mesa libegl1-mesa-dev libgl1-mesa-dev \
+            libx11-dev libx11-xcb-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libxkbcommon-dev libxkbcommon-x11-dev \
+            libasound2-dev libudev-dev
+
+      - name: Check macOS Metal toolchain
+        if: runner.os == 'macOS'
+        working-directory: ${{ github.workspace }}
+        run: |
+          if ! xcrun --find metal >/dev/null 2>&1; then
+            echo "Metal toolchain not found; attempting to install the component"
+            xcodebuild -downloadComponent MetalToolchain || true
+          fi
+          xcrun --find metal || echo "::warning::metal tool still unavailable; GPUI crates may not build on this runner"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "native -> target"
+          key: ${{ runner.os }}
+
+      - name: Format
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace
+
+      - name: Build release
+        run: cargo build --release --workspace
+
+      - name: List release binaries
+        shell: bash
+        run: |
+          ls -la target/release/ | grep -E 'ruxt-desktop|ruxt-admin-desktop' || echo "app binaries not present yet (apps may not have landed); workspace release build above is the gate"

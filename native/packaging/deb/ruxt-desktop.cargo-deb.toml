@@ -1,0 +1,17 @@
+# cargo-deb config stub for apps/ruxt-desktop.
+# Copy this block into apps/ruxt-desktop/Cargo.toml (adjusting the version
+# source) when the app crate lands, then run: cargo deb -p ruxt-desktop
+# Alternatively use packaging/linux/package.sh, which builds a .deb from
+# deb/control.template without cargo-deb.
+#
+# [package.metadata.deb]
+# maintainer = "Ruxt <dev@mashallow.cloud>"
+# copyright = "Ruxt"
+# license-file = ["../../LICENSE", "0"]
+# depends = "libfontconfig1, libfreetype6, libwayland-client0, libxkbcommon0, libxkbcommon-x11-0, libx11-6, libxcb1"
+# section = "utils"
+# priority = "optional"
+# assets = [
+#   ["target/release/ruxt-desktop", "usr/bin/", "755"],
+#   ["packaging/linux/ruxt-desktop.desktop", "usr/share/applications/", "644"],
+# ]

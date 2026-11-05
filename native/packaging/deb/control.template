@@ -1,0 +1,9 @@
+Package: __PACKAGE__
+Version: __VERSION__
+Section: utils
+Priority: optional
+Architecture: __ARCH__
+Maintainer: Ruxt <dev@mashallow.cloud>
+Description: __APP_NAME__ (native GPUI app)
+ Built from the native/ Cargo workspace in the ruxt repository.
+Depends: libfontconfig1, libfreetype6, libwayland-client0, libxkbcommon0, libxkbcommon-x11-0, libx11-6, libxcb1
