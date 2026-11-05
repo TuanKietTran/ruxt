@@ -1,0 +1,9 @@
+// Release flavor: production Ruxt.
+// Values are consumed by Ruxt.xcodeproj (see project.yml) and surfaced to
+// the app through the generated Info.plist.
+PRODUCT_BUNDLE_IDENTIFIER = cloud.mashallow.ruxt
+PRODUCT_NAME = Ruxt
+DISPLAY_NAME = Ruxt
+MARKETING_VERSION = 1.0.0
+CURRENT_PROJECT_VERSION = 1
+RUXT_API_BASE_URL = https:/$()/ruxt.mashallow.cloud

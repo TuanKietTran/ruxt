@@ -1,0 +1,77 @@
+# XcodeGen project for the Ruxt app. Generate with:
+#   xcodegen generate --spec project.yml
+# The generated Ruxt.xcodeproj is committed so xcodebuild works without
+# XcodeGen installed; regenerate and commit both when this file changes.
+name: Ruxt
+options:
+  bundleIdPrefix: cloud.mashallow
+  createIntermediateGroups: true
+configs:
+  Canary: release
+  Release: release
+configFiles:
+  Canary: Config/Canary.xcconfig
+  Release: Config/Release.xcconfig
+packages:
+  RuxtKit:
+    path: RuxtKit
+targets:
+  RuxtApp:
+    type: application
+    platform: iOS
+    deploymentTarget: '17.0'
+    sources:
+      - RuxtApp/Sources
+    dependencies:
+      - package: RuxtKit
+    info:
+      path: RuxtApp/Info.plist
+      properties:
+        CFBundleName: $(PRODUCT_NAME)
+        CFBundleDisplayName: $(DISPLAY_NAME)
+        CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundlePackageType: APPL
+        RuxtAPIBaseURL: $(RUXT_API_BASE_URL)
+        LSRequiresIPhoneOS: true
+        UIApplicationSupportsIndirectInputEvents: true
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+    settings:
+      base:
+        SWIFT_VERSION: '5.9'
+        TARGETED_DEVICE_FAMILY: '1,2'
+        CODE_SIGN_STYLE: Automatic
+        ASSETCATALOG_COMPILER_APPICON_NAME: ''
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: ''
+schemes:
+  Ruxt:
+    build:
+      targets:
+        RuxtApp: all
+    run:
+      config: Release
+    test:
+      config: Release
+    profile:
+      config: Release
+    analyze:
+      config: Release
+    archive:
+      config: Release
+  Ruxt-Canary:
+    build:
+      targets:
+        RuxtApp: all
+    run:
+      config: Canary
+    test:
+      config: Canary
+    profile:
+      config: Canary
+    analyze:
+      config: Canary
+    archive:
+      config: Canary
