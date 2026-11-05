@@ -8,6 +8,7 @@ enum AppThemeChoice: String, CaseIterable, Identifiable {
     case system
     case latte
     case mocha
+    case opencode
 
     var id: String { rawValue }
     var label: String {
@@ -15,6 +16,7 @@ enum AppThemeChoice: String, CaseIterable, Identifiable {
         case .system: return "System"
         case .latte: return "Latte (light)"
         case .mocha: return "Mocha (dark)"
+        case .opencode: return "OpenCode (dark)"
         }
     }
     var preferredColorScheme: ColorScheme? {
@@ -22,12 +24,14 @@ enum AppThemeChoice: String, CaseIterable, Identifiable {
         case .system: return nil
         case .latte: return .light
         case .mocha: return .dark
+        case .opencode: return .dark
         }
     }
     func palette(systemScheme: ColorScheme) -> RuxtThemeTokens {
         switch self {
         case .latte: return RuxtTheme.latte
         case .mocha: return RuxtTheme.mocha
+        case .opencode: return RuxtTheme.opencode
         case .system: return systemScheme == .dark ? RuxtTheme.mocha : RuxtTheme.latte
         }
     }
