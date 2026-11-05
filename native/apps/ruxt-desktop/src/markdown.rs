@@ -63,7 +63,9 @@ fn find_char(chars: &[char], from: usize, target: char) -> Option<usize> {
 
 fn find_pair(chars: &[char], from: usize, pair: &str) -> Option<usize> {
     let p: Vec<char> = pair.chars().collect();
-    if chars.len() < from + p.len() { return None; }
+    if chars.len() < from + p.len() {
+        return None;
+    }
     (from..=chars.len() - p.len()).find(|&j| chars[j..j + p.len()] == p[..])
 }
 
@@ -73,41 +75,72 @@ pub fn render_markdown(input: &str) -> String {
     for line in input.lines() {
         let trimmed = line.trim();
         if trimmed.starts_with("- ") || trimmed.starts_with("* ") {
-            if !in_list { out.push_str("<ul>"); in_list = true; }
+            if !in_list {
+                out.push_str("<ul>");
+                in_list = true;
+            }
             out.push_str("<li>");
             out.push_str(&render_inline(&trimmed[2..]));
             out.push_str("</li>");
             continue;
         }
-        if in_list { out.push_str("</ul>"); in_list = false; }
-        if trimmed.is_empty() { continue; }
+        if in_list {
+            out.push_str("</ul>");
+            in_list = false;
+        }
+        if trimmed.is_empty() {
+            continue;
+        }
         if let Some(rest) = trimmed.strip_prefix("### ") {
-            out.push_str("<h3>"); out.push_str(&render_inline(rest)); out.push_str("</h3>");
+            out.push_str("<h3>");
+            out.push_str(&render_inline(rest));
+            out.push_str("</h3>");
         } else if let Some(rest) = trimmed.strip_prefix("## ") {
-            out.push_str("<h2>"); out.push_str(&render_inline(rest)); out.push_str("</h2>");
+            out.push_str("<h2>");
+            out.push_str(&render_inline(rest));
+            out.push_str("</h2>");
         } else if let Some(rest) = trimmed.strip_prefix("# ") {
-            out.push_str("<h1>"); out.push_str(&render_inline(rest)); out.push_str("</h1>");
+            out.push_str("<h1>");
+            out.push_str(&render_inline(rest));
+            out.push_str("</h1>");
         } else {
-            out.push_str("<p>"); out.push_str(&render_inline(trimmed)); out.push_str("</p>");
+            out.push_str("<p>");
+            out.push_str(&render_inline(trimmed));
+            out.push_str("</p>");
         }
     }
-    if in_list { out.push_str("</ul>"); }
+    if in_list {
+        out.push_str("</ul>");
+    }
     out
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test] fn heading_and_paragraph() {
-        assert_eq!(render_markdown("# Title\n\nHello"), "<h1>Title</h1><p>Hello</p>");
+    #[test]
+    fn heading_and_paragraph() {
+        assert_eq!(
+            render_markdown("# Title\n\nHello"),
+            "<h1>Title</h1><p>Hello</p>"
+        );
     }
-    #[test] fn bold_code_and_list() {
-        assert_eq!(render_markdown("- **a**\n- `b`"), "<ul><li><strong>a</strong></li><li><code>b</code></li></ul>");
+    #[test]
+    fn bold_code_and_list() {
+        assert_eq!(
+            render_markdown("- **a**\n- `b`"),
+            "<ul><li><strong>a</strong></li><li><code>b</code></li></ul>"
+        );
     }
-    #[test] fn raw_html_is_escaped() {
-        assert_eq!(render_markdown("<script>x</script>"), "<p>&lt;script&gt;x&lt;/script&gt;</p>");
+    #[test]
+    fn raw_html_is_escaped() {
+        assert_eq!(
+            render_markdown("<script>x</script>"),
+            "<p>&lt;script&gt;x&lt;/script&gt;</p>"
+        );
     }
-    #[test] fn unmatched_markers_stay_literal() {
+    #[test]
+    fn unmatched_markers_stay_literal() {
         assert_eq!(render_inline("a * b"), "a * b");
     }
 }
