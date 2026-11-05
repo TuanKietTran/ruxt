@@ -1,0 +1,8 @@
+// Canary flavor settings. Use via a Canary scheme or:
+//   flutter run --flavor canary -t lib/main_canary.dart
+// (with this file set as the configuration's base xcconfig).
+APP_BUNDLE_ID = cloud.mashallow.ruxt.canary
+APP_DISPLAY_NAME = Ruxt Canary
+API_BASE_URL = https://ruxt-canary.mashallow.cloud
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
+#include "Generated.xcconfig"
