@@ -21,6 +21,7 @@
 | [CV workflows](cv-server-workflows.md) | Import, templates, profile transformations |
 | [MCP](mcp-automation.md) | Authenticated transport and rendering automation |
 | [iOS platform](platform-ios.md) | Native iOS app: architecture, flavors, theme, auth, testing |
+| [Android platform](platform-android.md) | Android app: architecture, flavors, theme, API use, tests and CI |
 
 ### Accounts and storage
 
@@ -57,4 +58,3 @@
 ## Cross-Cutting
 
 Source code defines current behavior. Planned behavior is labelled explicitly. Reusable domain/editor contracts belong to ruxt-core; administration contracts belong to ruxt-admin. Changes to a contract should update its owning specification.
-- [Platform: Android](platform-android.md)
