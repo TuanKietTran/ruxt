@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import 'app_config.dart';
 import '../theme/ruxt_theme_data.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/state_views.dart';
@@ -14,9 +15,14 @@ import 'ruxt_shell.dart';
 /// loaded, only a loading view is shown, so the first paint is never
 /// in the wrong theme.
 class RuxtApp extends StatefulWidget {
-  const RuxtApp({super.key, required this.controller});
+  const RuxtApp({
+    super.key,
+    required this.controller,
+    this.config = AppConfig.prod,
+  });
 
   final ThemeController controller;
+  final AppConfig config;
 
   @override
   State<RuxtApp> createState() => _RuxtAppState();
@@ -46,7 +52,7 @@ class _RuxtAppState extends State<RuxtApp> {
       animation: widget.controller,
       builder: (context, _) {
         return MaterialApp(
-          title: 'Ruxt',
+          title: widget.config.appName,
           debugShowCheckedModeBanner: false,
           theme: buildRuxtThemeData(
             palette: widget.controller.palette,
