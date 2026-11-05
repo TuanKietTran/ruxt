@@ -4682,6 +4682,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ruxt-admin-desktop"
+version = "0.1.0"
+dependencies = [
+ "gpui",
+ "ruxt-api",
+ "ruxt-ui-kit",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "ruxt-api"
 version = "0.1.0"
 dependencies = [
