@@ -1,0 +1,15 @@
+{
+  "_comment": "PROVISIONAL tokens seeded from app/assets/theme/themes.css (Latte light + Mocha dark color roles, radius, focus ring). Typography scale, spacing, elevation, motion, breakpoints and density are conventional derivations, also PROVISIONAL. Replace with the shared design token JSON when it lands and regenerate Theme.swift.",
+  "themes": {
+    "latte": { "colorScheme": "light", "colors": { "accent": "#164cc0", "accentHover": "#1445b0", "accentMuted": "#ccd0da", "bgBase": "#eff1f5", "bgCrust": "#dce0e8", "bgMantle": "#e6e9ef", "bgOverlay0": "#9ca0b0", "bgOverlay1": "#8c8fa1", "bgOverlay2": "#7c7f93", "bgSurface0": "#ccd0da", "bgSurface1": "#bcc0cc", "bgSurface2": "#acb0be", "border": "#ccd0da", "borderStrong": "#bcc0cc", "danger": "#d20f39", "fgSubtext0": "#53566e", "fgSubtext1": "#505268", "fgText": "#4c4f69", "green": "#40a02b", "mauve": "#8839ef", "peach": "#fe640b", "pink": "#ea76cb", "red": "#d20f39", "sapphire": "#209fb5", "sky": "#04a5e5", "teal": "#179299", "warning": "#df8e1d", "yellow": "#df8e1d" } },
+    "mocha": { "colorScheme": "dark", "colors": { "accent": "#89b4fa", "accentHover": "#b4befe", "accentMuted": "#313244", "bgBase": "#1e1e2e", "bgCrust": "#11111b", "bgMantle": "#181825", "bgOverlay0": "#6c7086", "bgOverlay1": "#7f849c", "bgOverlay2": "#9399b2", "bgSurface0": "#313244", "bgSurface1": "#45475a", "bgSurface2": "#585b70", "border": "#313244", "borderStrong": "#45475a", "danger": "#f38ba8", "fgSubtext0": "#a6adc8", "fgSubtext1": "#bac2de", "fgText": "#cdd6f4", "green": "#a6e3a1", "mauve": "#cba6f7", "peach": "#fab387", "pink": "#f5c2e7", "red": "#f38ba8", "sapphire": "#74c7ec", "sky": "#89dceb", "teal": "#94e2d5", "warning": "#f9e2af", "yellow": "#f9e2af" } }
+  },
+  "typography": { "body": 17, "callout": 16, "caption": 12, "footnote": 13, "headline": 17, "largeTitle": 34, "subheadline": 15, "title": 28, "title2": 22, "title3": 20 },
+  "spacing": { "lg": 24, "md": 16, "sm": 8, "xl": 32, "xs": 4, "xxl": 48 },
+  "radius": { "full": 9999, "lg": 16, "md": 10, "sm": 6 },
+  "elevation": { "high": 16, "low": 2, "medium": 8 },
+  "motion": { "fast": 0.15, "standard": 0.3 },
+  "breakpoints": { "compactMax": 599, "regularMin": 600 },
+  "density": { "comfortable": { "rowPadding": 12, "sectionSpacing": 24 }, "compact": { "rowPadding": 6, "sectionSpacing": 12 } },
+  "focusRing": { "offset": 2, "width": 2 }
+}
