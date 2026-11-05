@@ -1,0 +1,2 @@
+rootProject.name = "ruxt"
+include ":app"
