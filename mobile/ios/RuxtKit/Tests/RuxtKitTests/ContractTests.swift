@@ -80,6 +80,15 @@ final class ContractTests: XCTestCase {
         XCTAssertEqual(RuxtEnvironment.canary.baseURL.absoluteString, "https://ruxt-canary.mashallow.cloud")
     }
 
+    func testEnvironmentFromInfoPlist() {
+        XCTAssertEqual(RuxtEnvironment.fromInfoPlist(["RuxtAPIBaseURL": "https://ruxt-canary.mashallow.cloud"]), .canary)
+        XCTAssertEqual(RuxtEnvironment.fromInfoPlist(["RuxtAPIBaseURL": "https://ruxt.mashallow.cloud"]), .prod)
+        XCTAssertEqual(RuxtEnvironment.fromInfoPlist(["RuxtAPIBaseURL": "https://ruxt.mashallow.cloud/"]), .prod)
+        XCTAssertEqual(RuxtEnvironment.fromInfoPlist([:]), .prod)
+        XCTAssertEqual(RuxtEnvironment.fromInfoPlist(nil), .prod)
+        XCTAssertEqual(RuxtEnvironment.fromInfoPlist(["RuxtAPIBaseURL": "https://unknown.example"]), .prod)
+    }
+
     func testLoginCapturesCookieAndMeSendsIt() async throws {
         let cookieStore = InMemorySessionCookieStore()
         let transport = MockTransport { request in

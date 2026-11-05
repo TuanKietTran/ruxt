@@ -129,9 +129,9 @@ final class AuthModel: ObservableObject {
     init(client: RuxtAPIClient? = nil) {
         if let client { self.client = client } else {
             #if canImport(Security)
-            self.client = RuxtAPIClient(cookieStore: KeychainSessionCookieStore())
+            self.client = RuxtAPIClient(environment: .current, cookieStore: KeychainSessionCookieStore())
             #else
-            self.client = RuxtAPIClient()
+            self.client = RuxtAPIClient(environment: .current)
             #endif
         }
     }
