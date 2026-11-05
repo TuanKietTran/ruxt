@@ -16,6 +16,7 @@
 | [Design accessibility](design/accessibility.md) | Focus, contrast, text scaling, reduced motion, keyboard shortcuts, skip links |
 | [Design motion](design/motion.md) | Duration and easing tokens, reduced-motion behavior |
 | [Desktop app (GPUI)](platform-gpui-ruxt.md) | Native app scope, tokens, themes, layout |
+| [Admin desktop app (GPUI)](platform-gpui-admin.md) | Native admin app scope, backends, themes, layout |
 | [Local sessions](cv-documents-realtime.md) | Browser storage, autosave, recovery |
 | [CV workflows](cv-server-workflows.md) | Import, templates, profile transformations |
 | [MCP](mcp-automation.md) | Authenticated transport and rendering automation |

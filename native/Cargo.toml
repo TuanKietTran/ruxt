@@ -10,6 +10,7 @@ members = [
     "apps/ruxt-desktop",
     "crates/ruxt-api",
     "crates/ruxt-ui-kit",
+    "apps/ruxt-admin-desktop",
 ]
 
 [workspace.package]
