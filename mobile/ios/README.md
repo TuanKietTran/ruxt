@@ -94,8 +94,10 @@ The app follows the system appearance by default, or pins Latte (light), Mocha (
 cd mobile/ios/RuxtKit && swift test
 
 cd mobile/ios
-xcodebuild -project Ruxt.xcodeproj -scheme Ruxt-Canary build
-xcodebuild -project Ruxt.xcodeproj -scheme Ruxt build
+xcodebuild -project Ruxt.xcodeproj -scheme Ruxt-Canary -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project Ruxt.xcodeproj -scheme Ruxt -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build
+
+No development team is configured for the project, so the documented builds disable code signing; select a team in Xcode to build for a device or to archive.
 ```
 
 ## Verified vs stubbed
