@@ -15,6 +15,9 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section("Account") {
+                LoginView()
+            }
             Section("Appearance") {
                 Picker("Theme", selection: $themeChoiceRaw) {
                     ForEach(AppThemeChoice.allCases) { choice in

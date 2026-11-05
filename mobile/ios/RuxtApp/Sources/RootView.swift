@@ -47,6 +47,8 @@ struct RootView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selection: AppDestination = .sessions
+    @StateObject private var sessionStore = SessionStore()
+    @StateObject private var authModel = AuthModel()
 
     private var themeChoice: AppThemeChoice { AppThemeChoice(rawValue: themeChoiceRaw) ?? .system }
     private var density: AppDensity { AppDensity(rawValue: densityRaw) ?? .comfortable }
@@ -60,11 +62,14 @@ struct RootView: View {
                 tabLayout
             }
         }
+        .environmentObject(sessionStore)
+        .environmentObject(authModel)
         .environment(\.ruxtPalette, palette)
         .environment(\.ruxtDensity, density.tokens)
         .preferredColorScheme(themeChoice.preferredColorScheme)
         .animation(reduceMotion ? nil : .easeInOut(duration: RuxtMotion.standard), value: selection)
         .tint(Color(hex: palette.colors.accent))
+        .task { await authModel.restore() }
     }
 
     private var tabLayout: some View {
