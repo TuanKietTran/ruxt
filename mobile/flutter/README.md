@@ -19,7 +19,7 @@ flutter pub get
 flutter run --flavor prod -t lib/main_prod.dart
 flutter run --flavor canary -t lib/main_canary.dart
 flutter run            # default entry point: prod, or --dart-define=FLAVOR=canary
-flutter test           # theme_test.dart + shell_test.dart
+flutter test           # theme, shell, data models, API client, local stores, session list
 flutter analyze
 ```
 

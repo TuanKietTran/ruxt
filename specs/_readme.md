@@ -27,6 +27,7 @@
 | Specification | Covers |
 | --- | --- |
 | [Setup and checks](testing-devops.md) | Local configuration, commands, CI |
+| [Flutter platform](platform-flutter.md) | Flutter app: architecture, flavors, theme, API use, tests and CI |
 | [UI validation](cv-sv-ui-validation.md) | Browser and export checks |
 | [Cloudflare runbook](cloudflare-migration-runbook.md) | Bindings, deployment, rollback |
 | [Follow-ups](TODO.md) | Deferred improvements |

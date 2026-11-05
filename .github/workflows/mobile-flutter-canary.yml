@@ -1,0 +1,106 @@
+name: mobile-flutter-canary
+
+on:
+  push:
+    paths:
+      - "mobile/flutter/**"
+      - ".github/workflows/mobile-flutter-canary.yml"
+    tags:
+      - "v*"
+  pull_request:
+    paths:
+      - "mobile/flutter/**"
+      - ".github/workflows/mobile-flutter-canary.yml"
+  workflow_dispatch:
+    inputs:
+      build_prod:
+        description: "Also build the prod flavor (manual only)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: mobile/flutter
+
+jobs:
+  verify:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Check theme drift
+        run: bash tool/check_theme_drift.sh
+      - name: Validate against golden tokens
+        run: python3 tool/validate_against_golden.py
+      - name: Analyze
+        run: flutter analyze
+      - name: Test
+        run: flutter test
+
+  build-canary:
+    name: Build canary (artifact only)
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Build canary APK
+        run: flutter build apk --flavor canary -t lib/main_canary.dart
+      - name: Build canary app bundle
+        run: flutter build appbundle --flavor canary -t lib/main_canary.dart
+      - name: Upload canary artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ruxt-canary
+          path: |
+            mobile/flutter/build/app/outputs/flutter-apk/app-canary-release.apk
+            mobile/flutter/build/app/outputs/bundle/canaryRelease/app-canary-release.aab
+          if-no-files-found: error
+
+  build-prod:
+    name: Build prod (manual only, artifact only)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_prod }}
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Build prod APK
+        run: flutter build apk --flavor prod -t lib/main_prod.dart
+      - name: Build prod app bundle
+        run: flutter build appbundle --flavor prod -t lib/main_prod.dart
+      - name: Upload prod artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ruxt-prod
+          path: |
+            mobile/flutter/build/app/outputs/flutter-apk/app-prod-release.apk
+            mobile/flutter/build/app/outputs/bundle/prodRelease/app-prod-release.aab
+          if-no-files-found: error
