@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import type { AuditEntry, Plan, PlanContext, ProviderAdapter, SunsetInfo } from '../types.ts';
+import type { AuditEntry, HealthResult, Plan, PlanContext, ProviderAdapter, SunsetInfo } from '../types.ts';
 
 // Legacy adapter for Clerk (identity), sunset 2027-01. Dry-run only in this
 // phase: capabilities are plan and health, no live provider calls are made,
@@ -123,8 +123,9 @@ export function createClerkAdapter(): ProviderAdapter {
         detail: `verify unavailable offline for ${PROVIDER}: dry-run only, no provider state was read for plan ${planId}`,
       };
     },
-    async health(): Promise<{ status: 'ok' | 'degraded' | 'down' | 'unknown'; detail: string }> {
+    async health(): Promise<HealthResult> {
       return {
+        adapterId: PROVIDER,
         status: 'unknown',
         detail: `${PROVIDER} health is unknown offline: dry-run only, no live provider check was performed`,
       };
