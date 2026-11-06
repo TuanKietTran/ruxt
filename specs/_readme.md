@@ -7,6 +7,14 @@
 | Specification | Covers |
 | --- | --- |
 | [Product requirements](prd.md) | Goals, personas, information architecture, per-surface requirements, non-goals, success metrics, release channels, legacy sunset, security requirements |
+| [PRD personas](prd/personas.md) | End user, owner/admin, and operator personas; permissions follow the persona, not the person |
+| [PRD information architecture](prd/ia-flows.md) | Shells, global elements, and flows across every surface |
+| [PRD requirements](prd/requirements.md) | Per-surface Must and Should requirements; a surface is not releasable without its Must items |
+| [PRD non-goals](prd/non-goals.md) | Deliberately out-of-scope product decisions |
+| [PRD success metrics](prd/success-metrics.md) | Product metrics from server analytics aggregates, quality metrics from automated checks |
+| [PRD release channels](prd/release-channels.md) | Dev, canary, and stable channels; stable web releases from version tags |
+| [PRD legacy sunset](prd/legacy-sunset.md) | Clerk, Cloudflare, and Deno Deploy retirement by January 2027, each behind a narrow seam |
+| [PRD security requirements](prd/security-requirements.md) | Product-level security requirements applying to every surface |
 | [Architecture](architecture-runtime.md) | Runtime, ownership, packages, boot |
 | [Editor](cv-editor.md) | Layout, profiles, rendering, exports |
 | [Design system](design-system.md) | Token source, generation and drift, ownership, platform consumption |
@@ -16,6 +24,7 @@
 | [Design screens](design/screens.md) | Routes, information architecture, empty/loading/error/auth states |
 | [Design accessibility](design/accessibility.md) | Focus, contrast, text scaling, reduced motion, keyboard shortcuts, skip links |
 | [Design motion](design/motion.md) | Duration and easing tokens, reduced-motion behavior |
+| [Design Penpot sync](design/penpot.md) | Token sync method and token-to-Penpot mapping; tokens.json is the source of truth, Penpot is a mirror |
 | [Local sessions](cv-documents-realtime.md) | Browser storage, autosave, recovery |
 | [CV workflows](cv-server-workflows.md) | Import, templates, profile transformations |
 | [MCP](mcp-automation.md) | Authenticated transport and rendering automation |
