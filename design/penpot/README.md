@@ -76,8 +76,43 @@ Phase B (done 2026-11-06, after ds-library LAB-DONE):
 
 ## Re-import smoke test
 
-Pending Phase B: result, test project name, and cleanup of the test
-project will be recorded here. Not yet run — do not treat as passed.
+Run 2026-11-06 — **FAIL for the as-committed export** (fix path proven,
+see below). Do not treat this export as restorable as-is.
+
+- Method: `import-binfile` of `ruxt-design-system.penpot` into fresh
+  test projects (`Ruxt DS Import Test`, `Ruxt DS Import Test 2`,
+  `Ruxt DS Import Test 3`). Every run returned HTTP 200 with an SSE
+  progress stream, but the stream ends in `event: error`
+  (`~:server-error` / `~:assertion`, hint `invalid file data`), and
+  `get-project-files` on each test project returned `[]` — no file
+  was created.
+- Root cause: the error path is `[:pages-index 1 :objects]` in page
+  `f8917f58-ae41-5c1c-8379-3792d12d2eac` — the corrupt phantom
+  duplicate `Components` page in the source file (plain-string page
+  entry, root object stored under a keyword key; its objects fail
+  the Shape schema). The export contains exactly its 2 entries:
+  `files/<file-id>/pages/f8917f58-ae41-5c1c-8379-3792d12d2eac.json`
+  and `files/<file-id>/pages/f8917f58-ae41-5c1c-8379-3792d12d2eac/:00000000-0000-0000-0000-000000000000.json`.
+- Controls: the earlier revn-136 export of the same source file
+  fails identically; the healed revn-136 export (those 2 entries
+  stripped) imports with `event: end` and creates the file.
+- Fix path proven on this export: stripping the same 2 entries
+  (899 -> 897 entries, tested from a `/tmp` copy only — the
+  committed file was not modified) imports cleanly: `event: end`,
+  new file created (`Ruxt Design System`, revn 160, `is-shared`
+  preserved), verified via `get-project-files`.
+- Known script issue: `reimport.sh` only checks the HTTP status,
+  so on this in-band SSE error it would print `IMPORT_OK` — a
+  false positive. Check the SSE stream for `event: end` vs
+  `event: error`, not the status alone.
+- Cleanup: all test projects created for this test were deleted
+  (`delete-project` 204; Penpot soft-deletes, so tombstones remain
+  in project listings). The original library file was not modified
+  (still revn 162 at the end of the test).
+- Outstanding decision (manager): replace the committed export
+  with the phantom-stripped version, or heal the source file and
+  re-export. Until then the restore path requires stripping the
+  2 phantom entries first.
 
 ## Rules
 
