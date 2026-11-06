@@ -1,0 +1,161 @@
+{
+  "version": "1.0.0",
+  "description": "Single machine-readable source of design tokens for web, desktop, and mobile. Values are taken from the web themes and the spacing, radius, type, motion, and breakpoint values actually used in the app.",
+  "themes": {
+    "mocha": {
+      "colorScheme": "dark",
+      "color": {
+        "bgBase": "#1e1e2e",
+        "bgMantle": "#181825",
+        "bgCrust": "#11111b",
+        "bgSurface0": "#313244",
+        "bgSurface1": "#45475a",
+        "bgSurface2": "#585b70",
+        "bgOverlay0": "#6c7086",
+        "bgOverlay1": "#7f849c",
+        "bgOverlay2": "#9399b2",
+        "fgText": "#cdd6f4",
+        "fgSubtext1": "#bac2de",
+        "fgSubtext0": "#a6adc8",
+        "accent": "#89b4fa",
+        "accentHover": "#b4befe",
+        "accentMuted": "#313244",
+        "onAccent": "#11111b",
+        "pink": "#f5c2e7",
+        "mauve": "#cba6f7",
+        "red": "#f38ba8",
+        "peach": "#fab387",
+        "yellow": "#f9e2af",
+        "green": "#a6e3a1",
+        "teal": "#94e2d5",
+        "sky": "#89dceb",
+        "sapphire": "#74c7ec",
+        "warning": "#f9e2af",
+        "danger": "#f38ba8",
+        "success": "#a6e3a1",
+        "info": "#74c7ec",
+        "border": "#313244",
+        "borderStrong": "#45475a"
+      }
+    },
+    "latte": {
+      "colorScheme": "light",
+      "color": {
+        "bgBase": "#eff1f5",
+        "bgMantle": "#e6e9ef",
+        "bgCrust": "#dce0e8",
+        "bgSurface0": "#ccd0da",
+        "bgSurface1": "#bcc0cc",
+        "bgSurface2": "#acb0be",
+        "bgOverlay0": "#9ca0b0",
+        "bgOverlay1": "#8c8fa1",
+        "bgOverlay2": "#7c7f93",
+        "fgText": "#4c4f69",
+        "fgSubtext1": "#505268",
+        "fgSubtext0": "#53566e",
+        "accent": "#164cc0",
+        "accentHover": "#1445b0",
+        "accentMuted": "#ccd0da",
+        "onAccent": "#ffffff",
+        "pink": "#ea76cb",
+        "mauve": "#8839ef",
+        "red": "#d20f39",
+        "peach": "#fe640b",
+        "yellow": "#df8e1d",
+        "green": "#40a02b",
+        "teal": "#179299",
+        "sky": "#04a5e5",
+        "sapphire": "#209fb5",
+        "warning": "#7b4e10",
+        "danger": "#b00d30",
+        "success": "#28631b",
+        "info": "#135f6d",
+        "border": "#ccd0da",
+        "borderStrong": "#bcc0cc"
+      }
+    },
+    "opencode": {
+      "colorScheme": "dark",
+      "color": {
+        "bgBase": "#0a0a0a",
+        "bgMantle": "#111111",
+        "bgCrust": "#050505",
+        "bgSurface0": "#1a1a1a",
+        "bgSurface1": "#242424",
+        "bgSurface2": "#2e2e2e",
+        "bgOverlay0": "#404040",
+        "bgOverlay1": "#525252",
+        "bgOverlay2": "#737373",
+        "fgText": "#fafafa",
+        "fgSubtext1": "#d4d4d4",
+        "fgSubtext0": "#a3a3a3",
+        "accent": "#22c55e",
+        "accentHover": "#4ade80",
+        "accentMuted": "#1a2e1a",
+        "onAccent": "#0a0a0a",
+        "pink": "#f472b6",
+        "mauve": "#a78bfa",
+        "red": "#f87171",
+        "peach": "#fb923c",
+        "yellow": "#fbbf24",
+        "green": "#4ade80",
+        "teal": "#2dd4bf",
+        "sky": "#38bdf8",
+        "sapphire": "#60a5fa",
+        "warning": "#fbbf24",
+        "danger": "#f87171",
+        "success": "#4ade80",
+        "info": "#60a5fa",
+        "border": "#1a1a1a",
+        "borderStrong": "#2e2e2e"
+      }
+    }
+  },
+  "typography": {
+    "fontFamily": {
+      "sans": "Inter, Geist, system-ui, sans-serif",
+      "mono": "ui-monospace, SFMono-Regular, Menlo, monospace"
+    },
+    "baseSizePx": 16,
+    "weights": { "regular": 400, "medium": 500, "semibold": 600, "bold": 700, "extrabold": 800 },
+    "scale": {
+      "caption": { "sizePx": 11, "lineHeight": 1.4, "weight": 500 },
+      "label": { "sizePx": 12, "lineHeight": 1.4, "weight": 600 },
+      "bodySmall": { "sizePx": 13, "lineHeight": 1.5, "weight": 400 },
+      "body": { "sizePx": 14, "lineHeight": 1.55, "weight": 400 },
+      "bodyLarge": { "sizePx": 16, "lineHeight": 1.5, "weight": 400 },
+      "subtitle": { "sizePx": 18, "lineHeight": 1.4, "weight": 600 },
+      "title": { "sizePx": 24, "lineHeight": 1.24, "weight": 700 },
+      "heading": { "sizePx": 28, "lineHeight": 1.15, "weight": 700 },
+      "display": { "sizePx": 40, "lineHeight": 1.05, "weight": 800 }
+    }
+  },
+  "spacing": { "none": 0, "xs": 4, "sm": 6, "md": 8, "lg": 12, "xl": 16, "2xl": 20, "3xl": 24, "4xl": 32, "5xl": 40, "6xl": 48 },
+  "radius": { "none": 0, "sm": 6, "md": 10, "lg": 16, "full": 9999 },
+  "elevation": {
+    "none": "none",
+    "sm": "0 1px 4px rgb(0 0 0 / 0.18)",
+    "md": "0 12px 32px rgb(0 0 0 / 0.35)",
+    "lg": "0 20px 60px rgb(0 0 0 / 0.35)",
+    "xl": "0 24px 80px rgb(0 0 0 / 0.38)"
+  },
+  "motion": {
+    "durationMs": { "instant": 0, "fast": 150, "standard": 200, "emphasized": 280, "slow": 400, "skeleton": 1200 },
+    "easing": { "standard": "ease", "emphasized": "cubic-bezier(0.4, 0, 0.2, 1)", "linear": "linear" },
+    "reducedMotion": "Honor prefers-reduced-motion: durations collapse to 0.01ms."
+  },
+  "breakpoints": {
+    "valuesPx": { "phone": 480, "small": 640, "medium": 900 },
+    "windowClasses": [
+      { "name": "compact", "minWidthPx": 0, "maxWidthPx": 900 },
+      { "name": "medium", "minWidthPx": 901, "maxWidthPx": 1279 },
+      { "name": "expanded", "minWidthPx": 1280, "maxWidthPx": null }
+    ]
+  },
+  "density": {
+    "comfortable": { "scale": 1, "controlHeightPx": 36, "rowHeightPx": 40 },
+    "compact": { "scale": 0.875, "controlHeightPx": 30, "rowHeightPx": 32 }
+  },
+  "focusRing": { "widthPx": 2, "offsetPx": 2, "style": "solid", "colorRole": "accent" },
+  "icons": { "set": "lucide", "delivery": "Iconify codes from the local lucide collection, bundled at build time; never fetched at runtime." }
+}
