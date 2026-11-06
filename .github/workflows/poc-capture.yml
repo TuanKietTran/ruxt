@@ -1,0 +1,31 @@
+name: PoC Capture
+
+# Manual regeneration of the mobile PoC prototype renders under
+# docs/poc/mobile/. Uploads the result as an artifact for review;
+# committing the regenerated assets stays a human step.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Regenerate PoC assets (prototype renders)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install Chromium (Playwright cache) and ffmpeg
+        run: |
+          pip install playwright
+          playwright install chromium
+          brew install ffmpeg
+      - name: Regenerate all platforms
+        run: tools/poc/capture-all.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: poc-mobile-assets
+          path: docs/poc/mobile/
