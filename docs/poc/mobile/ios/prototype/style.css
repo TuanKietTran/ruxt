@@ -1,0 +1,71 @@
+/* Ruxt iOS prototype — shared CSS. Colours/typography from RuxtKit Theme.swift tokens (Mocha default, Latte light variant). */
+:root{--accent:#89b4fa;--accent-hover:#b4befe;--accent-muted:#313244;--bg:#1e1e2e;--crust:#11111b;--mantle:#181825;--overlay:#6c7086;--surface0:#313244;--surface1:#45475a;--surface2:#585b70;--border:#313244;--border-strong:#45475a;--danger:#f38ba8;--sub0:#a6adc8;--sub1:#bac2de;--text:#cdd6f4;--green:#a6e3a1;--on-accent:#11111b;--yellow:#f9e2af}
+.latte{--accent:#164cc0;--accent-hover:#1445b0;--accent-muted:#ccd0da;--bg:#eff1f5;--crust:#dce0e8;--mantle:#e6e9ef;--overlay:#9ca0b0;--surface0:#ccd0da;--surface1:#bcc0cc;--surface2:#acb0be;--border:#ccd0da;--border-strong:#bcc0cc;--danger:#b00d30;--sub0:#53566e;--sub1:#505268;--text:#4c4f69;--green:#40a02b;--on-accent:#ffffff;--yellow:#df8e1d}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'SF Pro Text','Helvetica Neue',Arial,sans-serif;background:var(--crust);color:var(--text);font-size:14px;line-height:1.45}
+.device{width:393px;height:852px;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;position:relative}
+.device.wide{width:820px;height:1180px;flex-direction:row}
+.status{display:flex;justify-content:space-between;padding:14px 28px 4px;font-size:15px;font-weight:600}
+.status .icons{letter-spacing:2px;font-size:12px;color:var(--sub1)}
+.nav{padding:8px 20px 10px;display:flex;justify-content:space-between;align-items:flex-start}
+.nav h1{font-size:34px;font-weight:700;letter-spacing:-.5px}
+.nav .plus{color:var(--accent);font-size:28px;font-weight:300;line-height:1.2}
+.main{flex:1;overflow:hidden;padding:0 0 8px;display:flex;flex-direction:column}
+.tabbar{display:flex;border-top:1px solid var(--border);background:var(--mantle);padding:8px 4px 22px}
+.tab{flex:1;text-align:center;color:var(--sub0);font-size:10px}
+.tab .ic{display:block;font-size:21px;margin-bottom:2px}
+.tab.on{color:var(--accent)}
+.list{margin:0 16px;background:var(--surface0);border-radius:10px;overflow:hidden}
+.row{padding:12px 16px;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:none}
+.row b{font-size:16px;font-weight:600;display:block}
+.row span{color:var(--sub0);font-size:13px}
+.row .chev{float:right;color:var(--sub0)}
+.seg{display:flex;background:var(--surface0);border-radius:9px;padding:2px;margin:12px 16px}
+.seg span{flex:1;text-align:center;padding:6px 0;border-radius:7px;font-size:13px;font-weight:500;color:var(--sub1)}
+.seg span.on{background:var(--surface2);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.35)}
+.seg.small{margin:12px 16px 4px}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 44px;gap:10px}
+.empty .ic{font-size:52px;color:var(--sub0)}
+.empty h2{font-size:20px;font-weight:600}
+.empty p{color:var(--sub0);font-size:14px}
+.btn{display:inline-block;background:var(--accent);color:var(--on-accent);border-radius:10px;padding:9px 20px;font-weight:600;font-size:15px;margin-top:8px}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.spinner{width:26px;height:26px;border:3px solid var(--surface1);border-top-color:var(--sub0);border-radius:50%;margin-bottom:6px}
+.loading{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--sub0)}
+.form{margin:14px 16px 0}
+.form h3{color:var(--sub0);font-size:13px;text-transform:uppercase;letter-spacing:.4px;margin:18px 16px 6px;font-weight:500}
+.group{background:var(--surface0);border-radius:10px;overflow:hidden}
+.frow{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid var(--border);font-size:16px;gap:12px}
+.frow:last-child{border-bottom:none}
+.frow .val{color:var(--sub0)}
+.frow .note{color:var(--sub0);font-size:14px}
+.field{color:var(--sub0)}
+.field b{color:var(--text);font-weight:400}
+.toggle{width:51px;height:31px;border-radius:9999px;background:var(--surface2);position:relative;flex:none}
+.toggle:after{content:'';position:absolute;width:27px;height:27px;border-radius:50%;background:#fff;top:2px;left:2px}
+.toggle.on{background:var(--green)}
+.toggle.on:after{left:22px}
+.swatches{display:flex;gap:8px;align-items:center}
+.sw{width:24px;height:24px;border-radius:6px;border:.5px solid var(--sub0)}
+.titlefield{margin:8px 16px 0;background:var(--surface0);border:1px solid var(--border-strong);border-radius:8px;padding:9px 12px;font-size:16px}
+.mono{font-family:'SF Mono',Menlo,Consolas,monospace;font-size:14px;padding:14px 20px;white-space:pre-wrap;flex:1}
+.preview{padding:14px 20px;flex:1}
+.preview h1{font-size:26px;margin-bottom:10px}.preview h2{font-size:19px;margin:16px 0 6px}.preview p{color:var(--sub1)}
+.disc{margin:4px 16px;padding:11px 4px;border-top:1px solid var(--border);font-size:16px}
+.disc .chev{color:var(--sub0);float:right}
+.cssbox{margin:0 16px;background:var(--surface0);border-radius:8px;padding:10px 12px;font-family:'SF Mono',Menlo,monospace;font-size:12px;color:var(--sub1);min-height:80px}
+.savebar{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-top:1px solid var(--border);color:var(--sub0);font-size:13px}
+.savebar .save{color:var(--accent);font-size:16px;font-weight:600}
+.sidebar{width:300px;background:var(--mantle);border-right:1px solid var(--border);padding:54px 14px;display:flex;flex-direction:column}
+.sidebar h1{font-size:28px;margin:0 6px 18px}
+.srow{padding:10px 12px;border-radius:8px;font-size:16px;color:var(--sub1)}
+.srow.on{background:var(--surface0);color:var(--text)}
+.srow .ic{margin-right:10px}
+.detail{flex:1;display:flex;flex-direction:column;background:var(--bg)}
+.detail .nav{padding-top:54px}
+.alert{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center}
+.alert .box{background:var(--surface1);border-radius:14px;width:270px;text-align:center;padding:20px 16px 0}
+.alert h3{font-size:17px;margin-bottom:6px}.alert p{color:var(--sub1);font-size:13px;margin-bottom:16px}
+.alert .ok{border-top:1px solid var(--border-strong);color:var(--accent);font-weight:600;padding:11px 0;font-size:17px}
+.foot{color:var(--sub0);font-size:13px;padding:10px 20px}
