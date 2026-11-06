@@ -1,0 +1,10 @@
+// Prod flavor settings. Use via a Prod scheme or:
+//   flutter run --flavor prod -t lib/main_prod.dart
+// (with this file set as the configuration's base xcconfig).
+// Defaults in project.pbxproj already match these values, so a
+// plain build is prod.
+APP_BUNDLE_ID = cloud.mashallow.ruxt
+APP_DISPLAY_NAME = Ruxt
+API_BASE_URL = https://ruxt.mashallow.cloud
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
+#include "Generated.xcconfig"

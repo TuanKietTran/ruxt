@@ -1,0 +1,34 @@
+/* Ruxt Android prototype - shared CSS. Colours/typography mirror theme/Tokens.kt (Mocha, the default fallback theme). */
+:root{--bg:#1e1e2e;--mantle:#181825;--crust:#11111b;--surface0:#313244;--surface1:#45475a;--surface2:#585b70;--text:#cdd6f4;--sub1:#bac2de;--sub0:#a6adc8;--accent:#89b4fa;--accent-hover:#b4befe;--on-accent:#11111b;--mauve:#cba6f7;--danger:#f38ba8;--success:#a6e3a1;--warning:#f9e2af;--border:#313244;--border-strong:#45475a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--crust);font-family:Inter,Geist,system-ui,sans-serif;color:var(--text)}
+.phone{width:412px;height:915px;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.wide{width:800px;height:1280px;background:var(--bg);display:flex;flex-direction:row;overflow:hidden}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.content{flex:1;padding:16px;overflow:hidden;display:flex;flex-direction:column;gap:12px}
+h1{font-size:28px;line-height:36px;font-weight:600}
+h2{font-size:16px;line-height:24px;font-weight:600}
+p,li{font-size:14px;line-height:20px;color:var(--sub1)}
+.card{background:var(--surface0);border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.card .t{font-size:16px;font-weight:600;color:var(--text)}
+.btn{display:flex;align-items:center;justify-content:center;min-height:48px;padding:0 16px;border-radius:9999px;border:1px solid var(--border-strong);background:transparent;color:var(--text);font-size:14px;font-weight:500;width:100%}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.btn.left{justify-content:flex-start}
+.badge{color:var(--accent);font-size:14px;font-weight:600;letter-spacing:.02em}
+.err-title{color:var(--danger);font-size:16px;font-weight:600}
+.spinner{width:36px;height:36px;border-radius:50%;border:4px solid var(--surface1);border-top-color:var(--accent)}
+.bottombar{background:var(--mantle);border-top:1px solid var(--border);display:flex;padding:8px 4px 12px}
+.bottombar .item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;color:var(--sub0);min-height:48px;justify-content:center}
+.bottombar .item .ic{width:28px;height:28px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;color:var(--sub0)}
+.bottombar .item.sel{color:var(--text)}
+.bottombar .item.sel .ic{background:var(--surface0);color:var(--accent)}
+.rail{background:var(--mantle);border-right:1px solid var(--border);width:84px;display:flex;flex-direction:column;padding:12px 6px;gap:4px}
+.rail .item{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--sub0);min-height:52px;justify-content:center;border-radius:10px;padding:4px 2px;text-align:center}
+.rail .item.sel{background:var(--surface0);color:var(--text)}
+.switch{width:48px;height:28px;border-radius:9999px;background:var(--surface1);position:relative;flex:none}
+.switch::after{content:"";position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:50%;background:var(--sub0)}
+.switch.on{background:var(--accent)}
+.switch.on::after{left:24px;background:var(--on-accent)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:19px;color:var(--sub1);white-space:pre-wrap}
+.edited{color:var(--success)}

@@ -1,0 +1,60 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+android {
+    namespace "com.ruxt.ruxt"
+    compileSdkVersion flutter.compileSdkVersion
+    ndkVersion flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+
+    sourceSets {
+        main.java.srcDirs += "src/main/kotlin"
+    }
+
+    flavorDimensions "channel"
+
+    productFlavors {
+        prod {
+            dimension "channel"
+            applicationId "cloud.mashallow.ruxt"
+            resValue "string", "app_name", "Ruxt"
+            resValue "string", "api_base_url", "https://ruxt.mashallow.cloud"
+        }
+        canary {
+            dimension "channel"
+            applicationIdSuffix ".canary"
+            versionNameSuffix "-canary"
+            resValue "string", "app_name", "Ruxt Canary"
+            resValue "string", "api_base_url", "https://ruxt-canary.mashallow.cloud"
+        }
+    }
+
+    defaultConfig {
+        applicationId "cloud.mashallow.ruxt"
+        minSdkVersion flutter.minSdkVersion
+        targetSdkVersion flutter.targetSdkVersion
+        versionCode flutter.versionCode
+        versionName flutter.versionName
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.debug
+        }
+    }
+}
+
+flutter {
+    source "../.."
+}

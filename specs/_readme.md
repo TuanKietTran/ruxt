@@ -20,6 +20,8 @@
 | [Local sessions](cv-documents-realtime.md) | Browser storage, autosave, recovery |
 | [CV workflows](cv-server-workflows.md) | Import, templates, profile transformations |
 | [MCP](mcp-automation.md) | Authenticated transport and rendering automation |
+| [iOS platform](platform-ios.md) | Native iOS app: architecture, flavors, theme, auth, testing |
+| [Android platform](platform-android.md) | Android app: architecture, flavors, theme, API use, tests and CI |
 
 ### Accounts and storage
 
@@ -36,6 +38,7 @@
 | Specification | Covers |
 | --- | --- |
 | [Setup and checks](testing-devops.md) | Local configuration, commands, CI |
+| [Flutter platform](platform-flutter.md) | Flutter app: architecture, flavors, theme, API use, tests and CI |
 | [UI validation](cv-sv-ui-validation.md) | Browser and export checks |
 | [Cloudflare runbook](cloudflare-migration-runbook.md) | Bindings, deployment, rollback |
 | [Follow-ups](TODO.md) | Deferred improvements |
