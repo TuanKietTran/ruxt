@@ -112,5 +112,11 @@ if st == 404 and 'object-not-found' in body:
     st, body = import_file(project_id)
 if st < 200 or st >= 300:
     sys.exit(f'ERROR: import-binfile failed status={st} body={body[:500]}')
-print(f'IMPORT_OK status={st} project={project_name} project_id={project_id} file={penpot_file.name}')
+# import-binfile answers HTTP 200 with an SSE progress stream even on
+# failure; the stream, not the status, carries the verdict.
+if 'event: error' in body or '~:server-error' in body or '~:assertion' in body:
+    sys.exit(f'ERROR: import-binfile SSE error stream body={body[-500:]}')
+if 'event: end' not in body:
+    sys.exit(f'ERROR: import-binfile stream did not end with event: end body={body[-500:]}')
+print(f'IMPORT_OK status={st} sse=event:end project={project_name} project_id={project_id} file={penpot_file.name}')
 PY
