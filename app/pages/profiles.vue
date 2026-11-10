@@ -156,13 +156,52 @@ const warnUnsaved = (event: BeforeUnloadEvent) => {
     event.returnValue = "";
 };
 
+const profileSections = [
+    { id: "identity", label: "Identity" },
+    { id: "about", label: "About" },
+    { id: "contact", label: "Contact" },
+    { id: "experience", label: "Experience" },
+    { id: "skills", label: "Skills" },
+    { id: "education", label: "Education" },
+    { id: "projects", label: "Projects" },
+    { id: "certifications", label: "Certifications" },
+    { id: "languages", label: "Languages" },
+] as const;
+type ProfileSectionId = typeof profileSections[number]["id"];
+const activeSection = ref<ProfileSectionId>("identity");
+let sectionObserver: IntersectionObserver | null = null;
+const setupSectionObserver = async () => {
+    sectionObserver?.disconnect();
+    sectionObserver = null;
+    await nextTick();
+    if (editingId.value === null || typeof IntersectionObserver === "undefined") return;
+    const scroller = document.querySelector(".profile-form");
+    const sections = document.querySelectorAll<HTMLElement>("[data-profile-section]");
+    if (!scroller || !sections.length) return;
+    sectionObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+            if (entry.isIntersecting) activeSection.value = entry.target.getAttribute("data-profile-section") as ProfileSectionId;
+        }
+    }, { root: scroller, rootMargin: "-170px 0px -55% 0px", threshold: 0 });
+    sections.forEach((section) => sectionObserver?.observe(section));
+};
+const scrollToSection = (id: ProfileSectionId) => {
+    activeSection.value = id;
+    document.querySelector(`[data-profile-section="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+};
+
 onMounted(() => {
     readProfiles(true);
     loadPreferences();
+    setupSectionObserver();
     window.addEventListener("beforeunload", warnUnsaved);
 });
-onBeforeUnmount(() => window.removeEventListener("beforeunload", warnUnsaved));
+onBeforeUnmount(() => {
+    sectionObserver?.disconnect();
+    window.removeEventListener("beforeunload", warnUnsaved);
+});
 watch(signedIn, loadPreferences);
+watch(editingId, setupSectionObserver);
 
 const startCreate = async () => {
     if (!await confirmDiscard()) return;
@@ -507,6 +546,9 @@ const runApply = async () => {
                             <button v-for="id in Object.keys(apply.undoable)" :key="id" type="button" :disabled="apply.busy" @click="undoApply(id)">Undo {{ sessionLabel(applySessions.find(item => item.id === id) ?? { id, title: id, revision: 0, updatedAt: "" }) }}</button>
                             <button type="button" class="profile-danger" @click="remove(currentProfile)">Delete</button>
                         </div>
+                        <nav class="profile-section-nav" aria-label="Profile sections">
+                            <button v-for="section in profileSections" :key="section.id" type="button" :class="{ active: activeSection === section.id }" :aria-current="activeSection === section.id ? 'true' : undefined" @click="scrollToSection(section.id)">{{ section.label }}</button>
+                        </nav>
                     </header>
 
                     <div v-if="pendingCount" class="profile-pending-bar">
@@ -514,12 +556,12 @@ const runApply = async () => {
                         <button type="button" @click="cancelAllPending">Cancel all incomplete</button>
                     </div>
 
-                    <section class="profile-section profile-name-section">
+                    <section class="profile-section profile-name-section" data-profile-section="identity">
                         <div class="profile-section-heading"><h2>Profile identity</h2></div>
                         <EditableField class="identity-name" label="Full name" placeholder="Your name" maxlength="120" autocomplete="name" v-bind="field('identity.fullName')" :model-value="draft.identity.fullName" @commit="draft.identity.fullName = $event; commit('identity.fullName')" />
                     </section>
 
-                    <section class="profile-section">
+                    <section class="profile-section" data-profile-section="about">
                         <div class="profile-section-heading"><h2>About</h2></div>
                         <div class="profile-identity">
                             <EditableField class="identity-headline" label="Headline" placeholder="Software engineer, product designer…" optional v-bind="field('identity.headline')" :model-value="draft.identity.headline" @commit="draft.identity.headline = $event; commit('identity.headline')" />
@@ -528,7 +570,7 @@ const runApply = async () => {
                         </div>
                     </section>
 
-                    <section class="profile-section">
+                    <section class="profile-section" data-profile-section="contact">
                         <div class="profile-section-heading"><h2>Contact information</h2><button type="button" @click="addEntry('contacts')">＋ Add</button></div>
                         <div v-for="(contact, index) in draft.contacts" :key="index" class="entry-row contact-row" :data-entry="`contacts-${index}`">
                             <EditableField class="contact-kind" label="Type" :options="contactKinds" v-bind="field(`contacts.${index}.kind`)" :model-value="contact.kind" @commit="contact.kind = $event as CvContactKind; commit(`contacts.${index}.kind`)" />
@@ -538,7 +580,7 @@ const runApply = async () => {
                         </div>
                     </section>
 
-                    <section class="profile-section">
+                    <section class="profile-section" data-profile-section="experience">
                         <div class="profile-section-heading"><h2>Experience</h2><button type="button" @click="addEntry('experiences')">＋ Add</button></div>
                         <article v-for="(experience, index) in draft.experiences" :key="index" class="entry-card" :data-entry="`experiences-${index}`">
                             <button type="button" class="entry-remove" aria-label="Remove experience" @click="removeEntry('experiences', index)">×</button>
@@ -556,7 +598,8 @@ const runApply = async () => {
                         </article>
                     </section>
 
-                    <section class="profile-section">
+                    <div class="profile-columns profile-columns--wide">
+                    <section class="profile-section" data-profile-section="skills">
                         <div class="profile-section-heading"><h2>Skills</h2><button type="button" @click="addEntry('skills')">＋ Add</button></div>
                         <div v-for="(skill, index) in draft.skills" :key="index" class="entry-row skill-row" :data-entry="`skills-${index}`">
                             <EditableField class="skill-name" label="Group" placeholder="Languages" v-bind="field(`skills.${index}.name`)" :model-value="skill.name" @commit="skill.name = $event; commit(`skills.${index}.name`)" />
@@ -567,7 +610,7 @@ const runApply = async () => {
                         </div>
                     </section>
 
-                    <section class="profile-section">
+                    <section class="profile-section" data-profile-section="education">
                         <div class="profile-section-heading"><h2>Education</h2><button type="button" @click="addEntry('education')">＋ Add</button></div>
                         <article v-for="(education, index) in draft.education" :key="index" class="entry-card" :data-entry="`education-${index}`">
                             <button type="button" class="entry-remove" aria-label="Remove education" @click="removeEntry('education', index)">×</button>
@@ -583,7 +626,9 @@ const runApply = async () => {
                         </article>
                     </section>
 
-                    <section class="profile-section">
+                    </div>
+
+                    <section class="profile-section" data-profile-section="projects">
                         <div class="profile-section-heading"><h2>Projects</h2><button type="button" @click="addEntry('projects')">＋ Add</button></div>
                         <article v-for="(project, index) in draft.projects" :key="index" class="entry-card" :data-entry="`projects-${index}`">
                             <button type="button" class="entry-remove" aria-label="Remove project" @click="removeEntry('projects', index)">×</button>
@@ -598,7 +643,7 @@ const runApply = async () => {
                     </section>
 
                     <div class="profile-columns">
-                        <section class="profile-section">
+                        <section class="profile-section" data-profile-section="certifications">
                             <div class="profile-section-heading"><h2>Certifications</h2><button type="button" @click="addEntry('certifications')">＋ Add</button></div>
                             <div v-for="(certification, index) in draft.certifications" :key="index" class="entry-card" :data-entry="`certifications-${index}`">
                                 <button type="button" class="entry-remove" aria-label="Remove certification" @click="removeEntry('certifications', index)">×</button>
@@ -610,7 +655,7 @@ const runApply = async () => {
                                 </div>
                             </div>
                         </section>
-                        <section class="profile-section">
+                        <section class="profile-section" data-profile-section="languages">
                             <div class="profile-section-heading"><h2>Languages</h2><button type="button" @click="addEntry('languages')">＋ Add</button></div>
                             <div v-for="(language, index) in draft.languages" :key="index" class="entry-row single-row" :data-entry="`languages-${index}`">
                                 <EditableField :label="`Language ${index + 1}`" placeholder="English — fluent" v-bind="field(`languages.${index}`)" :model-value="language" @commit="draft.languages[index] = $event; commit(`languages.${index}`)" />
@@ -722,7 +767,7 @@ const runApply = async () => {
 .profile-placeholder p { margin: 0; }
 .profile-placeholder div { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 
-.profile-sheet { container: sheet / inline-size; box-sizing: border-box; width: 100%; max-width: 920px; margin: 0 auto; padding: 0 28px 40px; }
+.profile-sheet { container: sheet / inline-size; box-sizing: border-box; width: 100%; max-width: 1160px; margin: 0 auto; padding: 0 28px 40px; }
 .profile-toolbar { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin: 0 -28px 18px; padding: 16px 28px 12px; border-bottom: 1px solid var(--border, #333); background: var(--bg-base, #111); }
 .profile-toolbar__title { min-width: 0; }
 .profile-toolbar h1 { margin: 0; overflow-wrap: anywhere; font-size: 15px; font-weight: 600; }
@@ -731,13 +776,16 @@ const runApply = async () => {
 .profile-toolbar__mode { color: var(--accent, #89b4fa); text-decoration: none; }
 .profile-toolbar__mode:hover { text-decoration: underline; }
 .profile-toolbar__actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.profile-section-nav { display: flex; flex-basis: 100%; gap: 4px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+.profile-section-nav button { padding: 3px 8px; font-size: 11px; color: var(--fg-subtext1, #aaa); }
+.profile-section-nav button.active { border-color: var(--accent, #89b4fa); color: var(--accent, #89b4fa); }
 .profile-pending-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 16px; padding: 9px 12px; border: 1px solid var(--warning, #f9e2af); border-radius: 4px; background: color-mix(in srgb, var(--warning, #f9e2af) 12%, transparent); font-size: 12px; }
 .profile-card--draft { border-style: dashed; }
 .profile-card--draft .profile-card__select { cursor: default; }
 .draft-badge { color: var(--warning, #f9e2af); font-style: normal; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 
 .profile-identity { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px 14px; }
-.profile-section { min-width: 0; margin-top: 22px; }
+.profile-section { min-width: 0; margin-top: 22px; scroll-margin-top: 176px; }
 .profile-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border, #333); }
 .profile-section-heading h2 { margin: 0; font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
 .profile-section-heading button { padding: 4px 9px; }
@@ -783,6 +831,15 @@ const runApply = async () => {
 @container sheet (min-width: 780px) {
     .profile-identity { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .identity-location { grid-column: auto; }
+}
+/* Wide sheet: short sections pair two-up; below 1100px the wrapper stacks. */
+@container sheet (min-width: 1100px) {
+    .profile-columns--wide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .profile-columns--wide .entry-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .profile-columns--wide .span-2 { grid-column: span 2; }
+    .profile-columns--wide .skill-row { grid-template-columns: minmax(0, 1fr) auto; }
+    .profile-columns--wide .skill-row .skill-list { grid-column: 1 / -1; }
+    .profile-columns--wide .skill-row .entry-remove { grid-column: 2; grid-row: 1; }
 }
 @media (max-width: 560px) {
     .profile-sheet { padding: 0 16px 32px; }
