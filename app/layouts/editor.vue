@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import type { EditorChromeAction } from "~/composables/useEditorChrome";
 import type { EditorStats } from "@ruxt/editor/composables/useCodeMirror";
 import type { CvDocumentSummary, CvTemplate } from "@ruxt/shared/cv";
 import type { CvSessionBackupEntry } from "@ruxt/shared/cv";
@@ -326,6 +327,41 @@ const saveStatusText = computed(() => ({
     offline: "Could not save locally. Your edits remain in this tab; retrying automatically.",
 }[props.saveState]));
 const saveStatusMessage = computed(() => props.saveMessage ?? saveStatusText.value);
+// Page-published chrome: editor pages publish { title, saveStatus, actions } via useEditorChrome(); the header below renders it and it is null on pages that publish nothing.
+const { chrome: editorChrome } = useEditorChrome();
+const chromeTitleEditing = ref(false);
+const chromeTitleDraft = ref("");
+const chromeTitleInput = ref<HTMLInputElement | null>(null);
+const chromeMenuOpen = ref(false);
+const chromePrimaryActions = computed(() => (editorChrome.value?.actions ?? []).filter(action => action.primary));
+const startChromeTitleEdit = () => {
+    if (!editorChrome.value?.titleEditable) return;
+    chromeTitleDraft.value = editorChrome.value.title;
+    chromeTitleEditing.value = true;
+    nextTick(() => { chromeTitleInput.value?.focus(); chromeTitleInput.value?.select(); });
+};
+const commitChromeTitle = () => {
+    if (!chromeTitleEditing.value) return;
+    chromeTitleEditing.value = false;
+    const next = chromeTitleDraft.value.trim();
+    if (next && editorChrome.value && next !== editorChrome.value.title) void editorChrome.value.onTitleCommit?.(next);
+};
+const cancelChromeTitle = () => { chromeTitleEditing.value = false; };
+const closeChromeMenu = (refocus = false) => {
+    chromeMenuOpen.value = false;
+    if (refocus) document.getElementById("chrome-overflow-button")?.focus();
+};
+const runChromeAction = (chromeAction: EditorChromeAction) => { closeChromeMenu(); void chromeAction.action(); };
+const onChromeMenuKeydown = (event: KeyboardEvent) => { if (event.key === "Escape") closeChromeMenu(true); };
+const onChromePointerDown = (event: PointerEvent) => {
+    if (!chromeMenuOpen.value) return;
+    if ((event.target as Element | null)?.closest?.(".chrome-overflow-wrap")) return;
+    closeChromeMenu();
+};
+onMounted(() => document.addEventListener("pointerdown", onChromePointerDown));
+onBeforeUnmount(() => document.removeEventListener("pointerdown", onChromePointerDown));
+watch(() => route.fullPath, () => { closeChromeMenu(); cancelChromeTitle(); });
+watch(editorChrome, value => { if (!value) { closeChromeMenu(); cancelChromeTitle(); } });
 // Pages set the tab title for sessions; a template is rendered by this layout, so it names the tab itself.
 const templateTitle = computed(() => selectedTemplate.value?.name ?? (showTemplatePicker.value ? "Choose a CV template" : undefined));
 useSeoMeta({
@@ -647,7 +683,19 @@ const handleLogout = async () => {
                 >
                     <img class="editor-brand-icon" src="/favicon.ico" alt="" aria-hidden="true">
                 </button>
-                <strong v-if="!showTemplatePicker" class="editor-title">{{ editorTitle }}</strong>
+                <template v-if="!showTemplatePicker">
+                    <div v-if="editorChrome" class="chrome-title">
+                        <input v-if="chromeTitleEditing" ref="chromeTitleInput" v-model="chromeTitleDraft" class="chrome-title__input" type="text" aria-label="Document title" @keydown.enter.prevent="commitChromeTitle" @keydown.esc.prevent="cancelChromeTitle" @blur="commitChromeTitle">
+                        <button v-else-if="editorChrome.titleEditable" class="editor-title chrome-title__button" type="button" :title="editorChrome.title" aria-label="Rename document" @click="startChromeTitleEdit">{{ editorChrome.title }}</button>
+                        <strong v-else class="editor-title" :title="editorChrome.title">{{ editorChrome.title }}</strong>
+                        <span v-if="editorChrome.saveStatus" class="chrome-status" :class="`chrome-status--${editorChrome.saveStatus.kind}`" :title="editorChrome.saveStatus.label" :aria-label="editorChrome.saveStatus.label" role="status">
+                            <span class="chrome-status__dot" aria-hidden="true"></span>
+                            <span class="chrome-status__label">{{ editorChrome.saveStatus.label }}</span>
+                            <button v-if="editorChrome.saveStatus.kind === 'error' && editorChrome.saveStatus.onRetry" class="chrome-status__retry" type="button" @click="editorChrome.saveStatus.onRetry()">Retry</button>
+                        </span>
+                    </div>
+                    <strong v-else class="editor-title">{{ editorTitle }}</strong>
+                </template>
             </section>
 
             <nav v-if="hasFeature('formatting')" class="editor-header__tools" aria-label="Editor tools">
@@ -686,6 +734,20 @@ const handleLogout = async () => {
             </nav>
 
             <section class="editor-header__actions">
+                <div v-if="editorChrome && editorChrome.actions.length" class="chrome-actions">
+                    <div class="chrome-actions__inline">
+                        <button v-for="chromeAction in chromePrimaryActions" :key="chromeAction.id" class="header-button header-button--primary" type="button" :disabled="chromeAction.disabled" :aria-label="chromeAction.ariaLabel ?? chromeAction.label" @click="runChromeAction(chromeAction)">{{ chromeAction.label }}</button>
+                    </div>
+                    <div class="chrome-overflow-wrap" @keydown="onChromeMenuKeydown">
+                        <button id="chrome-overflow-button" class="header-button chrome-overflow-button" type="button" aria-haspopup="menu" :aria-expanded="chromeMenuOpen" aria-label="More actions" @click.stop="chromeMenuOpen = !chromeMenuOpen">…</button>
+                        <div v-if="chromeMenuOpen" class="chrome-menu" role="menu">
+                            <template v-for="chromeAction in editorChrome.actions" :key="chromeAction.id">
+                                <hr v-if="chromeAction.dividerBefore" class="chrome-menu__divider">
+                                <button class="chrome-menu__item" :class="{ 'chrome-menu__item--danger': chromeAction.danger }" type="button" role="menuitem" :disabled="chromeAction.disabled" :aria-label="chromeAction.ariaLabel ?? chromeAction.label" @click="runChromeAction(chromeAction)">{{ chromeAction.label }}</button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
                 <div v-if="selectedTemplate" class="template-header-actions">
                     <span class="template-readonly-label">READ ONLY · {{ selectedTemplate.tags.join(" · ") }}</span>
                     <button
@@ -1156,6 +1218,140 @@ button {
     font-size: 13px;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.chrome-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.chrome-title__button {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-weight: 700;
+    text-align: left;
+    cursor: text;
+}
+
+.chrome-title__button:focus-visible,
+.chrome-overflow-button:focus-visible,
+.chrome-menu__item:focus-visible,
+.chrome-status__retry:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.chrome-title__input {
+    min-width: 0;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--bg-base);
+    color: var(--fg-text);
+    font-size: 13px;
+}
+
+.chrome-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--fg-subtext0);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.chrome-status__dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success, #a6da95);
+}
+
+.chrome-status--saving .chrome-status__dot {
+    background: var(--warning, #f9e2af);
+}
+
+.chrome-status--error .chrome-status__dot {
+    background: var(--danger, #f38ba8);
+}
+
+.chrome-status__retry {
+    padding: 2px 7px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--danger, #f38ba8);
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.chrome-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.chrome-actions__inline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.chrome-overflow-wrap {
+    position: relative;
+}
+
+.chrome-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    min-width: 200px;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-mantle);
+    box-shadow: 0 8px 24px rgb(0 0 0 / .35);
+}
+
+.chrome-menu__item {
+    padding: 6px 8px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-text);
+    font-size: 12px;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.chrome-menu__item:hover {
+    background: var(--bg-surface0);
+}
+
+.chrome-menu__item:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.chrome-menu__item--danger {
+    color: var(--danger, #f38ba8);
+}
+
+.chrome-menu__divider {
+    margin: 4px 0;
+    border: 0;
+    border-top: 1px solid var(--border);
 }
 
 .icon-button,
@@ -1821,6 +2017,25 @@ button {
         max-width: 88px;
         padding: 0 4px;
         font-size: 11px;
+    }
+}
+
+@media (max-width: 1100px) {
+    .chrome-actions__inline {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .chrome-status__label,
+    .chrome-status__retry {
+        display: none;
+    }
+}
+
+@media (max-width: 560px) {
+    .editor-header__actions .header-button.chrome-overflow-button {
+        display: inline-flex;
     }
 }
 
