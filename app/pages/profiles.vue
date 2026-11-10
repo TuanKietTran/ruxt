@@ -526,7 +526,7 @@ watchEffect(() => {
                 </article>
                 <article v-for="profile in profiles" :key="profile.id" class="profile-card" :class="{ active: editingId === profile.id }" @keydown="onProfileMenuKeydown($event, profile)">
                     <button class="profile-card__select" type="button" :title="`Profile ID: ${profile.id}`" @click="closeProfileMenu(); startEdit(profile)"><strong class="profile-card__label">{{ profileLabel(profile) }}</strong><em v-if="duplicateName(profile)" class="duplicate-warning">Duplicate name</em><small class="profile-card__meta">{{ profile.identity.fullName }} · {{ profile.projects.length }} projects · {{ profileDate(profile.updatedAt) }}</small></button>
-                    <div class="profile-card__menu-wrap"><button :id="`profile-menu-button-${profile.id}`" class="profile-card__menu-button" type="button" aria-haspopup="menu" :aria-expanded="openMenuId === profile.id" :aria-label="`Actions for ${profileLabel(profile)}`" @click.stop="toggleProfileMenu(profile)">…</button><div v-if="openMenuId === profile.id" class="profile-card__menu" role="menu"><button type="button" role="menuitem" @click="profileMenuAction(renameProfile, profile)">Rename</button><button type="button" role="menuitem" @click="profileMenuAction(duplicateProfile, profile)">Duplicate</button><button class="profile-delete" type="button" role="menuitem" :aria-label="`Delete ${profile.identity.fullName}`" @click="profileMenuAction(remove, profile)">Delete</button></div></div>
+                    <div class="profile-card__menu-wrap"><button :id="`profile-menu-button-${profile.id}`" class="profile-card__menu-button" type="button" aria-haspopup="menu" :aria-expanded="openMenuId === profile.id" :aria-label="`Actions for ${profileLabel(profile)}`" @click.stop="toggleProfileMenu(profile)">…</button><div v-if="openMenuId === profile.id" class="profile-card__menu" role="menu"><button type="button" role="menuitem" @click="profileMenuAction(renameProfile, profile)">Rename</button><button type="button" role="menuitem" @click="profileMenuAction(duplicateProfile, profile)">Duplicate</button><hr class="profile-card__menu-divider"><button class="profile-delete" type="button" role="menuitem" :aria-label="`Delete ${profile.identity.fullName}`" @click="profileMenuAction(remove, profile)">Delete</button></div></div>
                 </article>
             </nav>
         </template>
@@ -731,6 +731,7 @@ watchEffect(() => {
 .profile-card:hover .profile-card__menu-button, .profile-card:focus-within .profile-card__menu-button, .profile-card__menu-button[aria-expanded="true"] { opacity: 1; }
 .profile-card__menu-button:focus-visible { opacity: 1; outline: 2px solid var(--accent, #89b4fa); outline-offset: 1px; }
 .profile-card__menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: grid; min-width: 140px; padding: 4px; border: 1px solid var(--border, #333); border-radius: 4px; background: var(--bg-surface0, #313244); box-shadow: 0 8px 24px rgb(0 0 0 / .35); }
+.profile-card__menu-divider { margin: 4px 0; border: 0; border-top: 1px solid var(--border, #333); }
 .profile-card__menu button { padding: 6px 8px !important; border: 0 !important; background: transparent; font-size: 12px !important; text-align: left; white-space: nowrap; }
 .profile-card__menu button:hover, .profile-card__menu button:focus-visible { background: var(--bg-base, #1e1e2e); }
 .duplicate-warning { display: inline-block; padding: 1px 6px; border-radius: 999px; background: var(--yellow, #f9e2af); color: #11111b; font-size: 12px; font-style: normal; font-weight: 600; white-space: nowrap; }
@@ -745,8 +746,8 @@ watchEffect(() => {
 .profile-card small { white-space: normal; overflow-wrap: break-word; }
 .profile-card small { color: var(--fg-subtext1, #bac2de); font-size: 12px; line-height: 1.45; }
 .profile-card__headline { color: var(--fg-text, #cdd6f4); }
-.profile-delete { display: flex; align-items: center; width: 100%; background: transparent !important; color: var(--red, #f38ba8); }
-.profile-delete:hover { color: var(--red, #f38ba8); }
+.profile-delete { display: flex; align-items: center; width: 100%; background: transparent !important; color: var(--danger, #f38ba8); }
+.profile-delete:hover { color: var(--danger, #f38ba8); }
 
 /* Shared controls */
 .profiles-page button { border: 1px solid var(--border, #333); border-radius: 3px; padding: 6px 10px; background: transparent; color: inherit; font: inherit; cursor: pointer; white-space: nowrap; }
