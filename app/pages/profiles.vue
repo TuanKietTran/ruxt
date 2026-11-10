@@ -23,6 +23,11 @@ const editingId = ref<string | null>(null);
 const emptyProfile = (): LocalProfileInput => normalizeCvProfile({});
 const draft = ref<LocalProfileInput>(emptyProfile());
 const currentProfile = computed(() => profiles.value.find(item => item.id === editingId.value) ?? null);
+const headerMenuOpen = ref(false);
+const headerMenuButton = ref<HTMLButtonElement | null>(null);
+const closeHeaderMenu = (refocus = false) => { headerMenuOpen.value = false; if (refocus) headerMenuButton.value?.focus(); };
+const onHeaderMenuKeydown = (event: KeyboardEvent) => { if (event.key === "Escape") closeHeaderMenu(true); };
+watch(editingId, () => { headerMenuOpen.value = false; });
 
 /** Card order. Fixed while a profile is edited, so saving never makes the open card jump to the top. */
 const listOrder = ref<string[]>([]);
@@ -520,11 +525,17 @@ const runApply = async () => {
                             </p>
                         </div>
                         <div v-if="currentProfile" class="profile-toolbar__actions">
-                            <button type="button" title="Copy this saved profile to the clipboard, encrypted" @click="openTransfer('copy', [currentProfile])">Copy encrypted</button>
-                            <button type="button" title="Download this saved profile as an encrypted file" @click="openTransfer('export', [currentProfile])">Export</button>
-                            <button type="button" title="Re-render CV sessions with this saved profile" @click="openApply(currentProfile)">Apply to sessions…</button>
+                            <button type="button" class="profile-save" :aria-label="`Export ${currentProfile.identity.fullName} as an encrypted file`" title="Download this saved profile as an encrypted file" @click="openTransfer('export', [currentProfile])">Export</button>
+                            <div class="profile-menu-wrap" @keydown="onHeaderMenuKeydown">
+                                <button ref="headerMenuButton" type="button" :aria-label="`More actions for ${currentProfile.identity.fullName}`" title="More profile actions" aria-haspopup="menu" :aria-expanded="headerMenuOpen" @click="headerMenuOpen = !headerMenuOpen">⋯</button>
+                                <div v-if="headerMenuOpen" class="profile-menu" role="menu" :aria-label="`Actions for ${currentProfile.identity.fullName}`">
+                                    <button type="button" role="menuitem" title="Copy this saved profile to the clipboard, encrypted" @click="headerMenuOpen = false; openTransfer('copy', [currentProfile])">Copy encrypted</button>
+                                    <button type="button" role="menuitem" title="Re-render CV sessions with this saved profile" @click="headerMenuOpen = false; openApply(currentProfile)">Apply to sessions…</button>
+                                    <button type="button" role="menuitem" title="Create a copy of this saved profile" @click="headerMenuOpen = false; duplicateProfile(currentProfile)">Duplicate</button>
+                                </div>
+                            </div>
                             <button v-for="id in Object.keys(apply.undoable)" :key="id" type="button" :disabled="apply.busy" @click="undoApply(id)">Undo {{ sessionLabel(applySessions.find(item => item.id === id) ?? { id, title: id, revision: 0, updatedAt: "" }) }}</button>
-                            <button type="button" class="profile-danger" @click="remove(currentProfile)">Delete</button>
+                            <button type="button" class="profile-danger" :aria-label="`Delete ${currentProfile.identity.fullName}'s profile`" title="Delete this profile permanently" @click="remove(currentProfile)">Delete</button>
                         </div>
                     </header>
 
@@ -738,7 +749,9 @@ const runApply = async () => {
 .profiles-page button { border: 1px solid var(--border, #333); border-radius: 3px; padding: 6px 10px; background: transparent; color: inherit; font: inherit; cursor: pointer; white-space: nowrap; }
 .profiles-page button:hover { border-color: var(--accent, #89b4fa); }
 .profiles-page .profile-save { border-color: var(--accent, #89b4fa); background: var(--accent, #89b4fa); color: var(--bg-crust, #11111b); }
-.profiles-page .profile-danger:hover { border-color: var(--danger, #f38ba8); color: var(--danger, #f38ba8); }
+.profiles-page .profile-danger { border-color: var(--danger, #f38ba8); color: var(--danger, #f38ba8); }
+.profiles-page .profile-danger:hover { background: color-mix(in srgb, var(--danger, #f38ba8) 12%, transparent); border-color: var(--danger, #f38ba8); color: var(--danger, #f38ba8); }
+.profiles-page .profile-danger:focus-visible { outline: 2px solid var(--danger, #f38ba8); outline-offset: 2px; }
 .profiles-page select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 34px; padding: 7px 8px; border: 1px solid var(--border, #333); border-radius: 3px; outline: none; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; }
 .profiles-page select:focus { border-color: var(--accent, #89b4fa); }
 
@@ -756,7 +769,11 @@ const runApply = async () => {
 .profile-toolbar .profile-toolbar__warn { color: var(--warning, #f9e2af); }
 .profile-toolbar__mode { color: var(--accent, #89b4fa); text-decoration: none; }
 .profile-toolbar__mode:hover { text-decoration: underline; }
-.profile-toolbar__actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.profile-toolbar__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.profile-menu-wrap { position: relative; }
+.profile-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 5; display: grid; min-width: 200px; padding: 4px; border: 1px solid var(--border, #333); border-radius: 4px; background: var(--bg-mantle, #171717); box-shadow: 0 8px 24px rgb(0 0 0 / .35); }
+.profile-menu button { border-color: transparent !important; text-align: left; }
+.profile-menu button:hover, .profile-menu button:focus-visible { background: var(--bg-surface0, #313244); }
 .profile-pending-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 16px; padding: 9px 12px; border: 1px solid var(--warning, #f9e2af); border-radius: 4px; background: color-mix(in srgb, var(--warning, #f9e2af) 12%, transparent); font-size: 12px; }
 .profile-card--draft { border-style: dashed; }
 .profile-card--draft .profile-card__select { cursor: default; }
