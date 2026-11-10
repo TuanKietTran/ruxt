@@ -23,6 +23,11 @@ const editingId = ref<string | null>(null);
 const emptyProfile = (): LocalProfileInput => normalizeCvProfile({});
 const draft = ref<LocalProfileInput>(emptyProfile());
 const currentProfile = computed(() => profiles.value.find(item => item.id === editingId.value) ?? null);
+const headerMenuOpen = ref(false);
+const headerMenuButton = ref<HTMLButtonElement | null>(null);
+const closeHeaderMenu = (refocus = false) => { headerMenuOpen.value = false; if (refocus) headerMenuButton.value?.focus(); };
+const onHeaderMenuKeydown = (event: KeyboardEvent) => { if (event.key === "Escape") closeHeaderMenu(true); };
+watch(editingId, () => { headerMenuOpen.value = false; });
 
 /** Card order. Fixed while a profile is edited, so saving never makes the open card jump to the top. */
 const listOrder = ref<string[]>([]);
@@ -220,6 +225,25 @@ const startEdit = async (profile: LocalProfile, discardConfirmed = false) => {
     lastSavedAt.value = updatedAt;
 };
 const duplicateName = (profile: LocalProfile) => profiles.value.some(item => item.id !== profile.id && item.identity.fullName.trim().toLocaleLowerCase() === profile.identity.fullName.trim().toLocaleLowerCase());
+/** Sidebar primary line: the editable profile label when w-server's label field is present, else the headline, else the CV full name. */
+const profileLabel = (profile: LocalProfile) => (profile as { label?: string }).label?.trim() || profile.identity.headline?.trim() || profile.identity.fullName;
+const profileDate = (timestamp: number) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(timestamp));
+const openMenuId = ref<string | null>(null);
+const toggleProfileMenu = (profile: LocalProfile) => { openMenuId.value = openMenuId.value === profile.id ? null : profile.id; };
+const closeProfileMenu = () => { openMenuId.value = null; };
+const profileMenuAction = async (action: (profile: LocalProfile) => Promise<void>, profile: LocalProfile) => { closeProfileMenu(); await action(profile); };
+const onProfileMenuKeydown = (event: KeyboardEvent, profile: LocalProfile) => {
+    if (event.key !== "Escape") return;
+    closeProfileMenu();
+    document.getElementById(`profile-menu-button-${profile.id}`)?.focus();
+};
+const onDocumentPointerDown = (event: PointerEvent) => {
+    if (!openMenuId.value) return;
+    if ((event.target as Element | null)?.closest?.(".profile-card__menu-wrap")) return;
+    closeProfileMenu();
+};
+onMounted(() => document.addEventListener("pointerdown", onDocumentPointerDown));
+onBeforeUnmount(() => document.removeEventListener("pointerdown", onDocumentPointerDown));
 const renameProfile = async (profile: LocalProfile) => {
     const response = await appDialog.prompt({
         title: "Rename profile",
@@ -514,9 +538,9 @@ const runApply = async () => {
                 <article v-if="editingId === ''" class="profile-card profile-card--draft active">
                     <div class="profile-card__select"><strong>{{ draft.identity.fullName || "Untitled profile" }} <em class="draft-badge">Draft</em></strong><small class="profile-card__headline">{{ draft.identity.headline || "No headline" }}</small><small>{{ blank(draft.identity.fullName) ? "Not saved yet — add a full name to save it." : "Not saved yet." }}</small></div>
                 </article>
-                <article v-for="profile in profiles" :key="profile.id" class="profile-card" :class="{ active: editingId === profile.id }">
-                    <button class="profile-card__select" type="button" @click="startEdit(profile)"><strong>{{ profile.identity.fullName }} <em v-if="duplicateName(profile)" class="duplicate-warning">Duplicate name</em></strong><small class="profile-card__headline">{{ profile.identity.headline || "No headline" }}</small><small>{{ profile.projects.length }} projects · {{ new Date(profile.updatedAt).toLocaleDateString() }} · {{ profile.id.slice(-8) }}</small></button>
-                    <div class="profile-card__actions"><button type="button" @click="renameProfile(profile)">Rename</button><button type="button" @click="duplicateProfile(profile)">Duplicate</button><button class="profile-delete" type="button" :aria-label="`Delete ${profile.identity.fullName}`" @click="remove(profile)">×</button></div>
+                <article v-for="profile in profiles" :key="profile.id" class="profile-card" :class="{ active: editingId === profile.id }" @keydown="onProfileMenuKeydown($event, profile)">
+                    <button class="profile-card__select" type="button" :title="`Profile ID: ${profile.id}`" @click="closeProfileMenu(); startEdit(profile)"><strong class="profile-card__label">{{ profileLabel(profile) }}</strong><em v-if="duplicateName(profile)" class="duplicate-warning">Duplicate name</em><small class="profile-card__meta">{{ profile.identity.fullName }} · {{ profile.projects.length }} projects · {{ profileDate(profile.updatedAt) }}</small></button>
+                    <div class="profile-card__menu-wrap"><button :id="`profile-menu-button-${profile.id}`" class="profile-card__menu-button" type="button" aria-haspopup="menu" :aria-expanded="openMenuId === profile.id" :aria-label="`Actions for ${profileLabel(profile)}`" @click.stop="toggleProfileMenu(profile)">…</button><div v-if="openMenuId === profile.id" class="profile-card__menu" role="menu"><button type="button" role="menuitem" @click="profileMenuAction(renameProfile, profile)">Rename</button><button type="button" role="menuitem" @click="profileMenuAction(duplicateProfile, profile)">Duplicate</button><button class="profile-delete" type="button" role="menuitem" :aria-label="`Delete ${profile.identity.fullName}`" @click="profileMenuAction(remove, profile)">Delete</button></div></div>
                 </article>
             </nav>
         </template>
@@ -538,11 +562,17 @@ const runApply = async () => {
                             </p>
                         </div>
                         <div v-if="currentProfile" class="profile-toolbar__actions">
-                            <button type="button" title="Copy this saved profile to the clipboard, encrypted" @click="openTransfer('copy', [currentProfile])">Copy encrypted</button>
-                            <button type="button" title="Download this saved profile as an encrypted file" @click="openTransfer('export', [currentProfile])">Export</button>
-                            <button type="button" title="Re-render CV sessions with this saved profile" @click="openApply(currentProfile)">Apply to sessions…</button>
+                            <button type="button" class="profile-save" :aria-label="`Export ${currentProfile.identity.fullName} as an encrypted file`" title="Download this saved profile as an encrypted file" @click="openTransfer('export', [currentProfile])">Export</button>
+                            <div class="profile-menu-wrap" @keydown="onHeaderMenuKeydown">
+                                <button ref="headerMenuButton" type="button" :aria-label="`More actions for ${currentProfile.identity.fullName}`" title="More profile actions" aria-haspopup="menu" :aria-expanded="headerMenuOpen" @click="headerMenuOpen = !headerMenuOpen">⋯</button>
+                                <div v-if="headerMenuOpen" class="profile-menu" role="menu" :aria-label="`Actions for ${currentProfile.identity.fullName}`">
+                                    <button type="button" role="menuitem" title="Copy this saved profile to the clipboard, encrypted" @click="headerMenuOpen = false; openTransfer('copy', [currentProfile])">Copy encrypted</button>
+                                    <button type="button" role="menuitem" title="Re-render CV sessions with this saved profile" @click="headerMenuOpen = false; openApply(currentProfile)">Apply to sessions…</button>
+                                    <button type="button" role="menuitem" title="Create a copy of this saved profile" @click="headerMenuOpen = false; duplicateProfile(currentProfile)">Duplicate</button>
+                                </div>
+                            </div>
                             <button v-for="id in Object.keys(apply.undoable)" :key="id" type="button" :disabled="apply.busy" @click="undoApply(id)">Undo {{ sessionLabel(applySessions.find(item => item.id === id) ?? { id, title: id, revision: 0, updatedAt: "" }) }}</button>
-                            <button type="button" class="profile-danger" @click="remove(currentProfile)">Delete</button>
+                            <button type="button" class="profile-danger" :aria-label="`Delete ${currentProfile.identity.fullName}'s profile`" title="Delete this profile permanently" @click="remove(currentProfile)">Delete</button>
                         </div>
                         <nav class="profile-section-nav" aria-label="Profile sections">
                             <button v-for="section in profileSections" :key="section.id" type="button" :class="{ active: activeSection === section.id }" :aria-current="activeSection === section.id ? 'true' : undefined" @click="scrollToSection(section.id)">{{ section.label }}</button>
@@ -736,25 +766,35 @@ const runApply = async () => {
 .profiles-list__header { margin: 0 4px 12px; color: var(--fg-subtext1, #bac2de); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
 .profiles-new, .profile-card { width: 100%; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: inherit; font: inherit; text-align: left; }
 .profile-card__select { display: grid; flex: 1; min-width: 0; gap: 4px; border: 0 !important; background: transparent; text-align: left !important; cursor: pointer; }
-.profile-card__actions { display: flex; gap: 6px; align-items: center; }
-.profile-card__actions button { padding: 4px 8px !important; background: var(--bg-surface0, #313244); font-size: 12px !important; }
+.profile-card__menu-wrap { position: relative; flex-shrink: 0; }
+.profile-card__menu-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0 !important; background: transparent; font-size: 16px !important; line-height: 1; opacity: 0; }
+.profile-card:hover .profile-card__menu-button, .profile-card:focus-within .profile-card__menu-button, .profile-card__menu-button[aria-expanded="true"] { opacity: 1; }
+.profile-card__menu-button:focus-visible { opacity: 1; outline: 2px solid var(--accent, #89b4fa); outline-offset: 1px; }
+.profile-card__menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: grid; min-width: 140px; padding: 4px; border: 1px solid var(--border, #333); border-radius: 4px; background: var(--bg-surface0, #313244); box-shadow: 0 8px 24px rgb(0 0 0 / .35); }
+.profile-card__menu button { padding: 6px 8px !important; border: 0 !important; background: transparent; font-size: 12px !important; text-align: left; white-space: nowrap; }
+.profile-card__menu button:hover, .profile-card__menu button:focus-visible { background: var(--bg-base, #1e1e2e); }
 .duplicate-warning { display: inline-block; padding: 1px 6px; border-radius: 999px; background: var(--yellow, #f9e2af); color: #11111b; font-size: 12px; font-style: normal; font-weight: 600; white-space: nowrap; }
 .profiles-new { padding: 9px; margin-bottom: 12px; }
 .profiles-new:hover, .profile-card:hover, .profile-card.active { border-color: var(--accent, #89b4fa); background: var(--bg-base, #1e1e2e); }
-.profile-card { display: flex; justify-content: space-between; gap: 8px; padding: 10px; margin-bottom: 7px; }
+.profiles-empty { color: var(--fg-subtext1, #bac2de); font-size: 12px; }
+.profile-card { position: relative; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 10px; margin-bottom: 7px; }
+.profile-card.active { border-color: var(--accent, #89b4fa); background: var(--bg-base, #1e1e2e); box-shadow: inset 3px 0 0 var(--accent, #89b4fa); }
 .profile-card span:first-child { display: grid; min-width: 0; gap: 4px; }
-.profile-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-card__label { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+.profile-card__meta { white-space: normal; overflow-wrap: anywhere; }
 .profile-card small { white-space: normal; overflow-wrap: break-word; }
 .profile-card small { color: var(--fg-subtext1, #bac2de); font-size: 12px; line-height: 1.45; }
 .profile-card__headline { color: var(--fg-text, #cdd6f4); }
-.profile-delete { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; margin-left: 6px; padding: 0 3px; background: transparent !important; color: var(--fg-text, #cdd6f4); font-size: 14px; }
+.profile-delete { display: flex; align-items: center; width: 100%; background: transparent !important; color: var(--red, #f38ba8); }
 .profile-delete:hover { color: var(--red, #f38ba8); }
 
 /* Shared controls */
 .profiles-page button { border: 1px solid var(--border, #333); border-radius: 3px; padding: 6px 10px; background: transparent; color: inherit; font: inherit; cursor: pointer; white-space: nowrap; }
 .profiles-page button:hover { border-color: var(--accent, #89b4fa); }
 .profiles-page .profile-save { border-color: var(--accent, #89b4fa); background: var(--accent, #89b4fa); color: var(--bg-crust, #11111b); }
-.profiles-page .profile-danger:hover { border-color: var(--danger, #f38ba8); color: var(--danger, #f38ba8); }
+.profiles-page .profile-danger { border-color: var(--danger, #f38ba8); color: var(--danger, #f38ba8); }
+.profiles-page .profile-danger:hover { background: color-mix(in srgb, var(--danger, #f38ba8) 12%, transparent); border-color: var(--danger, #f38ba8); color: var(--danger, #f38ba8); }
+.profiles-page .profile-danger:focus-visible { outline: 2px solid var(--danger, #f38ba8); outline-offset: 2px; }
 .profiles-page select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 34px; padding: 7px 8px; border: 1px solid var(--border, #333); border-radius: 3px; outline: none; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; }
 .profiles-page select:focus { border-color: var(--accent, #89b4fa); }
 .profiles-page button:focus-visible, .profiles-page a:focus-visible, .profiles-page select:focus-visible, .profiles-page input:focus-visible { outline: 2px solid var(--accent, #89b4fa); outline-offset: 2px; }
@@ -773,10 +813,14 @@ const runApply = async () => {
 .profile-toolbar .profile-toolbar__warn { color: var(--warning, #f9e2af); }
 .profile-toolbar__mode { color: var(--accent, #89b4fa); text-decoration: none; }
 .profile-toolbar__mode:hover { text-decoration: underline; }
-.profile-toolbar__actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.profile-toolbar__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .profile-section-nav { display: flex; flex-basis: 100%; gap: 4px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
 .profile-section-nav button { padding: 3px 8px; font-size: 11px; color: var(--fg-subtext1, #aaa); }
 .profile-section-nav button.active { border-color: var(--accent, #89b4fa); color: var(--accent, #89b4fa); }
+.profile-menu-wrap { position: relative; }
+.profile-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 5; display: grid; min-width: 200px; padding: 4px; border: 1px solid var(--border, #333); border-radius: 4px; background: var(--bg-mantle, #171717); box-shadow: 0 8px 24px rgb(0 0 0 / .35); }
+.profile-menu button { border-color: transparent !important; text-align: left; }
+.profile-menu button:hover, .profile-menu button:focus-visible { background: var(--bg-surface0, #313244); }
 .profile-pending-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 16px; padding: 9px 12px; border: 1px solid var(--warning, #f9e2af); border-radius: 4px; background: color-mix(in srgb, var(--warning, #f9e2af) 12%, transparent); font-size: 12px; }
 .profile-card--draft { border-style: dashed; }
 .profile-card--draft .profile-card__select { cursor: default; }
