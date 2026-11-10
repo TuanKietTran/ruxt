@@ -62,14 +62,14 @@ describe("profile delete confirm contract (static source checks)", () => {
         expect(page).toContain("danger: true,");
     });
 
-    it("header Delete is styled as danger and carries its own aria-label, distinct from the row menu Delete", () => {
+    it("header Delete is published as a danger action with divider and its own aria-label, distinct from the row menu Delete, and chrome is cleared on unmount", () => {
         const page = profilesPage();
-        expect(page).toContain('class="profile-danger"');
-        expect(page).toContain(":aria-label=\"`Delete ${currentProfile.identity.fullName}'s profile`\"");
-        expect(page).toContain('title="Delete this profile permanently"');
-        expect(page).toContain('@click="remove(currentProfile)">Delete</button>');
+        expect(page).toContain("editorChrome.publish({");
+        expect(page).toContain("danger: true, dividerBefore: true");
+        expect(page).toContain("ariaLabel: `Delete ${profile.identity.fullName}'s profile`");
         expect(page).toContain(':aria-label="`Delete ${profile.identity.fullName}`"');
-        expect(page).toContain(".profiles-page .profile-danger { border-color: var(--danger, #f38ba8); color: var(--danger, #f38ba8); }");
-        expect(page).toContain(".profiles-page .profile-danger:focus-visible { outline: 2px solid var(--danger, #f38ba8); outline-offset: 2px; }");
+        expect(page).not.toContain('@click="remove(currentProfile)">Delete</button>');
+        expect(page).toContain("editorChrome.clear();");
+        expect(page).toContain("sectionObserver?.disconnect();");
     });
 });

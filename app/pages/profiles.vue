@@ -810,8 +810,6 @@ watchEffect(() => {
 .profile-placeholder div { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 
 .profile-sheet { container: sheet / inline-size; box-sizing: border-box; width: 100%; max-width: 1160px; margin: 0 auto; padding: 0 28px 40px; }
-.profile-toolbar__mode { color: var(--accent, #89b4fa); text-decoration: none; }
-.profile-toolbar__mode:hover { text-decoration: underline; }
 .profile-section-nav { position: sticky; top: 0; z-index: 2; display: flex; gap: 4px; overflow-x: auto; margin: 0 -28px 18px; padding: 10px 28px 8px; border-bottom: 1px solid var(--border, #333); background: var(--bg-base, #111); scrollbar-width: thin; }
 .profile-section-nav button { padding: 3px 8px; font-size: 11px; color: var(--fg-subtext1, #aaa); }
 .profile-section-nav button.active { border-color: var(--accent, #89b4fa); color: var(--accent, #89b4fa); }
