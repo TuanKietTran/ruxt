@@ -23,11 +23,7 @@ const editingId = ref<string | null>(null);
 const emptyProfile = (): LocalProfileInput => normalizeCvProfile({});
 const draft = ref<LocalProfileInput>(emptyProfile());
 const currentProfile = computed(() => profiles.value.find(item => item.id === editingId.value) ?? null);
-const headerMenuOpen = ref(false);
-const headerMenuButton = ref<HTMLButtonElement | null>(null);
-const closeHeaderMenu = (refocus = false) => { headerMenuOpen.value = false; if (refocus) headerMenuButton.value?.focus(); };
-const onHeaderMenuKeydown = (event: KeyboardEvent) => { if (event.key === "Escape") closeHeaderMenu(true); };
-watch(editingId, () => { headerMenuOpen.value = false; });
+const editorChrome = useEditorChrome();
 
 /** Card order. Fixed while a profile is edited, so saving never makes the open card jump to the top. */
 const listOrder = ref<string[]>([]);
@@ -166,7 +162,7 @@ onMounted(() => {
     loadPreferences();
     window.addEventListener("beforeunload", warnUnsaved);
 });
-onBeforeUnmount(() => window.removeEventListener("beforeunload", warnUnsaved));
+onBeforeUnmount(() => { window.removeEventListener("beforeunload", warnUnsaved); editorChrome.clear(); });
 watch(signedIn, loadPreferences);
 
 const startCreate = async () => {
@@ -484,6 +480,34 @@ const runApply = async () => {
         apply.busy = false;
     }
 };
+
+// Publish the open profile into the global editor header; the layout renders
+// the title, save status and actions and owns the overflow menu.
+watchEffect(() => {
+    const profile = currentProfile.value;
+    if (!profile) {
+        editorChrome.clear();
+        return;
+    }
+    const saved = !unsavedKeys.size && !blank(draft.value.identity.fullName) && !pendingCount.value && !!lastSavedAt.value;
+    editorChrome.publish({
+        title: profileLabel(profile),
+        saveStatus: { kind: saved ? "saved" : "saving", label: saveStatus.value },
+        actions: [
+            { id: "export", label: "Export", primary: true, ariaLabel: `Export ${profile.identity.fullName} as an encrypted file`, action: () => openTransfer("export", [profile]) },
+            { id: "copy-encrypted", label: "Copy encrypted", action: () => openTransfer("copy", [profile]) },
+            { id: "apply-to-sessions", label: "Apply to sessions…", action: () => { void openApply(profile); } },
+            { id: "duplicate", label: "Duplicate", action: () => { void duplicateProfile(profile); } },
+            ...Object.keys(apply.undoable).map(id => ({
+                id: `undo-apply-${id}`,
+                label: `Undo ${sessionLabel(applySessions.value.find(item => item.id === id) ?? { id, title: id, revision: 0, updatedAt: "" })}`,
+                disabled: apply.busy,
+                action: () => { void undoApply(id); },
+            })),
+            { id: "delete", label: "Delete", danger: true, dividerBefore: true, ariaLabel: `Delete ${profile.identity.fullName}'s profile`, action: () => { void remove(profile); } },
+        ],
+    });
+});
 </script>
 
 <template>
@@ -516,28 +540,7 @@ const runApply = async () => {
                     <div><button type="button" class="profile-save" @click="startCreate">＋ New profile</button><button type="button" @click="openTransfer('import')">Import</button></div>
                 </div>
                 <div v-else :key="formKey" class="profile-sheet">
-                    <header class="profile-toolbar">
-                        <div class="profile-toolbar__title">
-                            <h1>Profile</h1>
-                            <p role="status" aria-live="polite">
-                                <span :class="{ 'profile-toolbar__warn': unsavedKeys.size || blank(draft.identity.fullName) || pendingCount }">{{ saveStatus }}</span>
-                                · <NuxtLink to="/settings" class="profile-toolbar__mode" title="Change in settings">{{ saveMode === "auto" ? "Auto-save" : "Save with button" }}</NuxtLink>
-                            </p>
-                        </div>
-                        <div v-if="currentProfile" class="profile-toolbar__actions">
-                            <button type="button" class="profile-save" :aria-label="`Export ${currentProfile.identity.fullName} as an encrypted file`" title="Download this saved profile as an encrypted file" @click="openTransfer('export', [currentProfile])">Export</button>
-                            <div class="profile-menu-wrap" @keydown="onHeaderMenuKeydown">
-                                <button ref="headerMenuButton" type="button" :aria-label="`More actions for ${currentProfile.identity.fullName}`" title="More profile actions" aria-haspopup="menu" :aria-expanded="headerMenuOpen" @click="headerMenuOpen = !headerMenuOpen">⋯</button>
-                                <div v-if="headerMenuOpen" class="profile-menu" role="menu" :aria-label="`Actions for ${currentProfile.identity.fullName}`">
-                                    <button type="button" role="menuitem" title="Copy this saved profile to the clipboard, encrypted" @click="headerMenuOpen = false; openTransfer('copy', [currentProfile])">Copy encrypted</button>
-                                    <button type="button" role="menuitem" title="Re-render CV sessions with this saved profile" @click="headerMenuOpen = false; openApply(currentProfile)">Apply to sessions…</button>
-                                    <button type="button" role="menuitem" title="Create a copy of this saved profile" @click="headerMenuOpen = false; duplicateProfile(currentProfile)">Duplicate</button>
-                                </div>
-                            </div>
-                            <button v-for="id in Object.keys(apply.undoable)" :key="id" type="button" :disabled="apply.busy" @click="undoApply(id)">Undo {{ sessionLabel(applySessions.find(item => item.id === id) ?? { id, title: id, revision: 0, updatedAt: "" }) }}</button>
-                            <button type="button" class="profile-danger" :aria-label="`Delete ${currentProfile.identity.fullName}'s profile`" title="Delete this profile permanently" @click="remove(currentProfile)">Delete</button>
-                        </div>
-                    </header>
+
 
                     <div v-if="pendingCount" class="profile-pending-bar">
                         <span>{{ pendingCount }} incomplete {{ pendingCount === 1 ? "entry isn't" : "entries aren't" }} saved yet — finish the missing fields or cancel {{ pendingCount === 1 ? "it" : "them" }}.</span>
@@ -762,18 +765,8 @@ const runApply = async () => {
 .profile-placeholder div { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 
 .profile-sheet { container: sheet / inline-size; box-sizing: border-box; width: 100%; max-width: 920px; margin: 0 auto; padding: 0 28px 40px; }
-.profile-toolbar { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin: 0 -28px 18px; padding: 16px 28px 12px; border-bottom: 1px solid var(--border, #333); background: var(--bg-base, #111); }
-.profile-toolbar__title { min-width: 0; }
-.profile-toolbar h1 { margin: 0; overflow-wrap: anywhere; font-size: 15px; font-weight: 600; }
-.profile-toolbar p { margin: 4px 0 0; color: var(--fg-subtext0, #888); font-size: 11px; }
-.profile-toolbar .profile-toolbar__warn { color: var(--warning, #f9e2af); }
 .profile-toolbar__mode { color: var(--accent, #89b4fa); text-decoration: none; }
 .profile-toolbar__mode:hover { text-decoration: underline; }
-.profile-toolbar__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.profile-menu-wrap { position: relative; }
-.profile-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 5; display: grid; min-width: 200px; padding: 4px; border: 1px solid var(--border, #333); border-radius: 4px; background: var(--bg-mantle, #171717); box-shadow: 0 8px 24px rgb(0 0 0 / .35); }
-.profile-menu button { border-color: transparent !important; text-align: left; }
-.profile-menu button:hover, .profile-menu button:focus-visible { background: var(--bg-surface0, #313244); }
 .profile-pending-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 16px; padding: 9px 12px; border: 1px solid var(--warning, #f9e2af); border-radius: 4px; background: color-mix(in srgb, var(--warning, #f9e2af) 12%, transparent); font-size: 12px; }
 .profile-card--draft { border-style: dashed; }
 .profile-card--draft .profile-card__select { cursor: default; }
@@ -829,9 +822,6 @@ const runApply = async () => {
 }
 @media (max-width: 560px) {
     .profile-sheet { padding: 0 16px 32px; }
-    .profile-toolbar { margin: 0 -16px 14px; padding: 12px 16px 10px; }
-    .profile-toolbar__actions { width: 100%; }
-    .profile-toolbar__actions button { flex: 1 1 auto; }
 }
 
 .profiles-transfer { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: -4px 0 12px; }
