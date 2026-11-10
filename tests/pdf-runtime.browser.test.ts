@@ -88,7 +88,7 @@ beforeAll(async () => {
 afterAll(async () => { await browser?.close(); });
 
 suite("PDF runtime acceptance (product UI, isolated local browser)", () => {
-    it("downloads a valid selected-page PDF with configured filename, paper, orientation and margins", async () => {
+    it("downloads a valid selected-page PDF with configured filename, paper and orientation", async () => {
         const context = await browser.newContext({ acceptDownloads: true });
         const page = await context.newPage();
         const assertNoNative = await installNativeGuards(page);
@@ -99,12 +99,16 @@ suite("PDF runtime acceptance (product UI, isolated local browser)", () => {
         const dialog = await openPdfDialog(page);
         expect(await dialog.getByText("3 available").count()).toBe(1);
         expect(await page.locator('[data-pdf-qa-sibling="true"]').count()).toBe(1);
+        await dialog.getByLabel(/^Pages/).fill("2");
         const previewSheet = dialog.locator(".cv-pdf-preview__page .cv-sheet");
         await previewSheet.waitFor({ state: "visible" });
         const previewMetrics = await previewSheet.evaluate(element => {
             const rect = element.getBoundingClientRect();
-            return { width: rect.width, height: rect.height, text: element.textContent ?? "", transform: getComputedStyle(element).transform };
+            const host = element.closest(".cv-pdf-preview__page")!.getBoundingClientRect();
+            const inside = rect.left >= host.left - 1 && rect.right <= host.right + 1 && rect.top >= host.top - 1;
+            return { width: rect.width, height: rect.height, inside, text: element.textContent ?? "", transform: getComputedStyle(element).transform };
         });
+        expect(previewMetrics.inside).toBe(true);
         await writeFile(join(artifacts, "selected-page-preview-metrics.json"), JSON.stringify(previewMetrics, null, 2));
         expect(previewMetrics.text).toContain("Page 2 Marker");
         expect(previewMetrics.width).toBeGreaterThan(100);
@@ -112,10 +116,7 @@ suite("PDF runtime acceptance (product UI, isolated local browser)", () => {
         await dialog.getByLabel("Filename").fill("QA Letter Landscape");
         await dialog.getByLabel("Paper").selectOption("letter");
         await dialog.getByLabel("Orientation").selectOption("landscape");
-        await dialog.getByLabel("Top").fill("20");
-        await dialog.getByLabel("Right").fill("15");
-        await dialog.getByLabel("Bottom").fill("10");
-        await dialog.getByLabel("Left").fill("5");
+        expect(await dialog.getByText("Margins").count()).toBe(0);
         await dialog.getByLabel(/^Pages/).fill("2");
         expect(await dialog.getByText("Preview · page 2").count()).toBe(1);
         await dialog.locator(".cv-pdf-preview__page").screenshot({ path: join(artifacts, "selected-page-preview.png") });

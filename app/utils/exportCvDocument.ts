@@ -121,7 +121,6 @@ export interface CvPdfExportOptions {
     filename: string;
     paper: CvPdfPaper;
     orientation: "portrait" | "landscape";
-    margins: { top: number; right: number; bottom: number; left: number };
     pages: string;
 }
 export interface CvPdfRenderOptions extends CvPdfExportOptions {
@@ -156,9 +155,6 @@ export async function exportCvPdf(options: CvPdfRenderOptions): Promise<void> {
     if (!ownerWindow) throw new Error("The CV preview browser context is unavailable.");
     const sourceSheets = [...root.querySelectorAll<HTMLElement>(".cv-sheet")];
     const pageNumbers = parseCvPdfPageSelection(options.pages, sourceSheets.length);
-    if (![options.margins.top, options.margins.right, options.margins.bottom, options.margins.left].every(value => Number.isFinite(value) && value >= 0 && value <= 50)) {
-        throw new Error("Margins must be between 0 and 50 mm.");
-    }
     await ownerDocument.fonts?.ready;
     await Promise.all([...root.querySelectorAll("img")].map(image => image.decode().catch(() => {})));
     const { default: html2canvas } = await import("html2canvas");
@@ -190,13 +186,11 @@ export async function exportCvPdf(options: CvPdfRenderOptions): Promise<void> {
             const canvas = await html2canvas(sheet, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
             const pageSize = pdf.internal.pageSize;
             const pageWidth = pageSize.getWidth(); const pageHeight = pageSize.getHeight();
-            const contentWidth = pageWidth - options.margins.left - options.margins.right;
-            const contentHeight = pageHeight - options.margins.top - options.margins.bottom;
-            if (contentWidth <= 0 || contentHeight <= 0) throw new Error("Margins leave no printable page area.");
-            const ratio = Math.min(contentWidth / canvas.width, contentHeight / canvas.height);
+            // No export margins: the CV sheet already carries its own page padding.
+            const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
             const width = canvas.width * ratio; const height = canvas.height * ratio;
             if (index > 0) pdf.addPage(options.paper, options.orientation);
-            pdf.addImage(canvas.toDataURL("image/jpeg", 0.96), "JPEG", options.margins.left, options.margins.top, width, height, undefined, "FAST");
+            pdf.addImage(canvas.toDataURL("image/jpeg", 0.96), "JPEG", 0, 0, width, height, undefined, "FAST");
             options.onProgress?.(index + 1, pageNumbers.length);
         }
         const blob = pdf.output("blob");
