@@ -39,6 +39,9 @@ export function useEditorChrome() {
     const chrome = useState<EditorChromeState | null>(editorChromeKey, () => null);
 
     const publish = (state: EditorChromeState) => {
+        // The state holds callbacks, which the SSR payload serializer cannot stringify
+        // (DevalueError: Cannot stringify a function). Publish on the client only.
+        if (import.meta.server) return;
         chrome.value = state;
     };
 
