@@ -717,23 +717,25 @@ const handleLogout = async () => {
                     :class="{ 'activity-button--active': context.id === editorContext.id }"
                     :to="contextRoute(context)"
                     :aria-label="context.label"
+                    :title="context.label"
                     :aria-current="context.id === editorContext.id ? 'page' : undefined"
                 ><AppIcon :name="context.icon" /></NuxtLink>
             </div>
 
             <div class="activity-bar__bottom">
-                <NuxtLink class="activity-button" to="/about" aria-label="Help"><AppIcon name="lucide:circle-help" /></NuxtLink>
+                <NuxtLink class="activity-button" to="/about" aria-label="Help" title="Help"><AppIcon name="lucide:circle-help" /></NuxtLink>
                 <template v-if="authenticated">
                     <button
                         v-if="user"
                         class="activity-button"
                         type="button"
                         :aria-label="`Sign out ${user.email}`"
+                        :title="`Sign out ${user.email}`"
                         @click="handleLogout"
                     >
                         <AppIcon name="lucide:circle-user-round" />
                     </button>
-                    <button v-else class="activity-button" type="button" aria-label="Sign in or create account" @click="openAuthDialog('login')"><AppIcon name="lucide:log-in" /></button>
+                    <button v-else class="activity-button" type="button" aria-label="Sign in or create account" title="Sign in or create account" @click="openAuthDialog('login')"><AppIcon name="lucide:log-in" /></button>
                 </template>
             </div>
         </nav>
@@ -1273,11 +1275,24 @@ button {
 }
 
 .activity-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 34px;
     height: 34px;
     border-radius: var(--radius-sm);
     font-size: 16px;
     text-decoration: none;
+}
+
+.activity-button:hover {
+    background: var(--bg-surface0);
+    color: var(--fg-text);
+}
+
+.activity-button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .activity-button--active {
@@ -1299,8 +1314,8 @@ button {
     justify-content: space-between;
     height: 42px;
     padding: 0 10px 0 12px;
-    color: var(--fg-subtext0);
-    font-size: 10px;
+    color: var(--fg-subtext1);
+    font-size: 11px;
     letter-spacing: 0.13em;
     text-transform: uppercase;
 }

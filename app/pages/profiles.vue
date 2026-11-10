@@ -511,7 +511,6 @@ const runApply = async () => {
                     <button type="button" @click="openTransfer('import')">Import</button>
                     <button type="button" :disabled="!profiles.length" @click="openTransfer('export', profiles)">Export all</button>
                 </div>
-                <p v-if="!profiles.length && editingId !== ''" class="profiles-empty">No local profiles yet.</p>
                 <article v-if="editingId === ''" class="profile-card profile-card--draft active">
                     <div class="profile-card__select"><strong>{{ draft.identity.fullName || "Untitled profile" }} <em class="draft-badge">Draft</em></strong><small class="profile-card__headline">{{ draft.identity.headline || "No headline" }}</small><small>{{ blank(draft.identity.fullName) ? "Not saved yet — add a full name to save it." : "Not saved yet." }}</small></div>
                 </article>
@@ -527,7 +526,6 @@ const runApply = async () => {
             <section class="profile-form">
                 <div v-if="editingId === null" class="profile-placeholder">
                     <p>{{ profiles.length ? "Select a profile or create a new one." : "No local profiles yet." }}</p>
-                    <p>Save mode: <NuxtLink to="/settings" class="profile-toolbar__mode" title="Change in settings">{{ saveMode === "auto" ? "Auto-save" : "Save with button" }}</NuxtLink></p>
                     <div><button type="button" class="profile-save" @click="startCreate">＋ New profile</button><button type="button" @click="openTransfer('import')">Import</button></div>
                 </div>
                 <div v-else :key="formKey" class="profile-sheet">
@@ -565,7 +563,7 @@ const runApply = async () => {
                         <div class="profile-section-heading"><h2>About</h2></div>
                         <div class="profile-identity">
                             <EditableField class="identity-headline" label="Headline" placeholder="Software engineer, product designer…" optional v-bind="field('identity.headline')" :model-value="draft.identity.headline" @commit="draft.identity.headline = $event; commit('identity.headline')" />
-                            <EditableField class="identity-location" label="Location" placeholder="City, Country" optional v-bind="field('identity.location')" :model-value="draft.identity.location" @commit="draft.identity.location = $event; commit('identity.location')" />
+                            <EditableField class="identity-location" label="Location" placeholder="City, Country" v-bind="field('identity.location')" :model-value="draft.identity.location" @commit="draft.identity.location = $event; commit('identity.location')" />
                             <EditableField class="span-all" label="Summary" placeholder="A few lines about you" multiline optional v-bind="field('identity.summary')" :model-value="draft.identity.summary" @commit="draft.identity.summary = $event; commit('identity.summary')" />
                         </div>
                     </section>
@@ -576,14 +574,14 @@ const runApply = async () => {
                             <EditableField class="contact-kind" label="Type" :options="contactKinds" v-bind="field(`contacts.${index}.kind`)" :model-value="contact.kind" @commit="contact.kind = $event as CvContactKind; commit(`contacts.${index}.kind`)" />
                             <EditableField class="contact-value" label="Value or link" placeholder="name@example.com, https://…" v-bind="field(`contacts.${index}.value`)" :model-value="contact.value" @commit="contact.value = $event; commit(`contacts.${index}.value`)" />
                             <EditableField class="contact-label" label="Display text" placeholder="Same as value" optional v-bind="field(`contacts.${index}.label`)" :model-value="contact.label" @commit="contact.label = $event; commit(`contacts.${index}.label`)" />
-                            <button type="button" class="entry-remove" aria-label="Remove contact" @click="removeEntry('contacts', index)">×</button>
+                            <button type="button" class="entry-remove" :aria-label="'Remove contact ' + (index + 1) + (contact.value ? ': ' + contact.value : '')" @click="removeEntry('contacts', index)">×</button>
                         </div>
                     </section>
 
                     <section class="profile-section" data-profile-section="experience">
                         <div class="profile-section-heading"><h2>Experience</h2><button type="button" @click="addEntry('experiences')">＋ Add</button></div>
                         <article v-for="(experience, index) in draft.experiences" :key="index" class="entry-card" :data-entry="`experiences-${index}`">
-                            <button type="button" class="entry-remove" aria-label="Remove experience" @click="removeEntry('experiences', index)">×</button>
+                            <button type="button" class="entry-remove" :aria-label="'Remove experience ' + (index + 1) + (experience.title ? ': ' + experience.title : '')" @click="removeEntry('experiences', index)">×</button>
                             <div class="entry-grid">
                                 <EditableField class="span-2" label="Job title" v-bind="field(`experiences.${index}.title`)" :model-value="experience.title" @commit="experience.title = $event; commit(`experiences.${index}.title`)" />
                                 <EditableField class="span-2" label="Company" v-bind="field(`experiences.${index}.company`)" :model-value="experience.company" @commit="experience.company = $event; commit(`experiences.${index}.company`)" />
@@ -606,14 +604,14 @@ const runApply = async () => {
                             <EditableField class="skill-list" label="Skills · comma-separated" placeholder="TypeScript, Go, SQL" v-bind="field(`skills.${index}.skills`)" :model-value="skill.skills.join(', ')" @commit="skill.skills = splitList($event); commit(`skills.${index}.skills`)">
                                 <template #display><span class="chips"><span v-for="item in skill.skills" :key="item">{{ item }}</span></span></template>
                             </EditableField>
-                            <button type="button" class="entry-remove" aria-label="Remove skill group" @click="removeEntry('skills', index)">×</button>
+                            <button type="button" class="entry-remove" :aria-label="'Remove skill group ' + (index + 1) + (skill.name ? ': ' + skill.name : '')" @click="removeEntry('skills', index)">×</button>
                         </div>
                     </section>
 
                     <section class="profile-section" data-profile-section="education">
                         <div class="profile-section-heading"><h2>Education</h2><button type="button" @click="addEntry('education')">＋ Add</button></div>
                         <article v-for="(education, index) in draft.education" :key="index" class="entry-card" :data-entry="`education-${index}`">
-                            <button type="button" class="entry-remove" aria-label="Remove education" @click="removeEntry('education', index)">×</button>
+                            <button type="button" class="entry-remove" :aria-label="'Remove education ' + (index + 1) + (education.school ? ': ' + education.school : '')" @click="removeEntry('education', index)">×</button>
                             <div class="entry-grid">
                                 <EditableField class="span-2" label="Institution" v-bind="field(`education.${index}.school`)" :model-value="education.school" @commit="education.school = $event; commit(`education.${index}.school`)" />
                                 <EditableField class="span-2" label="Degree and field of study" optional v-bind="field(`education.${index}.degree`)" :model-value="education.degree" @commit="education.degree = $event; commit(`education.${index}.degree`)" />
@@ -631,7 +629,7 @@ const runApply = async () => {
                     <section class="profile-section" data-profile-section="projects">
                         <div class="profile-section-heading"><h2>Projects</h2><button type="button" @click="addEntry('projects')">＋ Add</button></div>
                         <article v-for="(project, index) in draft.projects" :key="index" class="entry-card" :data-entry="`projects-${index}`">
-                            <button type="button" class="entry-remove" aria-label="Remove project" @click="removeEntry('projects', index)">×</button>
+                            <button type="button" class="entry-remove" :aria-label="'Remove project ' + (index + 1) + (project.name ? ': ' + project.name : '')" @click="removeEntry('projects', index)">×</button>
                             <div class="entry-grid">
                                 <EditableField class="span-2" label="Project name" v-bind="field(`projects.${index}.name`)" :model-value="project.name" @commit="project.name = $event; commit(`projects.${index}.name`)" />
                                 <EditableField class="span-2" label="URL" placeholder="https://…" optional v-bind="field(`projects.${index}.url`)" :model-value="project.url" @commit="project.url = $event; commit(`projects.${index}.url`)" />
@@ -646,7 +644,7 @@ const runApply = async () => {
                         <section class="profile-section" data-profile-section="certifications">
                             <div class="profile-section-heading"><h2>Certifications</h2><button type="button" @click="addEntry('certifications')">＋ Add</button></div>
                             <div v-for="(certification, index) in draft.certifications" :key="index" class="entry-card" :data-entry="`certifications-${index}`">
-                                <button type="button" class="entry-remove" aria-label="Remove certification" @click="removeEntry('certifications', index)">×</button>
+                                <button type="button" class="entry-remove" :aria-label="'Remove certification ' + (index + 1) + (certification.name ? ': ' + certification.name : '')" @click="removeEntry('certifications', index)">×</button>
                                 <div class="entry-grid">
                                     <EditableField class="span-2" :label="`Certification ${index + 1}`" v-bind="field(`certifications.${index}.name`)" :model-value="certification.name" @commit="certification.name = $event; commit(`certifications.${index}.name`)" />
                                     <EditableField class="span-2" label="Issuer" optional v-bind="field(`certifications.${index}.issuer`)" :model-value="certification.issuer || ''" @commit="certification.issuer = $event; commit(`certifications.${index}.issuer`)" />
@@ -659,7 +657,7 @@ const runApply = async () => {
                             <div class="profile-section-heading"><h2>Languages</h2><button type="button" @click="addEntry('languages')">＋ Add</button></div>
                             <div v-for="(language, index) in draft.languages" :key="index" class="entry-row single-row" :data-entry="`languages-${index}`">
                                 <EditableField :label="`Language ${index + 1}`" placeholder="English — fluent" v-bind="field(`languages.${index}`)" :model-value="language" @commit="draft.languages[index] = $event; commit(`languages.${index}`)" />
-                                <button type="button" class="entry-remove" aria-label="Remove language" @click="removeEntry('languages', index)">×</button>
+                                <button type="button" class="entry-remove" :aria-label="'Remove language ' + (index + 1) + (language ? ': ' + language : '')" @click="removeEntry('languages', index)">×</button>
                             </div>
                         </section>
                     </div>
@@ -743,7 +741,6 @@ const runApply = async () => {
 .duplicate-warning { display: inline-block; padding: 1px 6px; border-radius: 999px; background: var(--yellow, #f9e2af); color: #11111b; font-size: 12px; font-style: normal; font-weight: 600; white-space: nowrap; }
 .profiles-new { padding: 9px; margin-bottom: 12px; }
 .profiles-new:hover, .profile-card:hover, .profile-card.active { border-color: var(--accent, #89b4fa); background: var(--bg-base, #1e1e2e); }
-.profiles-empty { color: var(--fg-subtext1, #bac2de); font-size: 12px; }
 .profile-card { display: flex; justify-content: space-between; gap: 8px; padding: 10px; margin-bottom: 7px; }
 .profile-card span:first-child { display: grid; min-width: 0; gap: 4px; }
 .profile-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -760,6 +757,7 @@ const runApply = async () => {
 .profiles-page .profile-danger:hover { border-color: var(--danger, #f38ba8); color: var(--danger, #f38ba8); }
 .profiles-page select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 34px; padding: 7px 8px; border: 1px solid var(--border, #333); border-radius: 3px; outline: none; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; }
 .profiles-page select:focus { border-color: var(--accent, #89b4fa); }
+.profiles-page button:focus-visible, .profiles-page a:focus-visible, .profiles-page select:focus-visible, .profiles-page input:focus-visible { outline: 2px solid var(--accent, #89b4fa); outline-offset: 2px; }
 
 
 .profile-form { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; }
@@ -771,7 +769,7 @@ const runApply = async () => {
 .profile-toolbar { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin: 0 -28px 18px; padding: 16px 28px 12px; border-bottom: 1px solid var(--border, #333); background: var(--bg-base, #111); }
 .profile-toolbar__title { min-width: 0; }
 .profile-toolbar h1 { margin: 0; overflow-wrap: anywhere; font-size: 15px; font-weight: 600; }
-.profile-toolbar p { margin: 4px 0 0; color: var(--fg-subtext0, #888); font-size: 11px; }
+.profile-toolbar p { margin: 4px 0 0; color: var(--fg-subtext1, #aaa); font-size: 12px; }
 .profile-toolbar .profile-toolbar__warn { color: var(--warning, #f9e2af); }
 .profile-toolbar__mode { color: var(--accent, #89b4fa); text-decoration: none; }
 .profile-toolbar__mode:hover { text-decoration: underline; }
@@ -797,8 +795,8 @@ const runApply = async () => {
 .entry-card .entry-grid { padding-right: 0; }
 .entry-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .span-2, .span-all { grid-column: 1 / -1; }
-.entry-remove { align-self: end; width: 34px; height: 34px; padding: 0 !important; color: var(--fg-subtext0, #888) !important; line-height: 1; }
-.entry-card .entry-remove { width: 24px; height: 24px; border-color: transparent !important; }
+.entry-remove { align-self: start; margin-top: 19px; width: 34px; height: 34px; padding: 0 !important; color: var(--fg-subtext0, #888) !important; line-height: 1; }
+.entry-card .entry-remove { width: 24px; height: 24px; margin-top: 0; border-color: transparent !important; }
 .entry-remove:hover { border-color: var(--danger, #f38ba8) !important; color: var(--danger, #f38ba8) !important; }
 .entry-pending { margin: 10px 0 0; color: var(--warning, #f9e2af); font-size: 11px; }
 
@@ -854,7 +852,7 @@ const runApply = async () => {
 .transfer-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgb(0 0 0 / .55); }
 .transfer-dialog { box-sizing: border-box; width: min(460px, 100%); padding: 20px; border: 1px solid var(--border, #333); border-radius: 6px; background: var(--bg-base, #111); }
 .transfer-dialog h2 { margin: 0 0 14px; font-size: 13px; font-weight: 500; }
-.transfer-dialog label { display: grid; gap: 6px; margin-bottom: 12px; color: var(--fg-subtext1, #aaa); font-size: 11px; }
+.transfer-dialog label { display: grid; gap: 6px; margin-bottom: 12px; color: var(--fg-subtext1, #aaa); font-size: 12px; }
 .transfer-dialog input, .transfer-dialog textarea { min-width: 0; padding: 8px; border: 1px solid var(--border, #333); border-radius: 3px; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; resize: vertical; }
 .transfer-hint { margin: 0 0 12px; color: var(--fg-subtext0, #888); font-size: 11px; line-height: 1.5; }
 .transfer-status { color: var(--success, #a6e3a1); }
