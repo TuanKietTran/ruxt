@@ -516,7 +516,7 @@ const runApply = async () => {
                                 </div>
                             </div>
                             <button v-for="id in Object.keys(apply.undoable)" :key="id" type="button" :disabled="apply.busy" @click="undoApply(id)">Undo {{ sessionLabel(applySessions.find(item => item.id === id) ?? { id, title: id, revision: 0, updatedAt: "" }) }}</button>
-                            <button type="button" class="profile-danger" @click="remove(currentProfile)">Delete</button>
+                            <button type="button" class="profile-danger" :aria-label="`Delete ${currentProfile.identity.fullName}'s profile`" title="Delete this profile permanently" @click="remove(currentProfile)">Delete</button>
                         </div>
                     </header>
 
@@ -723,7 +723,9 @@ const runApply = async () => {
 .profiles-page button { border: 1px solid var(--border, #333); border-radius: 3px; padding: 6px 10px; background: transparent; color: inherit; font: inherit; cursor: pointer; white-space: nowrap; }
 .profiles-page button:hover { border-color: var(--accent, #89b4fa); }
 .profiles-page .profile-save { border-color: var(--accent, #89b4fa); background: var(--accent, #89b4fa); color: var(--bg-crust, #11111b); }
-.profiles-page .profile-danger:hover { border-color: var(--danger, #f38ba8); color: var(--danger, #f38ba8); }
+.profiles-page .profile-danger { border-color: var(--danger, #f38ba8); color: var(--danger, #f38ba8); }
+.profiles-page .profile-danger:hover { background: color-mix(in srgb, var(--danger, #f38ba8) 12%, transparent); border-color: var(--danger, #f38ba8); color: var(--danger, #f38ba8); }
+.profiles-page .profile-danger:focus-visible { outline: 2px solid var(--danger, #f38ba8); outline-offset: 2px; }
 .profiles-page select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 34px; padding: 7px 8px; border: 1px solid var(--border, #333); border-radius: 3px; outline: none; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; }
 .profiles-page select:focus { border-color: var(--accent, #89b4fa); }
 
