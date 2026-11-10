@@ -92,6 +92,36 @@ const retryRegistration = () => {
     registerDraft();
 };
 
+const editorChrome = useEditorChrome();
+const commitChromeTitle = (title: string) => {
+    const attr = document.value.match(/^#\s+.+?(\s*\{[^{}]+\})\s*$/m)?.[1] ?? "";
+    if (/^#\s+.+$/m.test(document.value)) document.value = document.value.replace(/^#\s+.+$/m, `# ${title}${attr}`);
+    else document.value = `# ${title}\n\n${document.value}`;
+    writeCvNewSessionDraft({ markdown: document.value, css: stylesheet.value });
+    registerDraft();
+};
+watchEffect(() => {
+    if (sessionId.value || queryValue(route.query.t)) {
+        editorChrome.clear();
+        return;
+    }
+    editorChrome.publish({
+        title: documentTitle.value,
+        titleEditable: true,
+        onTitleCommit: commitChromeTitle,
+        saveStatus: saveState.value === "saved"
+            ? { kind: "saved" as const, label: "Saved locally" }
+            : saveState.value === "saving"
+                ? { kind: "saving" as const, label: "Saving locally…" }
+                : {
+                    kind: "error" as const,
+                    label: saveState.value === "conflict" ? "This session changed elsewhere; review before replacing edits." : "Could not save locally. Your edits remain in this tab and will retry automatically.",
+                    onRetry: registerDraft,
+                },
+        actions: [],
+    });
+});
+
 const activeSource = computed({
     get: () => activeTab.value === "markdown" ? document.value : stylesheet.value,
     set: (value: string) => {
@@ -146,6 +176,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
     if (registrationTimer) clearTimeout(registrationTimer);
     window.removeEventListener("online", retryRegistration);
+    editorChrome.clear();
 });
 </script>
 

@@ -15,7 +15,7 @@ const activeTab = ref<SourceTab>("markdown");
 const showIndicators = ref(true);
 const sourceEditor = ref<{ applyMarkdownFormat: (format: MarkdownFormat) => void; revealRange: (from: number, to?: number) => void } | null>(null);
 const editorStats = ref<EditorStats>({ line: 1, column: 1, words: 0 });
-const { resolvedId, markdown, css, revision, saveState, sourceId, applyDocument, isDirty } = await useCvDocument(documentId, {
+const { resolvedId, markdown, css, revision, saveState, saveMessage, retrySave, sourceId, applyDocument, isDirty } = await useCvDocument(documentId, {
     markdown: "",
     css: referenceCvCss,
 });
@@ -28,6 +28,25 @@ const documentTitle = computed(
 useSeoMeta({
     title: () => documentTitle.value,
     ogTitle: () => documentTitle.value,
+});
+const editorChrome = useEditorChrome();
+const commitChromeTitle = (title: string) => {
+    const attr = markdown.value.match(/^#\s+.+?(\s*\{[^{}]+\})\s*$/m)?.[1] ?? "";
+    if (/^#\s+.+$/m.test(markdown.value)) markdown.value = markdown.value.replace(/^#\s+.+$/m, `# ${title}${attr}`);
+    else markdown.value = `# ${title}\n\n${markdown.value}`;
+};
+watchEffect(() => {
+    editorChrome.publish({
+        title: documentTitle.value,
+        titleEditable: true,
+        onTitleCommit: commitChromeTitle,
+        saveStatus: saveState.value === "saved"
+            ? { kind: "saved" as const, label: saveMessage.value }
+            : saveState.value === "saving"
+                ? { kind: "saving" as const, label: saveMessage.value }
+                : { kind: "error" as const, label: saveMessage.value, onRetry: retrySave },
+        actions: [],
+    });
 });
 const formatSource = (format: MarkdownFormat) => sourceEditor.value?.applyMarkdownFormat(format);
 const previewFrame = useTemplateRef<HTMLElement>("previewFrame");
@@ -87,6 +106,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
     window.removeEventListener("focus", readLocalProfiles);
     if (detectTimer) clearTimeout(detectTimer);
+    editorChrome.clear();
 });
 
 // Profile detection: highlight the profile values in the source and offer to save them.
