@@ -131,6 +131,7 @@ async function setConsent(category: ConsentCategory, input: HTMLInputElement) {
     padding: 24px;
 }
 .consent-card { cursor: pointer; display: flex; justify-content: space-between; gap: 24px; align-items: center; transition: background 150ms ease, color 150ms ease, border-color 150ms ease; }
+.consent-card:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 .consent-card h2, .retention-note h2 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
 .consent-card p, .retention-note p { margin: 8px 0; color: var(--fg-subtext0); line-height: 1.55; }
 .detail { font-size: 13px; }
