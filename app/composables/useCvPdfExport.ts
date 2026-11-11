@@ -51,7 +51,7 @@ export const useCvPdfExport = (getRoot: () => HTMLElement | null) => {
         if (!root) { error.value = "The CV preview is not ready. Wait for it to render, then retry."; return; }
         busy.value = true; progress.value = "Preparing rendered CV pages…";
         try {
-            if (permitted && !(await permitted)) throw new DirectorySaveError("permission-denied", FOLDER_UNAVAILABLE_MESSAGE);
+            if (permitted && !(await permitted)) throw new DirectorySaveError("permission-denied");
             const result = await exportCvPdf({ ...options, root, directory, onProgress: (completed, total) => { progress.value = `Creating page ${completed} of ${total}…`; } });
             progress.value = "";
             success.value = `Saved ${result.filename} to ${result.destination === "folder" ? label : DEFAULT_FOLDER_LABEL}`;
