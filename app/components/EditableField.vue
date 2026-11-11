@@ -152,9 +152,9 @@ onBeforeUnmount(() => {
         </div>
         <div class="editable-field__status">
             <Transition name="editable-field-fade">
-                <span v-if="saved && !error && !editing" class="editable-field__saved">Saved</span>
+                <span v-if="saved && !error && !editing" class="editable-field__saved" role="status">Saved</span>
             </Transition>
-            <span v-if="dirty" class="editable-field__unsaved">Unsaved</span>
+            <span v-if="dirty" class="editable-field__unsaved" role="status">Unsaved</span>
             <small v-if="error" :id="`${id}-error`" class="editable-field__error" role="alert">{{ error }}</small>
         </div>
     </div>
@@ -195,6 +195,7 @@ onBeforeUnmount(() => {
 .editable-field--error .editable-field__display { border-bottom-color: var(--danger, #f38ba8); }
 .editable-field__control { display: grid; gap: 8px; min-width: 0; }
 .editable-field__control select { box-sizing: border-box; width: 100%; min-height: 32px; padding: 8px; border: 1px solid var(--accent, #89b4fa); border-radius: 4px; outline: none; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; font-size: 13px; transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease; }
+.editable-field__control select:focus-visible { outline: 2px solid var(--accent, #89b4fa); outline-offset: 2px; }
 .editable-field--error .editable-field__control :deep(textarea) { border-color: var(--danger, #f38ba8); }
 .editable-field__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .editable-field__hint { flex-basis: 100%; color: var(--fg-subtext0, #777); font-size: 12px; text-align: right; }
