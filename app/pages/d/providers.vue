@@ -262,4 +262,9 @@ const loading = computed(() => status.value === "pending");
     .search { width: 100%; }
     .provider-list { gap: 24px; }
 }
+@media (max-width: 400px) {
+    .page { padding: 16px 8px; }
+    .empty { padding: 24px 16px; }
+    .provider-header { flex-wrap: wrap; gap: 8px; }
+}
 </style>

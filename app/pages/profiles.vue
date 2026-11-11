@@ -877,6 +877,7 @@ watchEffect(() => {
 }
 @media (max-width: 560px) {
     .profile-sheet { padding: 0 16px 32px; }
+    .profile-section-nav { margin: 0 -16px 18px; padding: 10px 16px 8px; }
 }
 
 .profiles-transfer { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: -4px 0 12px; }
@@ -911,6 +912,8 @@ watchEffect(() => {
     .profiles-transfer { grid-template-columns: 1fr; }
     .profile-section-nav { overflow-x: auto; }
     .profile-placeholder div { flex-wrap: wrap; }
+    .transfer-dialog { padding: 16px; }
+    .transfer-dialog footer { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) {
     .profiles-new, .profile-card, .profiles-page button, .profile-card__menu button { transition-duration: 0.01ms; }
