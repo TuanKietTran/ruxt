@@ -198,5 +198,6 @@ function submit() {
 .cv-pdf-button--primary:hover { background: var(--accent-hover, var(--accent)); }
 .cv-pdf-button:disabled { opacity: .55; cursor: not-allowed; }
 .cv-pdf-dialog :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-@media (max-width: 640px) { .cv-pdf-form { grid-template-columns: 1fr; } .cv-pdf-preview__page { min-height: 220px; } }
+@media (max-width: 640px) { .cv-pdf-backdrop { padding: 16px; } .cv-pdf-dialog { padding: 16px; } .cv-pdf-form { grid-template-columns: 1fr; } .cv-pdf-preview__page { min-height: 220px; } }
+@media (prefers-reduced-motion: reduce) { .cv-pdf-button { transition: none; } }
 </style>

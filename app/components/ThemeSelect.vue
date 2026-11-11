@@ -58,4 +58,9 @@ onMounted(() => {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
+@media (prefers-reduced-motion: reduce) {
+    .theme-select {
+        transition: none;
+    }
+}
 </style>
