@@ -221,7 +221,7 @@ const startEdit = async (profile: LocalProfile, discardConfirmed = false) => {
     editingId.value = profile.id;
     lastSavedAt.value = updatedAt;
 };
-const duplicateName = (profile: LocalProfile) => profiles.value.some(item => item.id !== profile.id && item.identity.fullName.trim().toLocaleLowerCase() === profile.identity.fullName.trim().toLocaleLowerCase());
+const duplicateName = (profile: LocalProfile) => { const label = profileLabel(profile).trim().toLocaleLowerCase(); return label !== "" && profiles.value.some(item => item.id !== profile.id && profileLabel(item).trim().toLocaleLowerCase() === label); };
 /** Sidebar primary line: the editable profile label when w-server's label field is present, else the headline, else the CV full name. */
 const profileLabel = (profile: LocalProfile) => (profile as { label?: string }).label?.trim() || profile.identity.headline?.trim() || profile.identity.fullName;
 const profileDate = (timestamp: number) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(timestamp));
@@ -564,7 +564,7 @@ watchEffect(() => {
                     <div class="profile-card__select"><strong>{{ draft.identity.fullName || "Untitled profile" }} <em class="draft-badge">Draft</em></strong><small class="profile-card__headline">{{ draft.identity.headline || "No headline" }}</small><small>{{ blank(draft.identity.fullName) ? "Not saved yet — add a full name to save it." : "Not saved yet." }}</small></div>
                 </article>
                 <article v-for="profile in profiles" :key="profile.id" class="profile-card" :class="{ active: editingId === profile.id }" @keydown="onProfileMenuKeydown($event, profile)">
-                    <button class="profile-card__select" type="button" :title="`Profile ID: ${profile.id}`" @click="closeProfileMenu(); startEdit(profile)"><strong class="profile-card__label">{{ profileLabel(profile) }}</strong><em v-if="duplicateName(profile)" class="duplicate-warning">Duplicate name</em><small class="profile-card__meta">{{ profile.identity.fullName }} · {{ profile.projects.length }} projects · {{ profileDate(profile.updatedAt) }}</small></button>
+                    <button class="profile-card__select" type="button" @click="closeProfileMenu(); startEdit(profile)"><strong class="profile-card__label">{{ profileLabel(profile) }}</strong><em v-if="duplicateName(profile)" class="duplicate-warning">Duplicate name</em><small class="profile-card__meta">{{ profile.identity.fullName }} · {{ profile.projects.length }} projects · {{ profileDate(profile.updatedAt) }}</small></button>
                     <div class="profile-card__menu-wrap"><button :id="`profile-menu-button-${profile.id}`" class="profile-card__menu-button" type="button" aria-haspopup="menu" :aria-expanded="openMenuId === profile.id" :aria-label="`Actions for ${profileLabel(profile)}`" @click.stop="toggleProfileMenu(profile)">…</button><div v-if="openMenuId === profile.id" class="profile-card__menu" role="menu"><button type="button" role="menuitem" @click="profileMenuAction(renameProfile, profile)">Rename</button><button type="button" role="menuitem" @click="profileMenuAction(duplicateProfile, profile)">Duplicate</button><hr class="profile-card__menu-divider"><button class="profile-delete" type="button" role="menuitem" :aria-label="`Delete ${profile.identity.fullName}`" @click="profileMenuAction(remove, profile)">Delete</button></div></div>
                 </article>
             </nav>
@@ -770,16 +770,17 @@ watchEffect(() => {
 .profiles-new, .profile-card { width: 100%; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: inherit; font: inherit; text-align: left; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
 .profile-card__select { display: grid; flex: 1; min-width: 0; gap: 4px; border: 0 !important; background: transparent; text-align: left !important; cursor: pointer; }
 .profile-card__menu-wrap { position: relative; flex-shrink: 0; }
-.profile-card__menu-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0 !important; background: transparent; font-size: 16px !important; line-height: 1; opacity: 0; }
+.profile-card__menu-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0 !important; border: 0; background: transparent; font-size: 16px !important; line-height: 1; opacity: 0; }
 .profile-card:hover .profile-card__menu-button, .profile-card:focus-within .profile-card__menu-button, .profile-card__menu-button[aria-expanded="true"] { opacity: 1; }
 .profile-card__menu-button:focus-visible { opacity: 1; outline: 2px solid var(--accent, #89b4fa); outline-offset: 1px; }
 .profile-card__menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: grid; min-width: 140px; padding: 4px; border: 1px solid var(--border, #333); border-radius: 4px; background: var(--bg-surface0, #313244); box-shadow: 0 8px 24px rgb(0 0 0 / .24); }
 .profile-card__menu-divider { margin: 4px 0; border: 0; border-top: 1px solid var(--border, #333); }
 .profile-card__menu button { padding: 6px 8px !important; border: 0 !important; background: transparent; font-size: 12px !important; text-align: left; white-space: nowrap; transition: background-color 150ms ease, color 150ms ease; }
 .profile-card__menu button:hover, .profile-card__menu button:focus-visible { background: var(--bg-base, #1e1e2e); }
-.duplicate-warning { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--yellow, #f9e2af); color: #11111b; font-size: 12px; font-style: normal; font-weight: 600; white-space: nowrap; }
+.duplicate-warning { display: inline-block; justify-self: start; color: var(--warning, #f9e2af); font-size: 11px; font-style: normal; font-weight: 600; white-space: nowrap; }
 .profiles-new { padding: 8px; margin-bottom: 12px; }
-.profiles-new:hover, .profile-card:hover, .profile-card.active { border-color: var(--accent, #89b4fa); background: var(--bg-base, #1e1e2e); }
+.profiles-new:hover { border-color: var(--accent, #89b4fa); background: var(--bg-base, #1e1e2e); }
+.profile-card:hover { border-color: var(--border-strong); background: var(--bg-surface0); }
 .profiles-empty { color: var(--fg-subtext1, #bac2de); font-size: 12px; }
 .profile-card { position: relative; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 12px; margin-bottom: 8px; }
 .profile-card.active { border-color: var(--accent, #89b4fa); background: var(--bg-base, #1e1e2e); box-shadow: inset 3px 0 0 var(--accent, #89b4fa); }

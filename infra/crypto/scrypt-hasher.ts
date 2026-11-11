@@ -15,7 +15,7 @@ const N = 16384,
    r = 8,
    p = 1,
    keylen = 64;
-const WORKER_PBKDF2_ITERATIONS = 120_000;
+const WORKER_PBKDF2_ITERATIONS = 100_000;
 
 type WorkerEnv = { __env__?: { RUXT_DB?: unknown } };
 const isCloudflareWorker = () => Boolean((globalThis as typeof globalThis & WorkerEnv).__env__?.RUXT_DB);

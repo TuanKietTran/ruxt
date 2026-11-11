@@ -11,7 +11,7 @@ describe("Cloudflare password hashing", () => {
       const hasher = new ScryptHasher();
       const plain = new PlainPassword({ value: "local-test-password" });
       const hashed = await hasher.hash(plain);
-      expect(hashed.hash).toMatch(/^pbkdf2\$120000\$/);
+      expect(hashed.hash).toMatch(/^pbkdf2\$100000\$/);
       expect(await hasher.verify(plain, hashed)).toBe(true);
       expect(await hasher.verify(new PlainPassword({ value: "wrong-password" }), hashed)).toBe(false);
    });
