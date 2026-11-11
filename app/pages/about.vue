@@ -141,4 +141,14 @@ useSeoMeta({
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+@media (prefers-reduced-motion: reduce) {
+  .btn { transition: none; }
+}
+@media (max-width: 640px) {
+  .landing { padding: 32px 16px; }
+  .sub { margin-bottom: 32px; }
+  .points { margin-bottom: 32px; }
+  .actions { flex-direction: column; align-items: stretch; }
+  .btn { justify-content: center; }
+}
 </style>
