@@ -97,7 +97,17 @@ function onKeydown(event: KeyboardEvent) {
 .app-dialog-backdrop { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; overflow-y: auto; padding: 24px; background: rgb(0 0 0 / 66%); }
 .app-dialog { width: min(440px, 100%); padding: 24px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-mantle); color: var(--fg-text); box-shadow: 0 8px 24px rgb(0 0 0 / 24%); }
 .app-dialog h2 { margin: 0; font-size: 18px; }.app-dialog > p { margin: 8px 0 0; color: var(--fg-subtext0); }
-.app-dialog__field { display: grid; gap: 6px; margin-top: 16px; font-size: 13px; }.app-dialog__field input { width: 100%; min-height: 40px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-base); color: inherit; font: inherit; }
+.app-dialog__field { display: grid; gap: 6px; margin-top: 16px; font-size: 13px; }.app-dialog__field input { width: 100%; min-height: 40px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-base); color: inherit; font: inherit; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
 .app-dialog__field input:focus-visible, .app-dialog__button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }.app-dialog__error { margin: 6px 0 0; color: var(--red); font-size: 13px; }
-.app-dialog footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 24px; }.app-dialog__button { min-height: 40px; padding: 8px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; cursor: pointer; }.app-dialog__button--primary { border-color: transparent; background: var(--accent); color: var(--bg-crust); }.app-dialog__button--danger { background: var(--red); color: var(--bg-crust); }
+.app-dialog footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 24px; }.app-dialog__button { min-height: 40px; padding: 8px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; cursor: pointer; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
+.app-dialog__button:hover { background: var(--bg-surface0); }
+.app-dialog__button--primary:hover { background: var(--accent-hover); }
+.app-dialog__button--danger:hover { background: var(--red); }.app-dialog__button--primary { border-color: transparent; background: var(--accent); color: var(--bg-crust); }.app-dialog__button--danger { background: var(--red); color: var(--bg-crust); }
+@media (prefers-reduced-motion: reduce) {
+    .app-dialog__button, .app-dialog__field input { transition-duration: 0.01ms; }
+}
+@media (max-width: 640px) {
+    .app-dialog-backdrop { padding: 16px; }
+    .app-dialog { padding: 16px; }
+}
 </style>
