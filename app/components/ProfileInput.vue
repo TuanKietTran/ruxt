@@ -80,8 +80,10 @@ const onBlur = () => {
     overflow-wrap: anywhere;
     resize: none;
     field-sizing: content;
+    transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
 }
 .profile-input--multiline { min-height: calc(2.8em + 16px); }
 .profile-input:focus { border-color: var(--accent, #89b4fa); }
 .profile-input::placeholder { color: var(--fg-subtext0, #777); }
+@media (prefers-reduced-motion: reduce) { .profile-input { transition-duration: 0.01ms; } }
 </style>
