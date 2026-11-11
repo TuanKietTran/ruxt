@@ -26,6 +26,62 @@ export const downloadBlob = (blob: Blob, filename: string, ownerDocument: Docume
     setTimeout(() => urlApi.revokeObjectURL(url), 1_000);
 };
 
+export type DirectorySaveErrorCode = "permission-denied" | "folder-unavailable";
+
+export const FOLDER_UNAVAILABLE_MESSAGE = "Folder unavailable. Choose another or use browser downloads.";
+
+export class DirectorySaveError extends Error {
+    code: DirectorySaveErrorCode;
+    constructor(code: DirectorySaveErrorCode) {
+        super(FOLDER_UNAVAILABLE_MESSAGE);
+        this.name = "DirectorySaveError";
+        this.code = code;
+    }
+}
+
+const errorName = (error: unknown) => (error as { name?: string } | null)?.name;
+
+export const ensureDirectoryPermission = async (dir: FileSystemDirectoryHandle): Promise<boolean> => {
+    try {
+        let state = await dir.queryPermission({ mode: "readwrite" });
+        if (state === "prompt") state = await dir.requestPermission({ mode: "readwrite" });
+        return state === "granted";
+    } catch {
+        return false;
+    }
+};
+
+const splitName = (filename: string) => {
+    const dot = filename.lastIndexOf(".");
+    return dot > 0 ? [filename.slice(0, dot), filename.slice(dot)] as const : [filename, ""] as const;
+};
+
+export const saveBlobToDirectory = async (blob: Blob, filename: string, dir: FileSystemDirectoryHandle): Promise<string> => {
+    try {
+        const [base, extension] = splitName(filename);
+        let name = filename;
+        for (let index = 1; ; index++) {
+            try {
+                await dir.getFileHandle(name, { create: false });
+            } catch (error) {
+                if (errorName(error) === "NotFoundError") break;
+                throw error;
+            }
+            name = `${base} (${index})${extension}`;
+        }
+        const file = await dir.getFileHandle(name, { create: true });
+        const writable = await file.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return name;
+    } catch (error) {
+        const name = errorName(error);
+        if (name === "NotAllowedError") throw new DirectorySaveError("permission-denied");
+        if (name === "NotFoundError" || name === "SecurityError") throw new DirectorySaveError("folder-unavailable");
+        throw error;
+    }
+};
+
 export async function exportCvImages(
     format: CvImageFormat,
     name = "cv",

@@ -1,7 +1,7 @@
 import { extractCvProfile } from "@ruxt/shared/cv";
 import type { CvProfileProps } from "@ruxt/shared/cv";
 import { renderCvMarkdownToHtml } from "@ruxt/editor/utils/cvMarkdown";
-import { safeFilename, downloadBlob } from "./exportCvImage";
+import { safeFilename, downloadBlob, saveBlobToDirectory } from "./exportCvImage";
 
 export type CvDocumentExportFormat = "md" | "html" | "jsonresume" | "yaml" | "docx";
 
@@ -146,7 +146,9 @@ export function parseCvPdfPageSelection(value: string, total: number): number[] 
     return [...selected].sort((a, b) => a - b);
 }
 
-export async function exportCvPdf(options: CvPdfRenderOptions): Promise<void> {
+export interface CvPdfExportResult { filename: string; destination: "folder" | "downloads" }
+
+export async function exportCvPdf(options: CvPdfRenderOptions & { directory?: FileSystemDirectoryHandle | null }): Promise<CvPdfExportResult> {
     if (!import.meta.client) throw new Error("PDF export is only available in the browser.");
     const { root } = options;
     if (!root.isConnected) throw new Error("The CV preview is no longer available. Reopen the export dialog and retry.");
@@ -194,7 +196,12 @@ export async function exportCvPdf(options: CvPdfRenderOptions): Promise<void> {
             options.onProgress?.(index + 1, pageNumbers.length);
         }
         const blob = pdf.output("blob");
+        if (options.directory) {
+            const saved = await saveBlobToDirectory(blob, `${safeFilename(options.filename)}.pdf`, options.directory);
+            return { filename: saved, destination: "folder" };
+        }
         downloadBlob(blob, `${safeFilename(options.filename)}.pdf`, ownerDocument);
+        return { filename: `${safeFilename(options.filename)}.pdf`, destination: "downloads" };
     } finally {
         staging.remove();
     }

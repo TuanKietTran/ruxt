@@ -98,6 +98,7 @@ suite("PDF runtime acceptance (product UI, isolated local browser)", () => {
         await openFixture(page, "selected");
         const dialog = await openPdfDialog(page);
         expect(await dialog.getByText("3 available").count()).toBe(1);
+        expect(await dialog.getByTestId("pdf-save-to").inputValue()).toBe("Downloads (browser default)");
         expect(await page.locator('[data-pdf-qa-sibling="true"]').count()).toBe(1);
         await dialog.getByLabel(/^Pages/).fill("2");
         const previewSheet = dialog.locator(".cv-pdf-preview__page .cv-sheet");

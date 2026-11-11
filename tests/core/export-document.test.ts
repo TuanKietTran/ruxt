@@ -53,3 +53,14 @@ describe("CV project export mapping", () => {
         expect(resume.projects[0]).toMatchObject({ name: "Engine", url: "https://example.test" });
     });
 });
+
+describe("CV PDF export destination", () => {
+    it("returns the saved filename and destination, writing to a directory only when one is given", async () => {
+        const { readFileSync } = await import("node:fs");
+        const source = readFileSync(new URL("../../app/utils/exportCvDocument.ts", import.meta.url), "utf8");
+        expect(source).toContain("Promise<CvPdfExportResult>");
+        expect(source).toContain("saveBlobToDirectory(blob, `${safeFilename(options.filename)}.pdf`, options.directory)");
+        expect(source).toContain('destination: "folder"');
+        expect(source).toContain('destination: "downloads"');
+    });
+});
