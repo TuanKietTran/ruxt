@@ -862,7 +862,6 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
         border-left: none;
         border-radius: var(--radius-lg);
         border: 1px solid var(--border-strong);
-        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
         transform: scale(0.95) translateY(-8px);
         transition: transform 0.2s ease;
     }
@@ -903,7 +902,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
         pointer-events: none;
         opacity: 0;
         transform: translateY(20px);
-        transition: opacity 0.22s ease, transform 0.22s ease;
+        transition: opacity 0.2s ease, transform 0.2s ease;
     }
     .add-panel.visible {
         pointer-events: auto;
@@ -1251,7 +1250,6 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     border: 1px solid var(--red);
     border-radius: var(--radius-lg);
     background: var(--bg-base);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent), 0 24px 64px rgba(0, 0, 0, 0.5);
 }
 
 /* ── Terminate dialog ──────────────────────────────────────────────────────── */
@@ -1276,8 +1274,6 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     display: flex;
     flex-direction: column;
     gap: 16px;
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent),
-                0 24px 64px rgba(0, 0, 0, 0.5);
 }
 
 .tm-icon {
