@@ -7,6 +7,7 @@ export const ICONS = [
     "lucide:circle-help",
     "lucide:circle-user-round",
     "lucide:file-text",
+    "lucide:folder",
     "lucide:id-card",
     "lucide:log-in",
     "lucide:settings",

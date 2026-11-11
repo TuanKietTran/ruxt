@@ -10,8 +10,13 @@ const props = withDefaults(defineProps<{
     progress?: string;
     error?: string;
     success?: string;
-}>(), { previewRoot: null, pageCount: 0, busy: false, progress: "", error: "", success: "" });
-const emit = defineEmits<{ close: []; generate: [options: CvPdfExportOptions] }>();
+    folderLabel?: string;
+    canPick?: boolean;
+}>(), { previewRoot: null, pageCount: 0, busy: false, progress: "", error: "", success: "", folderLabel: "Downloads (browser default)", canPick: false });
+const emit = defineEmits<{ close: []; generate: [options: CvPdfExportOptions]; pick: []; reset: [] }>();
+const DEFAULT_FOLDER = "Downloads (browser default)";
+const folderValue = computed(() => props.folderLabel || DEFAULT_FOLDER);
+const folderPicked = computed(() => folderValue.value !== DEFAULT_FOLDER);
 const filename = ref(props.documentName);
 const paper = ref<"a4" | "letter" | "legal">("a4");
 const orientation = ref<"portrait" | "landscape">("portrait");
@@ -132,6 +137,15 @@ function submit() {
                 <form class="cv-pdf-form" @submit.prevent="submit">
                     <div class="cv-pdf-options">
                         <label>Filename<input ref="filenameInput" v-model="filename" autocomplete="off" :disabled="busy"><small>.pdf will be added automatically</small></label>
+                        <div class="cv-pdf-folder" data-testid="pdf-save-folder">
+                            <label for="cv-pdf-save-to">Save to</label>
+                            <div class="cv-pdf-folder__field"><AppIcon v-if="folderPicked" name="lucide:folder" :size="16" /><input id="cv-pdf-save-to" data-testid="pdf-save-to" :value="folderValue" readonly aria-describedby="cv-pdf-save-hint"></div>
+                            <small id="cv-pdf-save-hint">{{ folderPicked ? "Saved silently into this folder; stored only in this browser." : "Your browser's default download location" }}</small>
+                            <div class="cv-pdf-folder__actions">
+                                <button v-if="canPick" class="cv-pdf-button" type="button" data-testid="pdf-choose-folder" :disabled="busy" @click="emit('pick')">Choose folder</button>
+                                <button v-if="folderPicked" class="cv-pdf-button" type="button" data-testid="pdf-reset-folder" :disabled="busy" @click="emit('reset')">Downloads (browser default)</button>
+                            </div>
+                        </div>
                         <label>Paper<select v-model="paper" :disabled="busy"><option value="a4">A4</option><option value="letter">US Letter</option><option value="legal">US Legal</option></select></label>
                         <label>Orientation<select v-model="orientation" :disabled="busy"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label>
                         <label>Pages <span class="cv-pdf-hint">({{ pageCount }} available; blank for all)</span><input v-model="pages" :placeholder="pageCount ? `1-${pageCount}` : 'All pages'" :disabled="busy" :aria-invalid="Boolean(pageSelectionError)" aria-describedby="cv-pdf-pages-hint"><small id="cv-pdf-pages-hint">Page numbers and ranges, e.g. 1-3,5</small></label>
@@ -141,7 +155,7 @@ function submit() {
                     <p v-if="error" class="cv-pdf-error" role="alert">{{ error }}</p>
                     <p v-if="success" class="cv-pdf-success" role="status">{{ success }}</p>
                     <p v-if="progress" class="cv-pdf-progress" role="status" aria-live="polite">{{ progress }}</p>
-                    <footer><button class="cv-pdf-button" type="button" :disabled="busy" @click="close">Cancel</button><button class="cv-pdf-button cv-pdf-button--primary" type="submit" :disabled="busy || !pageCount">{{ busy ? "Generating…" : "Download PDF" }}</button></footer>
+                    <footer><button class="cv-pdf-button" type="button" :disabled="busy" @click="close">{{ success ? "Close" : "Cancel" }}</button><button class="cv-pdf-button cv-pdf-button--primary" type="submit" :disabled="busy || !pageCount">{{ busy ? "Generating…" : "Download PDF" }}</button></footer>
                 </form>
             </section>
         </div>
@@ -153,6 +167,7 @@ function submit() {
 .cv-pdf-dialog { width: min(1080px, 100%); max-height: 92vh; overflow: auto; padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-mantle); color: var(--fg-text); box-shadow: 0 24px 80px rgb(0 0 0 / 38%); }
 .cv-pdf-dialog header { display: flex; justify-content: space-between; gap: 18px; }.cv-pdf-dialog h2 { margin: 0; font-size: 19px; }.cv-pdf-dialog header p { margin: 4px 0 0; color: var(--fg-subtext0); }.cv-pdf-close { width: 36px; height: 36px; border: 0; background: transparent; color: inherit; font-size: 26px; cursor: pointer; }
 .cv-pdf-form { display: grid; grid-template-columns: minmax(0, .7fr) minmax(320px, 1.3fr); gap: 18px; margin-top: 18px; }.cv-pdf-options { display: grid; align-content: start; gap: 12px; }.cv-pdf-options > label { display: grid; gap: 4px; color: var(--fg-subtext1); font-size: 12px; }.cv-pdf-options input, .cv-pdf-options select { width: 100%; min-height: 36px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-base); color: inherit; font: inherit; }.cv-pdf-options small, .cv-pdf-hint { color: var(--fg-subtext0); font-size: 11px; }
+.cv-pdf-folder { display: grid; gap: 4px; color: var(--fg-subtext1); font-size: 12px; }.cv-pdf-folder__field { position: relative; display: flex; align-items: center; }.cv-pdf-folder__field .app-icon { position: absolute; left: 8px; color: var(--fg-subtext0); }.cv-pdf-folder__field .app-icon + input { padding-left: 30px; }.cv-pdf-folder__actions { display: flex; flex-wrap: wrap; gap: 8px; }.cv-pdf-folder__actions:empty { display: none; }.cv-pdf-folder small { color: var(--fg-subtext0); font-size: 11px; }
 .cv-pdf-preview { min-width: 0; display: grid; grid-template-rows: auto minmax(400px, 1fr) auto; gap: 8px; }.cv-pdf-preview h3 { margin: 0; font-size: 13px; }.cv-pdf-preview__page { min-height: 400px; max-height: 660px; overflow: auto; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px; border: 1px solid var(--border); background: var(--bg-surface0); }.cv-pdf-preview__page small { color: var(--fg-subtext0); }.cv-pdf-preview__page p { color: var(--fg-subtext0); font-size: 12px; }
 .cv-pdf-error { grid-column: 1/-1; margin: 0; color: var(--red); }.cv-pdf-success { grid-column: 1/-1; margin: 0; color: var(--green); }.cv-pdf-progress { grid-column: 1/-1; margin: 0; color: var(--fg-subtext0); }.cv-pdf-form footer { grid-column: 1/-1; display: flex; justify-content: flex-end; gap: 8px; }.cv-pdf-button { min-height: 38px; padding: 7px 14px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: inherit; font: inherit; cursor: pointer; }.cv-pdf-button--primary { border-color: transparent; background: var(--accent); color: var(--bg-crust); }.cv-pdf-button:disabled { opacity: .55; cursor: not-allowed; }.cv-pdf-dialog :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (max-width: 640px) { .cv-pdf-form { grid-template-columns: 1fr; }.cv-pdf-preview__page { min-height: 220px; } }
