@@ -1,5 +1,7 @@
+import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { resolveAppVersion } from "./app/utils/app-version";
 import { ICONS } from "./app/utils/icons";
 
 const infraPath = fileURLToPath(new URL("./infra", import.meta.url));
@@ -22,6 +24,27 @@ const durableStorage = (base: string, directory: string, kvOptions: Record<strin
    : cloudflareStorage
       ? { driver: chunkedCloudflareKvDriver, base, binding: "RUXT_KV", ...kvOptions }
       : { driver: "fs", base: process.env[directory] ?? `./.data/${base}` };
+
+const gitTag = (): string => {
+   try {
+      return execSync("git describe --tags --abbrev=0", { encoding: "utf8" }).trim();
+   } catch {
+      return "";
+   }
+};
+const gitSha = (): string => {
+   try {
+      return execSync("git rev-parse --short=7 HEAD", { encoding: "utf8" }).trim();
+   } catch {
+      return "";
+   }
+};
+const { version: appVersion, commit: appCommit } = resolveAppVersion({
+   gitTag: gitTag(),
+   envRefName: process.env.GITHUB_REF_NAME,
+   gitSha: gitSha(),
+   envSha: process.env.GITHUB_SHA,
+});
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -50,6 +73,8 @@ export default defineNuxtConfig({
       // deployed Deno timelines are validated by validate-deployment-env.ts.
       sessionSecret: "dev-only-secret-change-me-in-production!!",
       public: {
+         appVersion,
+         appCommit,
          // Compatibility flags for old bundles: server CV routes, streams and revision probes are retired.
          cvLiveEvents: false,
          cvPollSeconds: 0,

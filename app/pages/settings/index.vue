@@ -92,6 +92,8 @@ async function setSaveMode(mode: ProfileSaveMode) {
 
         <p v-if="error" class="notice error" role="alert">{{ error }}</p>
         <p v-else-if="status" class="notice" role="status">{{ status }}</p>
+
+        <AppVersion />
     </div>
 </template>
 
