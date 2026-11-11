@@ -264,7 +264,7 @@ const activeSource = computed({
 .cv-export-scope { display: contents; }
 .source-tab {
     height: 100%;
-    padding: 0 14px;
+    padding: 0 12px;
     border: 0;
     background: transparent;
     color: var(--fg-subtext0);
@@ -323,7 +323,7 @@ const activeSource = computed({
 .profile-overwrite { box-sizing: border-box; width: min(1000px, 96vw); max-height: 90vh; overflow: auto; padding: 20px; border: 1px solid var(--border); background: var(--bg-base); color: var(--fg-text); }
 .profile-overwrite h2 { margin-top: 0; font-size: 16px; }
 .switch-diff { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.switch-diff pre { max-height: 45vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--border); padding: 10px; font-size: 11px; }
+.switch-diff pre { max-height: 45vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--border); padding: 12px; font-size: 11px; }
 .profile-overwrite footer { display: flex; justify-content: end; gap: 8px; margin-top: 16px; }
 .profile-overwrite-backdrop label { display: flex; gap: 8px; }
 .profile-switch__error {
