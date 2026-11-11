@@ -1,25 +1,19 @@
 import { expect, test } from 'vitest';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { mkdtempSync } from 'node:fs';
+import { makePlatformRoot, seedStagingRegistries, stagingEnvironmentsJson } from '../helpers/platform';
 
 // Apply-safety: every refused apply must leave registries and the stored
 // plan byte-identical. The only permitted write on a native refusal is the
 // append-only audit entry recording the refusal itself; legacy refusals
 // throw before any write at all. No successful apply happens in this file,
 // so the database health must stay 'unknown' throughout.
-const root = mkdtempSync(join(tmpdir(), 'plt-apply-safety-'));
-process.env.PLATFORM_DATA_DIR = join(root, 'data');
+const root = makePlatformRoot('plt-apply-safety-');
 
 const envFile = join(root, 'data', 'registries', 'environments.json');
 const dbFile = join(root, 'data', 'registries', 'databases.json');
-const envJson = (requiredEnv: string[]) => JSON.stringify({ environments: [{ name: 'staging', deploymentEnv: 'staging', databaseId: 'db-sqlite', adapterId: 'native', requiredEnv }] });
 
-mkdirSync(join(root, 'data', 'registries'), { recursive: true });
-writeFileSync(envFile, envJson([]));
-writeFileSync(dbFile, JSON.stringify({ databases: [{ id: 'db-sqlite', environment: 'staging', adapter: 'sqlite', reference: join(root, 'store.db'), migrationState: { applied: [] }, health: 'unknown' }] }));
-writeFileSync(join(root, 'store.db'), '');
+seedStagingRegistries(root);
 
 const { adapters } = await import('../../tools/platform/src/adapters/index.ts');
 const { writePlan } = await import('../../tools/platform/src/plan.ts');
@@ -84,7 +78,7 @@ test('native stale plan is refused and the databases registry is untouched', asy
   await writePlan(plan);
   const dbBefore = readFileSync(dbFile, 'utf8');
   const planBefore = readFileSync(planFile(plan.id), 'utf8');
-  writeFileSync(envFile, envJson(['NUXT_SESSION_SECRET']));
+  writeFileSync(envFile, stagingEnvironmentsJson(['NUXT_SESSION_SECRET']));
   try {
     const entry = await adapters.native.apply(plan.id, plan.hash);
     expect(entry.result).toBe('refused');
@@ -93,7 +87,7 @@ test('native stale plan is refused and the databases registry is untouched', asy
     expect(readFileSync(planFile(plan.id), 'utf8')).toBe(planBefore);
     expect((await loadRegistry('databases')).databases[0].health).toBe('unknown');
   } finally {
-    writeFileSync(envFile, envJson([]));
+    writeFileSync(envFile, stagingEnvironmentsJson([]));
   }
 });
 

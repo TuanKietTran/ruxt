@@ -1,22 +1,8 @@
 import { expect, test } from 'vitest';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { mkdtempSync } from 'node:fs';
+import { makePlatformRoot, seedStagingRegistries } from '../helpers/platform';
 
-const root = mkdtempSync(join(tmpdir(), 'plt-native-'));
-process.env.PLATFORM_DATA_DIR = join(root, 'data');
-
-mkdirSync(join(root, 'data', 'registries'), { recursive: true });
-writeFileSync(
-  join(root, 'data', 'registries', 'environments.json'),
-  JSON.stringify({ environments: [{ name: 'staging', deploymentEnv: 'staging', databaseId: 'db-sqlite', adapterId: 'native', requiredEnv: [] }] }),
-);
-writeFileSync(
-  join(root, 'data', 'registries', 'databases.json'),
-  JSON.stringify({ databases: [{ id: 'db-sqlite', environment: 'staging', adapter: 'sqlite', reference: join(root, 'store.db'), migrationState: { applied: [] }, health: 'unknown' }] }),
-);
-writeFileSync(join(root, 'store.db'), '');
+const root = makePlatformRoot('plt-native-');
+seedStagingRegistries(root);
 
 const { hashOf, withoutHash, writePlan } = await import('../../tools/platform/src/plan.ts');
 const { nativeAdapter } = await import('../../tools/platform/src/adapters/native.ts');

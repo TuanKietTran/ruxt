@@ -1,22 +1,15 @@
 import { expect, test } from 'vitest';
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { mkdtempSync } from 'node:fs';
+import { makePlatformRoot, seedStagingRegistries } from '../helpers/platform';
 
 // Integrity: plan hashes are key-order stable and tamper-evident, the audit
 // log grows by raw append only, a registry that fails schema validation is
 // rejected before anything is written, and caller-supplied actor / id /
 // role values never override the session- or environment-derived identity.
-const root = mkdtempSync(join(tmpdir(), 'plt-integrity-'));
-process.env.PLATFORM_DATA_DIR = join(root, 'data');
-process.env.PLATFORM_ACTOR = 'integrity-actor';
-
-mkdirSync(join(root, 'data', 'registries'), { recursive: true });
-writeFileSync(join(root, 'data', 'registries', 'environments.json'), JSON.stringify({ environments: [{ name: 'staging', deploymentEnv: 'staging', databaseId: 'db-sqlite', adapterId: 'native', requiredEnv: [] }] }));
-writeFileSync(join(root, 'data', 'registries', 'databases.json'), JSON.stringify({ databases: [{ id: 'db-sqlite', environment: 'staging', adapter: 'sqlite', reference: join(root, 'store.db'), migrationState: { applied: [] }, health: 'unknown' }] }));
+const root = makePlatformRoot('plt-integrity-', 'integrity-actor');
+seedStagingRegistries(root);
 writeFileSync(join(root, 'data', 'registries', 'legacy.json'), JSON.stringify({ providers: [{ provider: 'clerk', sunsetDate: '2027-01', dependents: ['auth'], checklist: [{ id: 'c1', label: 'step', state: 'pending' }], replacement: 'native' }] }));
-writeFileSync(join(root, 'store.db'), '');
 
 const { adapters } = await import('../../tools/platform/src/adapters/index.ts');
 const { canonical, itemChecksum, planHashOf, withoutHash, writePlan, readPlan } = await import('../../tools/platform/src/plan.ts');

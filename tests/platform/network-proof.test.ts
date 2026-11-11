@@ -1,8 +1,7 @@
 import { expect, test, vi } from 'vitest';
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { mkdtempSync } from 'node:fs';
+import { makePlatformRoot, seedStagingRegistries } from '../helpers/platform';
 
 // No-network / no-credential proof: the platform src contains no network
 // APIs at all (static scan), a trapped global fetch is never called while
@@ -10,19 +9,14 @@ import { mkdtempSync } from 'node:fs';
 // sentinel env value never appears in any returned object, console output,
 // stored plan, audit entry, or registry file — secrets surface as names
 // plus presence only.
-const root = mkdtempSync(join(tmpdir(), 'plt-network-proof-'));
-process.env.PLATFORM_DATA_DIR = join(root, 'data');
-process.env.PLATFORM_ACTOR = 'network-proof-actor';
+const root = makePlatformRoot('plt-network-proof-', 'network-proof-actor');
 const SENTINEL_NAME = 'PLT_SENTINEL_SECRET';
 const SENTINEL = ['plt-sentinel', '9f3e', 'do-not-leak'].join('-');
 process.env[SENTINEL_NAME] = SENTINEL;
 process.env.PLT_EMPTY_SECRET = '';
 delete process.env.PLT_DEFINITELY_MISSING_X;
 
-mkdirSync(join(root, 'data', 'registries'), { recursive: true });
-writeFileSync(join(root, 'data', 'registries', 'environments.json'), JSON.stringify({ environments: [{ name: 'staging', deploymentEnv: 'staging', databaseId: 'db-sqlite', adapterId: 'native', requiredEnv: [SENTINEL_NAME] }] }));
-writeFileSync(join(root, 'data', 'registries', 'databases.json'), JSON.stringify({ databases: [{ id: 'db-sqlite', environment: 'staging', adapter: 'sqlite', reference: join(root, 'store.db'), migrationState: { applied: [] }, health: 'unknown' }] }));
-writeFileSync(join(root, 'store.db'), '');
+seedStagingRegistries(root, [SENTINEL_NAME]);
 
 const { adapters } = await import('../../tools/platform/src/adapters/index.ts');
 const { checkEnv } = await import('../../tools/platform/src/secrets.ts');

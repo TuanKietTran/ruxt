@@ -1,15 +1,12 @@
 import { expect, test, vi } from 'vitest';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { mkdtempSync } from 'node:fs';
+import { makePlatformRoot } from '../helpers/platform';
 
 // Dry-run e2e: drive the CLI/library plan flow for every adapter and every
 // command family against a temp data dir. No network, no live providers,
 // no credential values: secrets appear as names + presence only.
-const root = mkdtempSync(join(tmpdir(), 'plt-e2e-'));
-process.env.PLATFORM_DATA_DIR = join(root, 'data');
-process.env.PLATFORM_ACTOR = 'e2e-actor';
+const root = makePlatformRoot('plt-e2e-', 'e2e-actor');
 process.env.PLT_E2E_PRESENT = 'present';
 delete process.env.PLT_E2E_DEFINITELY_MISSING;
 
