@@ -192,6 +192,7 @@ onBeforeUnmount(() => {
                 class="source-tab"
                 :class="{ 'source-tab--active': activeTab === 'markdown' }"
                 type="button"
+                :aria-pressed="activeTab === 'markdown'"
                 @click="activeTab = 'markdown'"
             >
                 content.md
@@ -200,6 +201,7 @@ onBeforeUnmount(() => {
                 class="source-tab"
                 :class="{ 'source-tab--active': activeTab === 'css' }"
                 type="button"
+                :aria-pressed="activeTab === 'css'"
                 @click="activeTab = 'css'"
             >
                 style.css
