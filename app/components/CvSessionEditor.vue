@@ -204,6 +204,7 @@ const activeSource = computed({
                 class="source-tab"
                 :class="{ 'source-tab--active': activeTab === tab }"
                 type="button"
+                :aria-pressed="activeTab === tab"
                 @click="activeTab = tab"
             >
                 {{ tab === "markdown" ? "content.md" : "style.css" }}
@@ -264,13 +265,14 @@ const activeSource = computed({
 .cv-export-scope { display: contents; }
 .source-tab {
     height: 100%;
-    padding: 0 14px;
+    padding: 0 12px;
     border: 0;
     background: transparent;
     color: var(--fg-subtext0);
     font: inherit;
     font-size: 12px;
     cursor: pointer;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
 }
 .source-tab--active {
     color: var(--fg-text);
@@ -304,6 +306,7 @@ const activeSource = computed({
     font-size: 12px;
     white-space: nowrap;
     cursor: pointer;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
 }
 .profile-detect-toggle--active {
     border-color: var(--accent);
@@ -318,13 +321,15 @@ const activeSource = computed({
     color: var(--fg-text);
     font: inherit;
     font-size: 12px;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
 }
 .profile-overwrite-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px; background: rgb(0 0 0 / .65); }
 .profile-overwrite { box-sizing: border-box; width: min(1000px, 96vw); max-height: 90vh; overflow: auto; padding: 20px; border: 1px solid var(--border); background: var(--bg-base); color: var(--fg-text); }
 .profile-overwrite h2 { margin-top: 0; font-size: 16px; }
 .switch-diff { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.switch-diff pre { max-height: 45vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--border); padding: 10px; font-size: 11px; }
+.switch-diff pre { max-height: 45vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--border); padding: 12px; font-size: 11px; }
 .profile-overwrite footer { display: flex; justify-content: end; gap: 8px; margin-top: 16px; }
+.profile-overwrite footer button { height: 28px; padding: 0 12px; border: 1px solid var(--border, var(--fg-subtext0)); border-radius: 4px; background: transparent; color: var(--fg-text); font: inherit; font-size: 12px; cursor: pointer; transition: background-color .15s ease, color .15s ease, border-color .15s ease; }
 .profile-overwrite-backdrop label { display: flex; gap: 8px; }
 .profile-switch__error {
     overflow: hidden;
@@ -333,5 +338,13 @@ const activeSource = computed({
     font-size: 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+@media (max-width: 640px) {
+    .profile-switch { flex-wrap: wrap; }
+    .switch-diff { grid-template-columns: 1fr; }
+    .profile-overwrite { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .source-tab, .profile-detect-toggle, .profile-switch select, .profile-overwrite footer button { transition: none; }
 }
 </style>

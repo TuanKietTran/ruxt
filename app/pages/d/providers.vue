@@ -56,7 +56,7 @@ const loading = computed(() => status.value === "pending");
             </div>
         </div>
 
-        <div v-if="loading" class="loading">Loading…</div>
+        <div v-if="loading" class="loading" role="status">Loading…</div>
 
         <template v-else>
             <div class="filters">
@@ -69,7 +69,7 @@ const loading = computed(() => status.value === "pending");
                 />
             </div>
 
-            <div v-if="providerGroups.length === 0" class="empty">No providers found.</div>
+            <div v-if="providerGroups.length === 0" class="empty"><template v-if="search">No providers match "{{ search }}".</template><template v-else>No providers found.</template></div>
 
             <div v-else class="provider-list">
                 <section
@@ -86,12 +86,12 @@ const loading = computed(() => status.value === "pending");
                         <table class="plan-table">
                             <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Cycle</th>
-                                    <th>Price</th>
-                                    <th>Trial</th>
-                                    <th>Features</th>
-                                    <th>Visibility</th>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Cycle</th>
+                                    <th scope="col">Price</th>
+                                    <th scope="col">Trial</th>
+                                    <th scope="col">Features</th>
+                                    <th scope="col">Visibility</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -105,7 +105,7 @@ const loading = computed(() => status.value === "pending");
                                         {{ formatMoney(plan.price.amountMinor, plan.price.currency) }}
                                     </td>
                                     <td class="muted">
-                                        {{ plan.trialDays ? `${plan.trialDays}d` : "—" }}
+                                        {{ plan.trialDays ? `${plan.trialDays} day${plan.trialDays === 1 ? "" : "s"}` : "—" }}
                                     </td>
                                     <td class="muted">
                                         {{ plan.features.length ? plan.features.join(", ") : "—" }}
@@ -134,9 +134,8 @@ const loading = computed(() => status.value === "pending");
 
 .page-header { margin-bottom: 24px; }
 .page-title {
-    font-size: 26px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-size: 24px;
+    font-weight: 600;
     color: var(--fg-text);
     margin: 0 0 4px;
 }
@@ -170,7 +169,7 @@ const loading = computed(() => status.value === "pending");
     font-size: 13px;
     outline: none;
     width: 280px;
-    transition: border-color 0.15s;
+    transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
 }
 .search::placeholder { color: var(--fg-subtext1); }
 /* Latte: subtext1 on surface0 is 4.05:1; the darkened mix is 5.46:1. */
@@ -188,8 +187,8 @@ const loading = computed(() => status.value === "pending");
 }
 
 .provider-name {
-    font-size: 18px;
-    font-weight: 700;
+    font-size: 16px;
+    font-weight: 600;
     color: var(--fg-text);
     margin: 0;
 }
@@ -204,37 +203,38 @@ const loading = computed(() => status.value === "pending");
     background: var(--bg-mantle);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    overflow: hidden;
+    overflow-x: auto;
 }
 
 .plan-table {
     width: 100%;
+    min-width: 640px;
     border-collapse: collapse;
     font-size: 14px;
 }
 
 .plan-table thead th {
-    padding: 10px 20px;
+    padding: 8px 16px;
     text-align: left;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
     color: var(--fg-subtext0);
     background: var(--bg-crust);
     border-bottom: 1px solid var(--border);
 }
 
 .plan-row td {
-    padding: 12px 20px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--border);
     vertical-align: top;
     color: var(--fg-text);
+    overflow-wrap: anywhere;
+    transition: background 150ms ease, color 150ms ease;
 }
 .plan-row:last-child td { border-bottom: none; }
 .plan-row:hover td { background: var(--bg-surface0); }
 
-.plan-name-cell { display: flex; flex-direction: column; gap: 2px; }
+.plan-name-cell { display: flex; flex-direction: column; gap: 4px; }
 .plan-name { font-weight: 500; }
 .plan-desc { font-size: 12px; color: var(--fg-subtext0); }
 
@@ -244,23 +244,22 @@ const loading = computed(() => status.value === "pending");
 .badge-public, .badge-private {
     display: inline-block;
     padding: 2px 8px;
-    border-radius: var(--radius-full);
-    font-size: 11px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
     font-weight: 600;
-    border: 1px solid;
+    border: 1px solid var(--border);
+    background: var(--bg-surface0);
 }
-.badge-public {
-    color: var(--green);
-    border-color: var(--green);
-    background: color-mix(in srgb, var(--green) 10%, transparent);
-}
-.badge-private {
-    color: var(--yellow);
-    border-color: var(--yellow);
-    background: color-mix(in srgb, var(--yellow) 10%, transparent);
-}
+.badge-public { color: var(--green); }
+.badge-private { color: var(--yellow); }
 
 /* Latte: raw --green/--yellow badge text is ~3.0:1 / ~2.3:1 on the tinted background. */
-[data-theme="latte"] .badge-public { color: color-mix(in srgb, var(--green) 62%, #000); border-color: color-mix(in srgb, var(--green) 62%, #000); }
-[data-theme="latte"] .badge-private { color: color-mix(in srgb, var(--yellow) 58%, #000); border-color: color-mix(in srgb, var(--yellow) 58%, #000); }
+[data-theme="latte"] .badge-public { color: color-mix(in srgb, var(--green) 62%, #000); }
+[data-theme="latte"] .badge-private { color: color-mix(in srgb, var(--yellow) 58%, #000); }
+
+@media (max-width: 640px) {
+    .page { padding: 24px 16px; }
+    .search { width: 100%; }
+    .provider-list { gap: 24px; }
+}
 </style>

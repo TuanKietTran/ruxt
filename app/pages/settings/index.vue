@@ -59,6 +59,8 @@ async function setSaveMode(mode: ProfileSaveMode) {
             <p>{{ storageDescription }}</p>
         </header>
 
+        <p v-if="!preferencesLoaded" class="notice" role="status">Loading preferences…</p>
+
         <section class="settings-card" aria-labelledby="profile-save-title">
             <h2 id="profile-save-title">Profile editor</h2>
             <p class="detail">Profile fields are read-only until you click one to edit it. Current save mode: {{ modeCopy[preferences.profileSaveMode].title }} — {{ modeCopy[preferences.profileSaveMode].detail }} Change it below; the profile editor header shows the same mode.</p>
@@ -98,21 +100,22 @@ async function setSaveMode(mode: ProfileSaveMode) {
 .page-header { min-width: 0; }
 .page-header h1 { margin: 4px 0 10px; font-size: 32px; overflow-wrap: anywhere; }
 .page-header p { max-width: 680px; color: var(--fg-subtext0); line-height: 1.6; overflow-wrap: anywhere; }
-.eyebrow { color: var(--accent) !important; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.settings-card { box-sizing: border-box; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-mantle); padding: 22px; }
-.settings-card h2 { margin: 0 0 8px; font-size: 18px; overflow-wrap: anywhere; }
-.detail { margin: 6px 0 14px; color: var(--fg-subtext0); font-size: 13px; line-height: 1.55; }
-.choice-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 10px; }
-.choice { display: flex; min-width: 0; gap: 10px; align-items: flex-start; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; }
+.page-header .eyebrow { color: var(--accent); font-size: 12px; font-weight: 600; }
+.settings-card { box-sizing: border-box; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-mantle); padding: 24px; }
+.settings-card h2 { margin: 0 0 8px; font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.detail { margin: 8px 0 16px; color: var(--fg-subtext0); font-size: 13px; line-height: 1.55; }
+.choice-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 8px; }
+.choice { display: flex; min-width: 0; gap: 8px; align-items: flex-start; padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: background 150ms ease, color 150ms ease, border-color 150ms ease; }
 .choice--active { border-color: var(--accent); background: var(--bg-surface0); }
 .choice:has(input:disabled) { opacity: .7; cursor: wait; }
-.choice input { margin-top: 3px; accent-color: var(--accent); }
+.choice input { margin-top: 4px; accent-color: var(--accent); }
 .choice span { display: grid; gap: 4px; }
 .choice small { min-width: 0; color: var(--fg-subtext0); line-height: 1.5; overflow-wrap: anywhere; }
 .settings-link { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
 .settings-link > div { min-width: 0; flex: 1 1 220px; }
 .settings-link .detail { margin-bottom: 0; }
-.notice { margin: 0; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--bg-surface0); }
-.error { color: var(--error, #e55); }
-@media (max-width: 620px) { .settings { margin-top: 28px; } }
+.settings-link .btn { transition: background 150ms ease, color 150ms ease, border-color 150ms ease; }
+.notice { margin: 0; padding: 12px 16px; border-radius: var(--radius-sm); background: var(--bg-surface0); }
+.error { color: var(--danger); }
+@media (max-width: 640px) { .settings { margin-top: 24px; } .settings-card { padding: 16px; } .settings-link { flex-direction: column; align-items: flex-start; } }
 </style>

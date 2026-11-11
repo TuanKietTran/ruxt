@@ -49,7 +49,7 @@ async function setConsent(category: ConsentCategory, input: HTMLInputElement) {
             </p>
         </header>
 
-        <p v-if="status === 'pending'" class="notice">Loading your consent settings…</p>
+        <p v-if="status === 'pending'" class="notice" role="status">Loading your consent settings…</p>
         <p v-else-if="loadError" class="notice error" role="alert">Consent settings could not be loaded.</p>
 
         <template v-else-if="consent && user">
@@ -109,7 +109,7 @@ async function setConsent(category: ConsentCategory, input: HTMLInputElement) {
             </section>
 
             <p v-if="mutationError" class="notice error" role="alert">{{ mutationError }}</p>
-            <p v-else-if="saving" class="notice" aria-live="polite">Saving consent…</p>
+            <p v-else-if="saving" class="notice" role="status">Saving consent…</p>
         </template>
     </div>
 </template>
@@ -123,26 +123,28 @@ async function setConsent(category: ConsentCategory, input: HTMLInputElement) {
 }
 .page-header h1 { margin: 4px 0 10px; font-size: 32px; }
 .page-header p { max-width: 680px; color: var(--fg-subtext0); line-height: 1.6; }
-.eyebrow { color: var(--accent) !important; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.page-header .eyebrow { color: var(--accent); font-size: 12px; font-weight: 600; }
 .consent-card, .retention-note {
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     background: var(--bg-mantle);
-    padding: 22px;
+    padding: 24px;
 }
-.consent-card { cursor: pointer; display: flex; justify-content: space-between; gap: 28px; align-items: center; }
-.consent-card h2, .retention-note h2 { margin: 0 0 8px; font-size: 18px; }
-.consent-card p, .retention-note p { margin: 6px 0; color: var(--fg-subtext0); line-height: 1.55; }
+.consent-card { cursor: pointer; display: flex; justify-content: space-between; gap: 24px; align-items: center; transition: background 150ms ease, color 150ms ease, border-color 150ms ease; }
+.consent-card h2, .retention-note h2 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
+.consent-card p, .retention-note p { margin: 8px 0; color: var(--fg-subtext0); line-height: 1.55; }
 .detail { font-size: 13px; }
-.toggle-row { min-width: 118px; display: flex; align-items: center; gap: 9px; font-weight: 600; }
+.toggle-row { min-width: 120px; display: flex; align-items: center; gap: 8px; font-weight: 600; }
 .toggle-row input { width: 20px; height: 20px; accent-color: var(--accent); }
 .consent-card:has(input:disabled) { cursor: wait; }
 .toggle-row:has(input:disabled) { opacity: .6; }
-.notice { margin: 0; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--bg-surface0); }
-.error { color: var(--error, #e55); }
+.notice { margin: 0; padding: 12px 16px; border-radius: var(--radius-sm); background: var(--bg-surface0); }
+.error { color: var(--danger); }
 code { color: var(--fg-subtext1); }
-@media (max-width: 620px) {
-    .cloud-settings { margin-top: 28px; }
+@media (max-width: 640px) {
+    .cloud-settings { margin-top: 24px; }
+    .consent-card, .retention-note { padding: 16px; }
     .consent-card { align-items: flex-start; flex-direction: column; }
+    .toggle-row { min-width: 0; }
 }
 </style>

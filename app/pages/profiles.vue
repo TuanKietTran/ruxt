@@ -573,8 +573,8 @@ watchEffect(() => {
         <template #workspace>
             <main class="profiles-page">
             <section class="profile-form">
-                <div v-if="editingId === null" class="profile-placeholder">
-                    <p>{{ profiles.length ? "Select a profile or create a new one." : "No local profiles yet." }}</p>
+                <div v-if="editingId === null" class="profile-placeholder" role="status">
+                    <p>{{ profiles.length ? "Select a profile or create a new one." : "No local profiles yet. Create a new profile or import one to get started." }}</p>
                     <div><button type="button" class="profile-save" @click="startCreate">＋ New profile</button><button type="button" @click="openTransfer('import')">Import</button></div>
                 </div>
                 <div v-else :key="formKey" class="profile-sheet">
@@ -765,23 +765,23 @@ watchEffect(() => {
 
 <style scoped>
 .profiles-page { display: grid; grid-template-rows: minmax(0, 1fr); min-width: 0; min-height: 0; height: 100%; overflow: hidden; background: var(--bg-base, #111); color: var(--fg-text, #ddd); font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
-.profiles-list { box-sizing: border-box; height: 100%; padding: 14px 12px; overflow: auto; background: var(--bg-mantle, #171717); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
-.profiles-list__header { margin: 0 4px 12px; color: var(--fg-subtext1, #bac2de); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
-.profiles-new, .profile-card { width: 100%; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: inherit; font: inherit; text-align: left; }
+.profiles-list { box-sizing: border-box; height: 100%; padding: 16px 12px; overflow: auto; background: var(--bg-mantle, #171717); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.profiles-list__header { margin: 0 4px 12px; color: var(--fg-subtext1, #bac2de); font-size: 12px; font-weight: 600; }
+.profiles-new, .profile-card { width: 100%; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: inherit; font: inherit; text-align: left; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
 .profile-card__select { display: grid; flex: 1; min-width: 0; gap: 4px; border: 0 !important; background: transparent; text-align: left !important; cursor: pointer; }
 .profile-card__menu-wrap { position: relative; flex-shrink: 0; }
 .profile-card__menu-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0 !important; background: transparent; font-size: 16px !important; line-height: 1; opacity: 0; }
 .profile-card:hover .profile-card__menu-button, .profile-card:focus-within .profile-card__menu-button, .profile-card__menu-button[aria-expanded="true"] { opacity: 1; }
 .profile-card__menu-button:focus-visible { opacity: 1; outline: 2px solid var(--accent, #89b4fa); outline-offset: 1px; }
-.profile-card__menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: grid; min-width: 140px; padding: 4px; border: 1px solid var(--border, #333); border-radius: 4px; background: var(--bg-surface0, #313244); box-shadow: 0 8px 24px rgb(0 0 0 / .35); }
+.profile-card__menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: grid; min-width: 140px; padding: 4px; border: 1px solid var(--border, #333); border-radius: 4px; background: var(--bg-surface0, #313244); box-shadow: 0 8px 24px rgb(0 0 0 / .24); }
 .profile-card__menu-divider { margin: 4px 0; border: 0; border-top: 1px solid var(--border, #333); }
-.profile-card__menu button { padding: 6px 8px !important; border: 0 !important; background: transparent; font-size: 12px !important; text-align: left; white-space: nowrap; }
+.profile-card__menu button { padding: 6px 8px !important; border: 0 !important; background: transparent; font-size: 12px !important; text-align: left; white-space: nowrap; transition: background-color 150ms ease, color 150ms ease; }
 .profile-card__menu button:hover, .profile-card__menu button:focus-visible { background: var(--bg-base, #1e1e2e); }
-.duplicate-warning { display: inline-block; padding: 1px 6px; border-radius: 999px; background: var(--yellow, #f9e2af); color: #11111b; font-size: 12px; font-style: normal; font-weight: 600; white-space: nowrap; }
-.profiles-new { padding: 9px; margin-bottom: 12px; }
+.duplicate-warning { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--yellow, #f9e2af); color: #11111b; font-size: 12px; font-style: normal; font-weight: 600; white-space: nowrap; }
+.profiles-new { padding: 8px; margin-bottom: 12px; }
 .profiles-new:hover, .profile-card:hover, .profile-card.active { border-color: var(--accent, #89b4fa); background: var(--bg-base, #1e1e2e); }
 .profiles-empty { color: var(--fg-subtext1, #bac2de); font-size: 12px; }
-.profile-card { position: relative; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 10px; margin-bottom: 7px; }
+.profile-card { position: relative; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 12px; margin-bottom: 8px; }
 .profile-card.active { border-color: var(--accent, #89b4fa); background: var(--bg-base, #1e1e2e); box-shadow: inset 3px 0 0 var(--accent, #89b4fa); }
 .profile-card span:first-child { display: grid; min-width: 0; gap: 4px; }
 .profile-card__label { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
@@ -793,40 +793,40 @@ watchEffect(() => {
 .profile-delete:hover { color: var(--danger, #f38ba8); }
 
 /* Shared controls */
-.profiles-page button { border: 1px solid var(--border, #333); border-radius: 3px; padding: 6px 10px; background: transparent; color: inherit; font: inherit; cursor: pointer; white-space: nowrap; }
+.profiles-page button { border: 1px solid var(--border, #333); border-radius: 3px; padding: 6px 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; white-space: nowrap; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
 .profiles-page button:hover { border-color: var(--accent, #89b4fa); }
 .profiles-page .profile-save { border-color: var(--accent, #89b4fa); background: var(--accent, #89b4fa); color: var(--bg-crust, #11111b); }
 .profiles-page .profile-danger { border-color: var(--danger, #f38ba8); color: var(--danger, #f38ba8); }
 .profiles-page .profile-danger:hover { background: color-mix(in srgb, var(--danger, #f38ba8) 12%, transparent); border-color: var(--danger, #f38ba8); color: var(--danger, #f38ba8); }
 .profiles-page .profile-danger:focus-visible { outline: 2px solid var(--danger, #f38ba8); outline-offset: 2px; }
-.profiles-page select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 34px; padding: 7px 8px; border: 1px solid var(--border, #333); border-radius: 3px; outline: none; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; }
+.profiles-page select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 34px; padding: 8px; border: 1px solid var(--border, #333); border-radius: 3px; outline: none; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; }
 .profiles-page select:focus { border-color: var(--accent, #89b4fa); }
-.profiles-page button:focus-visible, .profiles-page a:focus-visible, .profiles-page select:focus-visible, .profiles-page input:focus-visible { outline: 2px solid var(--accent, #89b4fa); outline-offset: 2px; }
+.profiles-page button:focus-visible, .profiles-page a:focus-visible, .profiles-page select:focus-visible, .profiles-page input:focus-visible, .profiles-page textarea:focus-visible { outline: 2px solid var(--accent, #89b4fa); outline-offset: 2px; }
 
 
 .profile-form { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; }
-.profile-placeholder { display: grid; align-content: center; justify-items: center; gap: 14px; min-height: 100%; padding: 24px 16px; box-sizing: border-box; color: var(--fg-subtext0, #888); text-align: center; }
+.profile-placeholder { display: grid; align-content: center; justify-items: center; gap: 16px; min-height: 100%; padding: 24px 16px; box-sizing: border-box; color: var(--fg-subtext0, #888); text-align: center; }
 .profile-placeholder p { margin: 0; }
 .profile-placeholder div { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 
-.profile-sheet { container: sheet / inline-size; box-sizing: border-box; width: 100%; max-width: 1160px; margin: 0 auto; padding: 0 28px 40px; }
+.profile-sheet { container: sheet / inline-size; box-sizing: border-box; width: 100%; max-width: 1160px; margin: 0 auto; padding: 0 32px 40px; }
 .profile-section-nav { position: sticky; top: 0; z-index: 2; display: flex; gap: 4px; overflow-x: auto; margin: 0 -28px 18px; padding: 10px 28px 8px; border-bottom: 1px solid var(--border, #333); background: var(--bg-base, #111); scrollbar-width: thin; }
 .profile-section-nav button { padding: 3px 8px; font-size: 11px; color: var(--fg-subtext1, #aaa); }
 .profile-section-nav button.active { border-color: var(--accent, #89b4fa); color: var(--accent, #89b4fa); }
-.profile-pending-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 16px; padding: 9px 12px; border: 1px solid var(--warning, #f9e2af); border-radius: 4px; background: color-mix(in srgb, var(--warning, #f9e2af) 12%, transparent); font-size: 12px; }
+.profile-pending-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 16px; padding: 8px 12px; border: 1px solid var(--warning, #f9e2af); border-radius: 4px; background: color-mix(in srgb, var(--warning, #f9e2af) 12%, transparent); font-size: 12px; }
 .profile-card--draft { border-style: dashed; }
 .profile-card--draft .profile-card__select { cursor: default; }
-.draft-badge { color: var(--warning, #f9e2af); font-style: normal; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.draft-badge { color: var(--warning, #f9e2af); font-style: normal; font-size: 11px; }
 
-.profile-identity { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px 14px; }
-.profile-section { min-width: 0; margin-top: 22px; scroll-margin-top: 176px; }
-.profile-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border, #333); }
-.profile-section-heading h2 { margin: 0; font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
-.profile-section-heading button { padding: 4px 9px; }
+.profile-identity { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px 16px; }
+.profile-section { min-width: 0; margin-top: 24px; scroll-margin-top: 176px; }
+.profile-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border, #333); }
+.profile-section-heading h2 { margin: 0; font-size: 12px; font-weight: 600; }
+.profile-section-heading button { padding: 4px 8px; }
 
-.entry-row, .entry-grid { display: grid; gap: 10px 12px; }
-.entry-row { margin-bottom: 10px; }
-.entry-card { position: relative; margin-bottom: 10px; padding: 12px; border: 1px solid var(--border, #333); border-radius: 4px; background: color-mix(in srgb, var(--bg-mantle, #171717) 45%, transparent); }
+.entry-row, .entry-grid { display: grid; gap: 8px 12px; }
+.entry-row { margin-bottom: 8px; }
+.entry-card { position: relative; margin-bottom: 8px; padding: 12px; border: 1px solid var(--border, #333); border-radius: 4px; background: color-mix(in srgb, var(--bg-mantle, #171717) 45%, transparent); }
 .entry-card .entry-remove { position: absolute; top: 6px; right: 6px; }
 .entry-card .entry-grid { padding-right: 0; }
 .entry-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -834,7 +834,7 @@ watchEffect(() => {
 .entry-remove { align-self: start; margin-top: 19px; width: 34px; height: 34px; padding: 0 !important; color: var(--fg-subtext0, #888) !important; line-height: 1; }
 .entry-card .entry-remove { width: 24px; height: 24px; margin-top: 0; border-color: transparent !important; }
 .entry-remove:hover { border-color: var(--danger, #f38ba8) !important; color: var(--danger, #f38ba8) !important; }
-.entry-pending { margin: 10px 0 0; color: var(--warning, #f9e2af); font-size: 11px; }
+.entry-pending { margin: 8px 0 0; color: var(--warning, #f9e2af); font-size: 11px; }
 
 /* Narrow: stack every row, keep the remove button beside the first field. */
 .contact-row { grid-template-columns: minmax(0, 1fr) auto; }
@@ -845,7 +845,7 @@ watchEffect(() => {
 .skill-row .skill-list { grid-column: 1 / -1; }
 .single-row { grid-template-columns: minmax(0, 1fr) auto; }
 .profile-columns { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 24px; }
-.contact-row + .contact-row, .skill-row + .skill-row { padding-top: 10px; border-top: 1px dashed var(--border, #333); }
+.contact-row + .contact-row, .skill-row + .skill-row { padding-top: 8px; border-top: 1px dashed var(--border, #333); }
 
 @container sheet (min-width: 520px) {
     .profile-identity { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -879,13 +879,13 @@ watchEffect(() => {
     .profile-sheet { padding: 0 16px 32px; }
 }
 
-.profiles-transfer { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: -4px 0 12px; }
-.profiles-transfer button, .transfer-dialog footer button { border: 1px solid var(--border, #333); border-radius: 3px; padding: 6px 9px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.profiles-transfer { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: -4px 0 12px; }
+.profiles-transfer button, .transfer-dialog footer button { border: 1px solid var(--border, #333); border-radius: 3px; padding: 6px 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .profiles-transfer button:disabled, .transfer-dialog button:disabled { opacity: .5; cursor: default; }
 .transfer-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgb(0 0 0 / .55); }
-.transfer-dialog { box-sizing: border-box; width: min(460px, 100%); padding: 20px; border: 1px solid var(--border, #333); border-radius: 6px; background: var(--bg-base, #111); }
-.transfer-dialog h2 { margin: 0 0 14px; font-size: 13px; font-weight: 500; }
-.transfer-dialog label { display: grid; gap: 6px; margin-bottom: 12px; color: var(--fg-subtext1, #aaa); font-size: 12px; }
+.transfer-dialog { box-sizing: border-box; width: min(460px, 100%); padding: 24px; border: 1px solid var(--border, #333); border-radius: 4px; background: var(--bg-base, #111); }
+.transfer-dialog h2 { margin: 0 0 16px; font-size: 13px; font-weight: 500; }
+.transfer-dialog label { display: grid; gap: 8px; margin-bottom: 12px; color: var(--fg-subtext1, #aaa); font-size: 12px; }
 .transfer-dialog input, .transfer-dialog textarea { min-width: 0; padding: 8px; border: 1px solid var(--border, #333); border-radius: 3px; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; resize: vertical; }
 .transfer-hint { margin: 0 0 12px; color: var(--fg-subtext0, #888); font-size: 11px; line-height: 1.5; }
 .transfer-status { color: var(--success, #a6e3a1); }
@@ -895,12 +895,24 @@ watchEffect(() => {
 .apply-dialog { width: min(760px, 100%); max-height: 90vh; overflow: auto; }
 .apply-dialog select { min-width: 0; padding: 8px; border: 1px solid var(--border, #333); border-radius: 3px; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; }
 .apply-sessions { display: grid; gap: 2px; max-height: 280px; margin-bottom: 12px; overflow: auto; }
-.overwrite-preview { max-height: 320px; overflow: auto; border: 1px solid var(--border, #333); padding: 10px; margin: 8px 0; }
+.overwrite-preview { max-height: 320px; overflow: auto; border: 1px solid var(--border, #333); padding: 12px; margin: 8px 0; }
 .overwrite-preview h3 { margin: 0 0 8px; font-size: 12px; }
 .overwrite-preview article + article { margin-top: 12px; border-top: 1px solid var(--border, #333); padding-top: 8px; }
 .overwrite-preview pre { max-height: 180px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 10px; }
 .overwrite-confirm { display: flex !important; grid-template-columns: auto 1fr !important; align-items: start; gap: 8px !important; }
-.apply-select-all { justify-self: start; margin-bottom: 6px; border: 1px solid var(--border, #333); border-radius: 3px; padding: 4px 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.apply-select-all { justify-self: start; margin-bottom: 8px; border: 1px solid var(--border, #333); border-radius: 3px; padding: 4px 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .transfer-dialog .apply-session { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; margin: 0; padding: 4px 2px; color: var(--fg-text, #ddd); font-size: 12px; }
 .apply-session span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) {
+    .profile-card { flex-direction: column; align-items: stretch; }
+    .profile-card__menu-wrap { align-self: flex-end; }
+    .profile-card__menu { max-width: calc(100vw - 32px); }
+    .profile-card__menu button { white-space: normal; }
+    .profiles-transfer { grid-template-columns: 1fr; }
+    .profile-section-nav { overflow-x: auto; }
+    .profile-placeholder div { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .profiles-new, .profile-card, .profiles-page button, .profile-card__menu button { transition-duration: 0.01ms; }
+}
 </style>

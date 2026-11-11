@@ -749,7 +749,7 @@ const handleLogout = async () => {
                     </div>
                 </div>
                 <div v-if="selectedTemplate" class="template-header-actions">
-                    <span class="template-readonly-label">READ ONLY · {{ selectedTemplate.tags.join(" · ") }}</span>
+                    <span class="template-readonly-label">Read only · {{ selectedTemplate.tags.join(" · ") }}</span>
                     <button
                         v-if="selectedTemplate.tags.includes('public')"
                         class="template-clone-button"
@@ -826,6 +826,7 @@ const handleLogout = async () => {
                         <NuxtLink
                             class="document-tree__item"
                             :class="{ 'document-tree__item--active': isActiveDocument(document.id) }"
+                            :aria-current="isActiveDocument(document.id) ? 'page' : undefined"
                             :to="documentPath(document.id)"
                             @pointerenter="warmDocument(document.id)"
                             @focus="warmDocument(document.id)"
@@ -857,6 +858,7 @@ const handleLogout = async () => {
                         :key="`${cvTemplate.id}:${cvTemplate.version}`"
                         class="document-tree__item template-tree__item"
                         :class="{ 'document-tree__item--active': selectedTemplate?.id === cvTemplate.id && selectedTemplate?.version === cvTemplate.version }"
+                        :aria-pressed="selectedTemplate?.id === cvTemplate.id && selectedTemplate?.version === cvTemplate.version"
                         type="button"
                         @click="viewTemplate(cvTemplate)"
                     >
@@ -901,11 +903,11 @@ const handleLogout = async () => {
 
             <section v-else-if="showTemplatePicker" class="template-picker" aria-labelledby="template-picker-title">
                 <header class="template-picker__header">
-                    <p class="template-picker__eyebrow">NEW DOCUMENT</p>
+                    <p class="template-picker__eyebrow">New document</p>
                     <h1 id="template-picker-title">Choose a starting point</h1>
                     <p>Start with a template or open a blank CV.</p>
                 </header>
-                <div v-if="templatesLoading" class="template-picker__grid" aria-label="Loading templates">
+                <div v-if="templatesLoading" class="template-picker__grid" role="status" aria-label="Loading templates">
                     <div v-for="index in 3" :key="index" class="template-card template-card--loading" />
                 </div>
                 <div v-else class="template-picker__grid">
@@ -939,8 +941,8 @@ const handleLogout = async () => {
             <template v-else-if="selectedTemplate">
                 <section class="source-pane" aria-label="Read-only template source">
                     <nav class="source-tabs" aria-label="Template files">
-                        <button class="source-tab" :class="{ 'source-tab--active': templateSourceTab === 'markdown' }" type="button" @click="templateSourceTab = 'markdown'">content.md</button>
-                        <button class="source-tab" :class="{ 'source-tab--active': templateSourceTab === 'css' }" type="button" @click="templateSourceTab = 'css'">style.css</button>
+                        <button class="source-tab" :class="{ 'source-tab--active': templateSourceTab === 'markdown' }" type="button" :aria-pressed="templateSourceTab === 'markdown'" @click="templateSourceTab = 'markdown'">content.md</button>
+                        <button class="source-tab" :class="{ 'source-tab--active': templateSourceTab === 'css' }" type="button" :aria-pressed="templateSourceTab === 'css'" @click="templateSourceTab = 'css'">style.css</button>
                     </nav>
                     <div class="source-editor">
                         <CodeMirror
@@ -1191,8 +1193,8 @@ button {
 }
 
 .editor-header__identity {
-    gap: 9px;
-    padding: 0 10px 0 6px;
+    gap: 8px;
+    padding: 0 8px;
 }
 
 .editor-header__tools {
@@ -1367,6 +1369,7 @@ button {
     background: transparent;
     color: var(--fg-subtext0);
     cursor: pointer;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
 }
 
 .icon-button {
@@ -1511,9 +1514,8 @@ button {
     height: 42px;
     padding: 0 10px 0 12px;
     color: var(--fg-subtext1);
-    font-size: 11px;
-    letter-spacing: 0.13em;
-    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 600;
 }
 
 .document-sidebar__actions {
@@ -1591,12 +1593,10 @@ button {
 }
 
 .document-group h2 {
-    margin: 12px 12px 5px;
+    margin: 12px 12px 4px;
     color: var(--fg-subtext0);
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 500;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
 }
 
 .document-tree__empty {
@@ -1666,8 +1666,7 @@ button {
 .document-tree__item small {
     flex: none;
     color: var(--fg-subtext0);
-    font-size: 9px;
-    text-transform: uppercase;
+    font-size: 10px;
 }
 
 .editor-workspace {
@@ -1732,6 +1731,7 @@ button {
     font: inherit;
     font-size: 12px;
     cursor: pointer;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
 }
 
 .source-tab--active,
@@ -1750,14 +1750,14 @@ button {
 }
 
 .template-picker__header { max-width: 560px; margin-bottom: 32px; }
-.template-picker__eyebrow { margin: 0 0 8px; color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: .14em; }
+.template-picker__eyebrow { margin: 0 0 8px; color: var(--accent); font-size: 12px; font-weight: 600; }
 .template-picker__header h1 { margin: 0; color: var(--fg-text); font-size: clamp(24px, 3vw, 36px); }
-.template-picker__header > p:last-child { margin: 10px 0 0; color: var(--fg-subtext0); }
+.template-picker__header > p:last-child { margin: 8px 0 0; color: var(--fg-subtext0); }
 .template-picker__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 220px)); gap: 20px; }
-.template-card { display: grid; gap: 9px; padding: 0; border: 0; background: transparent; color: var(--fg-text); font: inherit; text-align: left; cursor: pointer; }
-.template-card__preview { box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; width: 100%; aspect-ratio: 8.5 / 11; padding: 24px 20px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-mantle); transition: border-color .15s ease, transform .15s ease; }
+.template-card { display: grid; gap: 8px; padding: 0; border: 0; background: transparent; color: var(--fg-text); font: inherit; text-align: left; cursor: pointer; }
+.template-card__preview { box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; width: 100%; aspect-ratio: 8.5 / 11; padding: 24px 20px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-mantle); transition: border-color .15s ease; }
 .template-card:hover .template-card__preview,
-.template-card:focus-visible .template-card__preview { border-color: var(--accent); transform: translateY(-2px); }
+.template-card:focus-visible .template-card__preview { border-color: var(--accent); }
 .template-card:focus-visible { outline: none; }
 .template-card:disabled { cursor: wait; opacity: .65; }
 .template-card__preview strong { overflow: hidden; font-size: 12px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
@@ -1928,7 +1928,7 @@ button {
 .export-dialog header p,
 .export-dialog__hint { margin-top: 4px; color: var(--fg-subtext0); font-size: 11px; }
 .export-dialog header > button { border: 0; background: transparent; font-size: 22px; cursor: pointer; }
-.export-dialog label { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; align-items: center; gap: 10px; margin-top: 18px; color: var(--fg-subtext1); font-size: 12px; }
+.export-dialog label { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; align-items: center; gap: 8px; margin-top: 16px; color: var(--fg-subtext1); font-size: 12px; }
 .export-dialog select,
 .export-dialog input:not([type="range"]) { width: 100%; padding: 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg-base); color: var(--fg-text); }
 .export-dialog input[type="range"] { width: 100%; accent-color: var(--accent); }
@@ -1944,11 +1944,11 @@ button {
 .workspace-loading { grid-column: 1 / -1; display: grid; place-items: center; margin: 0; color: var(--fg-subtext0); font-size: 12px; animation: tree-skeleton-pulse 1.2s ease-in-out infinite; }
 .document-tree__item { transition: background-color .15s ease, color .15s ease; }
 @keyframes tree-skeleton-pulse { 0%, 100% { opacity: .4; } 50% { opacity: .9; } }
-@media (prefers-reduced-motion: reduce) { .document-tree__skeleton span, .workspace-loading { animation: none; } }
-.template-tree__item { width: calc(100% - 12px); border: 0; background: transparent; font-family: inherit; font-size: 12px; font-weight: 400; text-align: left; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .document-tree__skeleton span, .workspace-loading, .template-card--loading { animation: none; } }
+.template-tree__item { width: calc(100% - 12px); border: 0; background: transparent; font-family: inherit; font-size: 12px; font-weight: 400; text-align: left; cursor: pointer; transition: background-color .15s ease, color .15s ease; }
 .tool-button--indicator { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
 .tool-button--active { color: var(--accent); background: var(--bg-surface0); }
-.template-readonly-label { margin: auto 10px; color: var(--fg-subtext0); font-size: 10px; letter-spacing: .06em; line-height: 1; text-transform: uppercase; white-space: nowrap; }
+.template-readonly-label { margin: auto 8px; color: var(--fg-subtext0); font-size: 11px; line-height: 1; white-space: nowrap; }
 .template-clone-button, .template-back-button { height: 100%; margin: 0; padding: 0 11px; border: 0; border-left: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--fg-subtext0); font: inherit; font-size: 11px; white-space: nowrap; cursor: pointer; }
 .template-clone-button:hover, .template-back-button:hover { background: var(--bg-surface0); color: var(--fg-text); }
 .template-clone-button:focus-visible, .template-back-button:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }

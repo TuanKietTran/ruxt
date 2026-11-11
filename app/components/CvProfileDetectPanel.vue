@@ -113,7 +113,7 @@ const save = () => {
             <button type="button" aria-label="Close detected profile" @click="emit('close')">×</button>
         </header>
 
-        <p v-if="!groups.length" class="detect-panel__empty">No profile information found in this session.</p>
+        <p v-if="!groups.length" class="detect-panel__empty" role="status">No profile information found in this session.</p>
         <div v-else class="detect-panel__groups">
             <div v-for="group in groups" :key="group.section" class="detect-group" :class="`cm-profile-field--${group.section}`">
                 <div class="detect-group__heading">
@@ -176,28 +176,32 @@ const save = () => {
 
 <style scoped>
 .detect-panel { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-height: 0; height: 100%; max-height: 100%; border-top: 1px solid var(--border, #333); background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font-size: 12px; }
-.detect-panel__header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border, #333); }
+.detect-panel__header { display: flex; align-items: center; gap: 8px; padding: 8px; border-bottom: 1px solid var(--border, #333); }
 .detect-panel__header small { color: var(--fg-subtext0, #888); }
-.detect-panel__header button { margin-left: auto; border: 0; background: transparent; color: var(--fg-subtext0, #888); font: inherit; font-size: 16px; cursor: pointer; }
-.detect-panel__empty { margin: 0; padding: 12px 10px; color: var(--fg-subtext0, #888); }
+.detect-panel__header button { margin-left: auto; border: 0; background: transparent; color: var(--fg-subtext0, #888); font: inherit; font-size: 16px; cursor: pointer; transition: color 150ms ease, background-color 150ms ease; }
+.detect-panel__header button:hover { color: var(--fg-text, #ddd); }
+.detect-panel__empty { margin: 0; padding: 12px 8px; color: var(--fg-subtext0, #888); }
 .detect-panel__groups { overflow: auto; padding: 4px 0; }
-.detect-group__heading { display: flex; align-items: center; gap: 6px; padding: 2px 10px; }
-.detect-group__toggle { display: flex; flex: 1; align-items: center; gap: 6px; min-width: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.detect-group__heading { display: flex; align-items: center; gap: 8px; padding: 4px 8px; }
+.detect-group__toggle { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background-color 150ms ease, color 150ms ease; }
 .detect-group__toggle small { color: var(--fg-subtext0, #888); }
 .detect-swatch { width: 8px; height: 8px; border-radius: 2px; background: var(--highlight-color); }
-.detect-group ul { margin: 0 0 4px; padding: 0 10px 0 34px; list-style: none; }
-.detect-field { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px; width: 100%; padding: 2px 4px; border: 0; border-radius: 3px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.detect-group ul { margin: 0 0 4px; padding: 0 8px 0 32px; list-style: none; }
+.detect-field { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px; width: 100%; padding: 4px 8px; border: 0; border-radius: 4px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background-color 150ms ease, color 150ms ease; }
 .detect-field span:first-child { color: var(--fg-subtext0, #888); }
 .detect-field__value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detect-field:hover, .detect-field--active { background: color-mix(in srgb, var(--highlight-color) 20%, transparent); }
 .detect-field--missing { opacity: .5; cursor: default; }
-.detect-panel__footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--border, #333); }
-.detect-panel__footer select { max-width: 220px; height: 24px; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: inherit; font: inherit; }
-.detect-save { height: 24px; padding: 0 10px; border: 1px solid var(--accent, #89b4fa); border-radius: 4px; background: var(--accent, #89b4fa); color: var(--bg-crust, #11111b); font: inherit; cursor: pointer; }
+.detect-panel__footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; border-top: 1px solid var(--border, #333); }
+.detect-panel__footer select { max-width: 220px; height: 24px; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: inherit; font: inherit; transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease; }
+.detect-save { height: 24px; padding: 0 8px; border: 1px solid var(--accent, #89b4fa); border-radius: 4px; background: var(--accent, #89b4fa); color: var(--bg-crust, #11111b); font: inherit; cursor: pointer; transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease; }
 .detect-save:disabled { opacity: .5; cursor: default; }
 .detect-panel__error { color: var(--red, #f38ba8); }
 .detect-panel__status { color: var(--green, #a6e3a1); }
 .detect-panel__status a { color: var(--accent, #89b4fa); }
 .detect-group__placeholder { color: var(--yellow, #f9e2af); white-space: nowrap; }
-.detect-field__placeholder { font-style: normal; color: var(--yellow, #f9e2af); margin-left: 6px; }
+.detect-field__placeholder { font-style: normal; color: var(--yellow, #f9e2af); margin-left: 8px; }
+.detect-panel__header button:focus-visible, .detect-group__toggle:focus-visible, .detect-field:focus-visible, .detect-save:focus-visible, .detect-panel__status a:focus-visible { outline: 2px solid var(--accent, #89b4fa); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .detect-field, .detect-panel__header button, .detect-group__toggle, .detect-panel__footer select, .detect-save { transition-duration: 0.01ms; } }
+@media (max-width: 640px) { .detect-field { grid-template-columns: 88px minmax(0, 1fr); } .detect-group__heading { flex-wrap: wrap; } .detect-group__placeholder { white-space: normal; } .detect-panel__footer select { flex: 1 1 160px; max-width: 100%; } }
 </style>

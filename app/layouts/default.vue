@@ -16,7 +16,7 @@ const handleLogout = async () => {
         <header class="header">
             <div class="header-inner">
                 <NuxtLink to="/" class="logo">
-                    <span class="logo-mark" aria-hidden="true">◆</span>
+                    <AppIcon class="logo-mark" name="lucide:file-text" :size="20" />
                     <span class="logo-text">CV workspace</span>
                 </NuxtLink>
 
@@ -81,7 +81,7 @@ const handleLogout = async () => {
     overflow: visible;
     clip: auto;
     clip-path: none;
-    padding: 8px 14px;
+    padding: 8px 16px;
     background: var(--accent);
     color: var(--bg-crust);
     border-radius: var(--radius-sm);
@@ -98,7 +98,6 @@ const handleLogout = async () => {
     z-index: 50;
     background: var(--bg-mantle);
     border-bottom: 1px solid var(--border);
-    backdrop-filter: blur(12px);
 }
 .header-inner {
     box-sizing: border-box;
@@ -127,7 +126,6 @@ const handleLogout = async () => {
 }
 .logo-mark {
     color: var(--accent);
-    font-size: 14px;
 }
 .logo-text {
     letter-spacing: -0.02em;
@@ -158,6 +156,7 @@ const handleLogout = async () => {
 .nav-link.active {
     color: var(--fg-text);
     background: var(--bg-surface0);
+    font-weight: 600;
 }
 
 /* Header actions */
@@ -186,7 +185,7 @@ const handleLogout = async () => {
     white-space: nowrap;
 }
 .btn-sm {
-    padding: 5px 14px;
+    padding: 6px 12px;
     font-size: 13px;
 }
 .btn-ghost {
@@ -203,6 +202,10 @@ const handleLogout = async () => {
     background: var(--accent);
 }
 .btn-primary:hover { background: var(--accent-hover); }
+.logo:focus-visible, .nav-link:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+    .nav-link, .btn { transition-duration: 0.01ms; }
+}
 
 .main {
     flex: 1;
@@ -217,12 +220,13 @@ const handleLogout = async () => {
     white-space: nowrap;
 }
 
-@media (max-width: 620px) {
+@media (max-width: 640px) {
     .header-inner { height: auto; min-height: 56px; flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px; }
     .logo { font-size: 15px; }
-    .nav-link { padding: 6px 8px; font-size: 12px; }
-    .header-actions { flex-wrap: wrap; gap: 6px; margin-left: 0; }
-    .header-actions .btn-sm { padding: 5px 8px; }
+    .nav { overflow-x: auto; }
+    .nav-link { padding: 6px 8px; font-size: 12px; white-space: nowrap; }
+    .header-actions { flex-wrap: wrap; gap: 8px; margin-left: 0; }
+    .header-actions .btn-sm { padding: 6px 8px; }
     .user-email { max-width: 100px; }
 }
 

@@ -378,7 +378,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
                 </button>
             </div>
 
-            <div v-if="loading" class="loading">Loading…</div>
+            <div v-if="loading" class="loading" role="status">Loading…</div>
 
             <template v-else>
                 <div class="stats-grid">
@@ -418,21 +418,23 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
                         </div>
                     </div>
 
-                    <div v-if="filteredSubs.length === 0" class="empty">
-                        No subscriptions found.
+                    <div v-if="filteredSubs.length === 0" class="empty" role="status">
+                        <span v-if="search">No subscriptions match "{{ search }}".</span>
+                        <span v-else-if="filterStatus">No subscriptions match the selected status.</span>
+                        <span v-else>No subscriptions yet.</span>
                     </div>
 
                     <div v-else class="table-wrap">
                         <table class="table" aria-label="Subscriptions list">
                             <thead>
                                 <tr>
-                                    <th>Plan</th>
-                                    <th>Provider</th>
-                                    <th>Cycle</th>
-                                    <th>Amount</th>
-                                    <th>Next billing</th>
-                                    <th>Status</th>
-                                    <th><span class="sr-only">Actions</span></th>
+                                    <th scope="col">Plan</th>
+                                    <th scope="col">Provider</th>
+                                    <th scope="col">Cycle</th>
+                                    <th scope="col">Amount</th>
+                                    <th scope="col">Next billing</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col"><span class="sr-only">Actions</span></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -573,7 +575,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
                         <span class="field-hint">Leave as-is to start now</span>
                     </div>
 
-                    <p v-if="panelError" class="form-error">{{ panelError }}</p>
+                    <p v-if="panelError" class="form-error" role="alert">{{ panelError }}</p>
 
                     <div class="panel-footer">
                         <button type="button" class="btn-secondary" @click="closePanel">Cancel</button>
@@ -672,7 +674,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
                         <span class="field-hint">Leave as-is to start now</span>
                     </div>
 
-                    <p v-if="panelError" class="form-error">{{ panelError }}</p>
+                    <p v-if="panelError" class="form-error" role="alert">{{ panelError }}</p>
 
                     <div class="panel-footer">
                         <button type="button" class="btn-secondary" @click="plans.length > 0 ? goBackToSub() : closePanel()">
@@ -747,7 +749,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
                     />
                 </div>
 
-                <p v-if="terminateError" class="tm-error">{{ terminateError }}</p>
+                <p v-if="terminateError" class="tm-error" role="alert">{{ terminateError }}</p>
 
                 <div class="tm-footer">
                     <button type="button" class="tm-btn-cancel" @click="closeTerminate">
@@ -960,7 +962,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     color: var(--fg-subtext0);
     cursor: pointer;
     font-size: 14px;
-    transition: all 0.15s;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 .back-btn:hover {
     background: var(--bg-surface0);
@@ -978,7 +980,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     color: var(--fg-subtext0);
     cursor: pointer;
     font-size: 13px;
-    transition: all 0.15s;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 .panel-close:hover {
     background: var(--bg-surface0);
@@ -1033,7 +1035,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 9px 18px;
+    padding: 8px 16px;
     background: var(--accent);
     color: var(--bg-crust);
     border: none;
@@ -1079,8 +1081,6 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
 .stat-label {
     font-size: 12px;
     font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
     color: var(--fg-subtext0);
     margin-bottom: 12px;
 }
@@ -1143,10 +1143,11 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     background: var(--bg-mantle);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    overflow: hidden;
+    overflow-x: auto;
 }
 .table {
     width: 100%;
+    min-width: 640px;
     border-collapse: collapse;
     font-size: 14px;
 }
@@ -1155,27 +1156,25 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     text-align: left;
     font-size: 11px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
     color: var(--fg-subtext0);
     background: var(--bg-crust);
     border-bottom: 1px solid var(--border);
 }
 .sub-row td {
-    padding: 14px 20px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--border);
     vertical-align: middle;
     color: var(--fg-text);
 }
 .sub-row:last-child td { border-bottom: none; }
 .sub-row:hover td { background: var(--bg-surface0); }
-.sub-name { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.sub-name { display: flex; align-items: center; gap: 8px; font-weight: 500; }
 .muted { color: var(--fg-subtext0); }
 .amount { font-weight: 600; font-variant-numeric: tabular-nums; }
 
 .status-badge {
     display: inline-block;
-    padding: 3px 10px;
+    padding: 4px 8px;
     border: 1px solid;
     border-radius: var(--radius-full);
     font-size: 11px;
@@ -1203,7 +1202,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     opacity: 0;
     transition: opacity 0.15s;
 }
-.sub-row:hover .row-actions { opacity: 1; }
+.sub-row:hover .row-actions, .sub-row:focus-within .row-actions { opacity: 1; }
 
 .action-btn {
     width: 28px;
@@ -1217,7 +1216,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     color: var(--fg-subtext1);
     cursor: pointer;
     font-size: 13px;
-    transition: all 0.15s;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 .action-btn:hover { background: var(--bg-surface2); color: var(--fg-text); }
 .action-btn.danger:hover {
@@ -1344,7 +1343,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--fg-text);
-    padding: 9px 12px;
+    padding: 8px 12px;
     font-size: 14px;
     outline: none;
     transition: border-color 0.15s;
@@ -1374,12 +1373,12 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 .tm-btn-cancel:hover { background: var(--bg-surface0); color: var(--fg-text); }
 
 .tm-btn-terminate {
-    padding: 8px 18px;
+    padding: 8px 16px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--red);
     background: color-mix(in srgb, var(--red) 15%, transparent);
@@ -1387,7 +1386,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 .tm-btn-terminate:hover:not(:disabled) {
     background: var(--red);
@@ -1419,7 +1418,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--fg-text);
-    padding: 9px 12px;
+    padding: 8px 12px;
     font-size: 14px;
     outline: none;
     transition: border-color 0.15s;
@@ -1466,7 +1465,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
 
 .field-row {
     display: flex;
-    gap: 10px;
+    gap: 8px;
 }
 .field-row .field { flex: 1; }
 .field-currency { max-width: 100px; }
@@ -1490,12 +1489,12 @@ input[type="datetime-local"].input {
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 .btn-secondary:hover { background: var(--bg-surface0); color: var(--fg-text); }
 
 .btn-primary {
-    padding: 8px 18px;
+    padding: 8px 16px;
     border-radius: var(--radius-sm);
     border: none;
     background: var(--accent);
@@ -1507,4 +1506,13 @@ input[type="datetime-local"].input {
 }
 .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 640px) {
+    .page-content { padding: 24px 16px; }
+    .panel-body { padding: 16px; }
+    .empty { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .page-content, .add-panel, .row-actions, .action-btn, .back-btn, .panel-close, .tm-btn-cancel, .tm-btn-terminate, .btn-secondary, .btn-primary, .btn-add { transition: none; }
+}
 </style>

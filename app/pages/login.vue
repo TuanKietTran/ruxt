@@ -20,9 +20,8 @@ useSeoMeta({
 
 <template>
     <main class="auth-route">
-        <span class="brand-mark" aria-hidden="true">◆</span>
-        <h1>{{ mode === "signup" ? "Create your account" : "Sign in to cv-sv" }}</h1>
-        <p>The account dialog should open automatically.</p>
+        <h1>{{ mode === "signup" ? "Create your account" : "Sign in to Ruxt" }}</h1>
+        <p role="status">The account dialog should open automatically.</p>
         <button type="button" @click="openAuthDialog(mode, redirectTo)">Open account dialog</button>
         <NuxtLink to="/">Return to the editor</NuxtLink>
     </main>
@@ -38,9 +37,16 @@ useSeoMeta({
     padding: 32px;
     text-align: center;
 }
-.brand-mark { color: var(--accent); font-size: 28px; }
-h1 { margin: 0; font-size: 24px; }
+h1 { margin: 0; font-size: 24px; font-weight: 700; line-height: 1.25; }
 p { margin: 0; color: var(--fg-subtext0); }
-button { margin-top: 8px; padding: 10px 16px; border: 0; border-radius: var(--radius-md); color: var(--bg-crust); background: var(--accent); font-weight: 700; cursor: pointer; }
-a { color: var(--accent); font-size: 13px; }
+button { margin-top: 8px; padding: 12px 16px; border: 0; border-radius: var(--radius-md); color: var(--bg-crust); background: var(--accent); font-weight: 600; cursor: pointer; transition: background 0.15s ease; }
+button:hover { background: var(--accent-hover); }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+a { color: var(--accent); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) {
+    button { transition: none; }
+}
+@media (max-width: 640px) {
+    .auth-route { padding: 16px; }
+}
 </style>

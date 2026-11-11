@@ -38,7 +38,6 @@ useSeoMeta({
       <div class="actions">
         <NuxtLink to="/" class="btn btn-primary">
           Open the editor
-          <span aria-hidden="true">→</span>
         </NuxtLink>
         <NuxtLink to="/settings/cloud-data" class="btn btn-ghost">
           Cloud data settings
@@ -54,15 +53,11 @@ useSeoMeta({
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  overflow: hidden;
   padding: 80px 24px;
 }
 
 /* Content */
 .content {
-  position: relative;
-  z-index: 1;
   text-align: center;
   max-width: 640px;
 }
@@ -70,9 +65,7 @@ useSeoMeta({
 .eyebrow {
   color: var(--accent);
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 600;
   margin: 0 0 16px;
 }
 .points {
@@ -80,29 +73,27 @@ useSeoMeta({
   padding: 0;
   margin: 0 0 40px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
   text-align: left;
   color: var(--fg-subtext1);
   line-height: 1.6;
 }
 
 .heading {
-  font-size: clamp(36px, 6vw, 56px);
+  font-size: clamp(32px, 5vw, 40px);
   font-weight: 800;
   line-height: 1.05;
-  letter-spacing: -0.03em;
   color: var(--fg-text);
   margin: 0 0 24px;
 }
 .heading-accent {
   color: var(--accent);
-  position: relative;
 }
 
 .sub {
   font-size: 18px;
   color: var(--fg-subtext1);
-  line-height: 1.7;
+  line-height: 1.6;
   margin: 0 0 40px;
 }
 
@@ -121,11 +112,11 @@ useSeoMeta({
   gap: 8px;
   padding: 12px 24px;
   border-radius: var(--radius-md);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   text-decoration: none;
 }
 .btn-primary {
@@ -136,8 +127,6 @@ useSeoMeta({
 .btn-primary:hover {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 20px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 .btn-ghost {
   background: var(--bg-surface0);
@@ -147,5 +136,19 @@ useSeoMeta({
 .btn-ghost:hover {
   background: var(--bg-surface1);
   color: var(--fg-text);
+}
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn { transition: none; }
+}
+@media (max-width: 640px) {
+  .landing { padding: 32px 16px; }
+  .sub { margin-bottom: 32px; }
+  .points { margin-bottom: 32px; }
+  .actions { flex-direction: column; align-items: stretch; }
+  .btn { justify-content: center; }
 }
 </style>

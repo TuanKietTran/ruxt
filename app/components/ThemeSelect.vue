@@ -37,23 +37,30 @@ onMounted(() => {
 
 <style scoped>
 .theme-select {
-    height: 28px;
-    max-width: 150px;
-    padding: 0 7px;
+    height: 32px;
+    max-width: 152px;
+    padding: 0 8px;
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-sm);
     background: var(--bg-surface0);
     color: var(--fg-subtext1);
     font-size: 12px;
     cursor: pointer;
-    outline: none;
+    transition: border-color .15s ease, color .15s ease, background-color .15s ease;
 }
 .theme-select:hover {
+    border-color: var(--fg-subtext0);
+    background: var(--bg-surface1, var(--bg-surface0));
     color: var(--fg-text);
 }
 .theme-select:focus-visible {
     border-color: var(--accent);
     outline: 2px solid var(--accent);
     outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+    .theme-select {
+        transition: none;
+    }
 }
 </style>

@@ -66,11 +66,11 @@ const onBlur = () => {
     box-sizing: border-box;
     width: 100%;
     min-width: 0;
-    min-height: 34px;
-    padding: 8px 9px;
+    min-height: 32px;
+    padding: 8px;
     overflow: hidden;
     border: 1px solid var(--border, #333);
-    border-radius: 3px;
+    border-radius: 4px;
     outline: none;
     background: var(--bg-mantle, #171717);
     color: var(--fg-text, #ddd);
@@ -80,8 +80,10 @@ const onBlur = () => {
     overflow-wrap: anywhere;
     resize: none;
     field-sizing: content;
+    transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
 }
-.profile-input--multiline { min-height: calc(2.8em + 18px); }
+.profile-input--multiline { min-height: calc(2.8em + 16px); }
 .profile-input:focus { border-color: var(--accent, #89b4fa); }
 .profile-input::placeholder { color: var(--fg-subtext0, #777); }
+@media (prefers-reduced-motion: reduce) { .profile-input { transition-duration: 0.01ms; } }
 </style>
