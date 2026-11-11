@@ -4,8 +4,8 @@ const { toasts, dismiss } = useToast();
 
 <template>
     <Teleport to="body">
-        <div v-if="toasts.length" class="toast-host" aria-live="polite" role="status">
-            <div v-for="toast in toasts" :key="toast.id" class="toast" :class="['toast', 'toast--' + toast.tone]">
+        <div v-if="toasts.length" class="toast-host">
+            <div v-for="toast in toasts" :key="toast.id" class="toast" :class="['toast', 'toast--' + toast.tone]" :role="toast.tone === 'error' || toast.tone === 'warning' ? 'alert' : 'status'" :aria-live="toast.tone === 'error' || toast.tone === 'warning' ? 'assertive' : 'polite'">
                 <p class="toast__message">{{ toast.message }}</p>
                 <button type="button" class="toast__close" aria-label="Dismiss notification" @click="dismiss(toast.id)">×</button>
             </div>
@@ -22,6 +22,13 @@ const { toasts, dismiss } = useToast();
 .toast--info { border-left-color: var(--sky); }
 .toast__message { flex: 1; margin: 0; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
 .toast__close { flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; font-size: 16px; line-height: 1; cursor: pointer; }
+.toast__close { transition: background-color 150ms ease, color 150ms ease; }
 .toast__close:hover { background: var(--bg-surface0); }
+@media (prefers-reduced-motion: reduce) {
+    .toast__close { transition-duration: 0.01ms; }
+}
+@media (max-width: 640px) {
+    .toast-host { right: 16px; left: 16px; width: auto; }
+}
 .toast__close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
