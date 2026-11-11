@@ -83,7 +83,7 @@ onUnmounted(() => {
             tabindex="-1"
         >
             <header class="dialog-header">
-                <div class="brand-mark" aria-hidden="true">◆</div>
+                <AppIcon class="brand-mark" name="lucide:file-text" :size="20" />
                 <button class="close-button" type="button" aria-label="Close" @click="close">×</button>
             </header>
 
@@ -153,7 +153,6 @@ onUnmounted(() => {
     place-items: center;
     padding: 20px;
     background: color-mix(in srgb, var(--bg-crust) 78%, transparent);
-    backdrop-filter: blur(7px);
 }
 .auth-dialog {
     width: min(430px, 100%);
@@ -165,34 +164,37 @@ onUnmounted(() => {
     background: var(--bg-mantle);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    box-shadow: 0 24px 80px color-mix(in srgb, var(--bg-crust) 70%, transparent);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--bg-crust) 55%, transparent);
 }
-.dialog-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-.brand-mark { color: var(--accent); font-size: 21px; }
+.dialog-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.brand-mark { color: var(--accent); }
 .close-button {
+    display: grid;
+    place-items: center;
     width: 32px;
     height: 32px;
     border: 0;
-    border-radius: 50%;
+    border-radius: var(--radius-sm);
     color: var(--fg-subtext0);
     background: transparent;
-    font-size: 23px;
+    font-size: 20px;
+    line-height: 1;
     cursor: pointer;
 }
 .close-button:hover { color: var(--fg-text); background: var(--bg-surface0); }
-.mode-tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; background: var(--bg-surface0); border-radius: var(--radius-md); }
-.mode-tabs button { padding: 9px; border: 0; border-radius: calc(var(--radius-md) - 2px); color: var(--fg-subtext0); background: transparent; font-weight: 600; cursor: pointer; }
-.mode-tabs button.active { color: var(--fg-text); background: var(--bg-mantle); box-shadow: 0 1px 4px color-mix(in srgb, var(--bg-crust) 35%, transparent); }
-.dialog-copy { margin: 24px 0 18px; }
+.mode-tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 4px; background: var(--bg-surface0); border-radius: var(--radius-md); }
+.mode-tabs button { padding: 8px; border: 0; border-radius: calc(var(--radius-md) - 2px); color: var(--fg-subtext0); background: transparent; font-weight: 600; cursor: pointer; }
+.mode-tabs button.active { color: var(--fg-text); background: var(--bg-mantle); }
+.dialog-copy { margin: 24px 0 16px; }
 .dialog-copy h1 { margin: 0 0 8px; font-size: 24px; letter-spacing: -.02em; }
 .dialog-copy p, .privacy-note { margin: 0; color: var(--fg-subtext0); font-size: 14px; line-height: 1.55; }
-.clerk-loading { padding: 28px 0; color: var(--fg-subtext0); text-align: center; }
-.clerk-error { display: grid; gap: 14px; justify-items: center; padding: 24px 0; text-align: center; }
+.clerk-loading { padding: 24px 0; color: var(--fg-subtext0); text-align: center; }
+.clerk-error { display: grid; gap: 16px; justify-items: center; padding: 24px 0; text-align: center; }
 .clerk-error p { margin: 0; color: var(--fg-subtext0); line-height: 1.5; }
-.clerk-error button { padding: 9px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--fg-text); background: var(--bg-surface0); font-weight: 600; cursor: pointer; }
-.privacy-note { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); font-size: 12px; }
+.clerk-error button { padding: 8px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--fg-text); background: var(--bg-surface0); font-weight: 600; cursor: pointer; }
+.privacy-note { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; }
 @media (max-width: 480px) {
     .auth-backdrop { align-items: end; padding: 0; }
-    .auth-dialog { width: 100%; max-height: 92dvh; border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom)); }
+    .auth-dialog { width: 100%; max-height: 92dvh; border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); }
 }
 </style>
