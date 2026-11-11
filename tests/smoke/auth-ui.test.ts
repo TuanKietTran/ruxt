@@ -92,6 +92,12 @@ ui("authenticated and unauthenticated data-ownership UI", () => {
       await alicePage.getByRole("heading", { name: "Cloud data" }).waitFor();
       await alicePage.waitForFunction(() => Boolean((document.querySelector("#__nuxt") as HTMLElement & { __vue_app__?: unknown })?.__vue_app__));
       await alicePage.getByText(aliceEmail).waitFor();
+      // The heading/email waits pass ~1.6s before client startup finishes
+      // (Clerk init + Nuxt build meta); an earlier click toggles the checkbox
+      // natively before Vue attaches @change, so no PUT fires at all.
+      // Raising the response timeout alone cannot fix that.
+      await alicePage.waitForLoadState("networkidle");
+      await alicePage.waitForTimeout(500);
 
       const aliceSessionConsent = alicePage.locator("label.consent-card", { hasText: "Cloud session recovery" }).getByRole("checkbox");
       expect(await aliceSessionConsent.isChecked()).toBe(false);
