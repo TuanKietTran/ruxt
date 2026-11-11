@@ -826,6 +826,7 @@ const handleLogout = async () => {
                         <NuxtLink
                             class="document-tree__item"
                             :class="{ 'document-tree__item--active': isActiveDocument(document.id) }"
+                            :aria-current="isActiveDocument(document.id) ? 'page' : undefined"
                             :to="documentPath(document.id)"
                             @pointerenter="warmDocument(document.id)"
                             @focus="warmDocument(document.id)"
@@ -857,6 +858,7 @@ const handleLogout = async () => {
                         :key="`${cvTemplate.id}:${cvTemplate.version}`"
                         class="document-tree__item template-tree__item"
                         :class="{ 'document-tree__item--active': selectedTemplate?.id === cvTemplate.id && selectedTemplate?.version === cvTemplate.version }"
+                        :aria-pressed="selectedTemplate?.id === cvTemplate.id && selectedTemplate?.version === cvTemplate.version"
                         type="button"
                         @click="viewTemplate(cvTemplate)"
                     >
@@ -905,7 +907,7 @@ const handleLogout = async () => {
                     <h1 id="template-picker-title">Choose a starting point</h1>
                     <p>Start with a template or open a blank CV.</p>
                 </header>
-                <div v-if="templatesLoading" class="template-picker__grid" aria-label="Loading templates">
+                <div v-if="templatesLoading" class="template-picker__grid" role="status" aria-label="Loading templates">
                     <div v-for="index in 3" :key="index" class="template-card template-card--loading" />
                 </div>
                 <div v-else class="template-picker__grid">
@@ -939,8 +941,8 @@ const handleLogout = async () => {
             <template v-else-if="selectedTemplate">
                 <section class="source-pane" aria-label="Read-only template source">
                     <nav class="source-tabs" aria-label="Template files">
-                        <button class="source-tab" :class="{ 'source-tab--active': templateSourceTab === 'markdown' }" type="button" @click="templateSourceTab = 'markdown'">content.md</button>
-                        <button class="source-tab" :class="{ 'source-tab--active': templateSourceTab === 'css' }" type="button" @click="templateSourceTab = 'css'">style.css</button>
+                        <button class="source-tab" :class="{ 'source-tab--active': templateSourceTab === 'markdown' }" type="button" :aria-pressed="templateSourceTab === 'markdown'" @click="templateSourceTab = 'markdown'">content.md</button>
+                        <button class="source-tab" :class="{ 'source-tab--active': templateSourceTab === 'css' }" type="button" :aria-pressed="templateSourceTab === 'css'" @click="templateSourceTab = 'css'">style.css</button>
                     </nav>
                     <div class="source-editor">
                         <CodeMirror
@@ -1367,6 +1369,7 @@ button {
     background: transparent;
     color: var(--fg-subtext0);
     cursor: pointer;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
 }
 
 .icon-button {
@@ -1728,6 +1731,7 @@ button {
     font: inherit;
     font-size: 12px;
     cursor: pointer;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
 }
 
 .source-tab--active,
@@ -1940,8 +1944,8 @@ button {
 .workspace-loading { grid-column: 1 / -1; display: grid; place-items: center; margin: 0; color: var(--fg-subtext0); font-size: 12px; animation: tree-skeleton-pulse 1.2s ease-in-out infinite; }
 .document-tree__item { transition: background-color .15s ease, color .15s ease; }
 @keyframes tree-skeleton-pulse { 0%, 100% { opacity: .4; } 50% { opacity: .9; } }
-@media (prefers-reduced-motion: reduce) { .document-tree__skeleton span, .workspace-loading { animation: none; } }
-.template-tree__item { width: calc(100% - 12px); border: 0; background: transparent; font-family: inherit; font-size: 12px; font-weight: 400; text-align: left; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .document-tree__skeleton span, .workspace-loading, .template-card--loading { animation: none; } }
+.template-tree__item { width: calc(100% - 12px); border: 0; background: transparent; font-family: inherit; font-size: 12px; font-weight: 400; text-align: left; cursor: pointer; transition: background-color .15s ease, color .15s ease; }
 .tool-button--indicator { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
 .tool-button--active { color: var(--accent); background: var(--bg-surface0); }
 .template-readonly-label { margin: auto 8px; color: var(--fg-subtext0); font-size: 11px; line-height: 1; white-space: nowrap; }
