@@ -43,6 +43,8 @@ useSeoMeta({
           Cloud data settings
         </NuxtLink>
       </div>
+
+      <AppVersion />
     </div>
   </div>
 </template>
