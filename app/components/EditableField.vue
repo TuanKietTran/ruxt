@@ -186,6 +186,7 @@ onBeforeUnmount(() => {
     overflow: hidden;
     text-overflow: ellipsis;
     cursor: text;
+    transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
 }
 .editable-field__display:hover { border-color: var(--border, #333); background: var(--bg-mantle, #171717); }
 .editable-field__display:focus-visible { outline: none; border-color: var(--accent, #89b4fa); }
@@ -193,14 +194,17 @@ onBeforeUnmount(() => {
 .editable-field__display--multiline { min-height: calc(2.8em + 16px); white-space: pre-wrap; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 .editable-field--error .editable-field__display { border-bottom-color: var(--danger, #f38ba8); }
 .editable-field__control { display: grid; gap: 8px; min-width: 0; }
-.editable-field__control select { box-sizing: border-box; width: 100%; min-height: 32px; padding: 8px; border: 1px solid var(--accent, #89b4fa); border-radius: 4px; outline: none; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; font-size: 13px; }
+.editable-field__control select { box-sizing: border-box; width: 100%; min-height: 32px; padding: 8px; border: 1px solid var(--accent, #89b4fa); border-radius: 4px; outline: none; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; font-size: 13px; transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease; }
 .editable-field--error .editable-field__control :deep(textarea) { border-color: var(--danger, #f38ba8); }
 .editable-field__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .editable-field__hint { flex-basis: 100%; color: var(--fg-subtext0, #777); font-size: 12px; text-align: right; }
-.editable-field__actions button { padding: 4px 8px; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: var(--fg-text, #ddd); font: inherit; cursor: pointer; }
+.editable-field__actions button { padding: 4px 8px; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: var(--fg-text, #ddd); font: inherit; cursor: pointer; transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease; }
+.editable-field__actions button:hover { background: var(--bg-surface0, #242424); }
+.editable-field__actions .editable-field__save:hover { background: var(--accent, #89b4fa); }
+.editable-field__actions button:focus-visible { outline: 2px solid var(--accent, #89b4fa); outline-offset: 2px; }
 .editable-field__actions .editable-field__save { border-color: var(--accent, #89b4fa); background: var(--accent, #89b4fa); color: var(--bg-crust, #11111b); }
 .editable-field--collapsed { align-self: start; padding-top: 20px; }
-.editable-field__add { justify-self: start; padding: 4px 8px; border: 1px dashed var(--border, #333); border-radius: 4px; background: transparent; color: var(--fg-subtext0, #888); font: inherit; font-size: 12px; cursor: pointer; }
+.editable-field__add { justify-self: start; padding: 4px 8px; border: 1px dashed var(--border, #333); border-radius: 4px; background: transparent; color: var(--fg-subtext0, #888); font: inherit; font-size: 12px; cursor: pointer; transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease; }
 .editable-field__add:hover, .editable-field__add:focus-visible { outline: none; border-color: var(--accent, #89b4fa); color: var(--fg-text, #ddd); }
 .editable-field__display :slotted(ul) { margin: 0; padding-left: 16px; white-space: normal; }
 .editable-field__display :slotted(li + li) { margin-top: 4px; }
@@ -208,5 +212,6 @@ onBeforeUnmount(() => {
 .editable-field__display :slotted(.chips span) { padding: 2px 8px; border: 1px solid var(--border, #333); border-radius: 4px; background: var(--bg-surface0, #242424); font-size: 12px; }
 .editable-field-fade-leave-active { transition: opacity .2s ease; }
 .editable-field-fade-leave-to { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .editable-field__display, .editable-field__add, .editable-field__actions button, .editable-field__control select, .editable-field-fade-leave-active { transition-duration: 0.01ms; } }
 @media (hover: none) { .editable-field__hint { display: none; } }
 </style>
