@@ -80,6 +80,7 @@ onUnmounted(() => {
             role="dialog"
             aria-modal="true"
             aria-labelledby="auth-title"
+            aria-describedby="auth-description"
             tabindex="-1"
         >
             <header class="dialog-header">
@@ -106,7 +107,7 @@ onUnmounted(() => {
 
             <div class="dialog-copy">
                 <h1 id="auth-title">{{ title }}</h1>
-                <p>
+                <p id="auth-description">
                     {{ isSignup
                         ? "Create an account to access optional cloud features and continue across devices."
                         : "Sign in without leaving your current CV workflow." }}
@@ -180,10 +181,11 @@ onUnmounted(() => {
     font-size: 20px;
     line-height: 1;
     cursor: pointer;
+    transition: background-color 150ms ease, color 150ms ease;
 }
 .close-button:hover { color: var(--fg-text); background: var(--bg-surface0); }
 .mode-tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 4px; background: var(--bg-surface0); border-radius: var(--radius-md); }
-.mode-tabs button { padding: 8px; border: 0; border-radius: calc(var(--radius-md) - 2px); color: var(--fg-subtext0); background: transparent; font-weight: 600; cursor: pointer; }
+.mode-tabs button { padding: 8px; border: 0; border-radius: calc(var(--radius-md) - 2px); color: var(--fg-subtext0); background: transparent; font-weight: 600; cursor: pointer; transition: background-color 150ms ease, color 150ms ease; }
 .mode-tabs button.active { color: var(--fg-text); background: var(--bg-mantle); }
 .dialog-copy { margin: 24px 0 16px; }
 .dialog-copy h1 { margin: 0 0 8px; font-size: 24px; letter-spacing: -.02em; }
@@ -191,7 +193,15 @@ onUnmounted(() => {
 .clerk-loading { padding: 24px 0; color: var(--fg-subtext0); text-align: center; }
 .clerk-error { display: grid; gap: 16px; justify-items: center; padding: 24px 0; text-align: center; }
 .clerk-error p { margin: 0; color: var(--fg-subtext0); line-height: 1.5; }
-.clerk-error button { padding: 8px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--fg-text); background: var(--bg-surface0); font-weight: 600; cursor: pointer; }
+.clerk-error button { padding: 8px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--fg-text); background: var(--bg-surface0); font-weight: 600; cursor: pointer; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
+.close-button:focus-visible, .mode-tabs button:focus-visible, .clerk-error button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+    .close-button, .mode-tabs button, .clerk-error button { transition-duration: 0.01ms; }
+}
+@media (max-width: 640px) {
+    .auth-backdrop { padding: 16px; }
+    .auth-dialog { padding: 16px; }
+}
 .privacy-note { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; }
 @media (max-width: 480px) {
     .auth-backdrop { align-items: end; padding: 0; }
