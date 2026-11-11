@@ -84,6 +84,7 @@ const onBlur = () => {
 }
 .profile-input--multiline { min-height: calc(2.8em + 16px); }
 .profile-input:focus { border-color: var(--accent, #89b4fa); }
+.profile-input:focus-visible { outline: 2px solid var(--accent, #89b4fa); outline-offset: 2px; }
 .profile-input::placeholder { color: var(--fg-subtext0, #777); }
 @media (prefers-reduced-motion: reduce) { .profile-input { transition-duration: 0.01ms; } }
 </style>

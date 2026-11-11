@@ -83,7 +83,7 @@ onBeforeUnmount(() => window.removeEventListener("pagehide", flushOnHide));
             >
         </div>
         <div class="tech-input__status">
-            <Transition name="tech-input-fade"><span v-if="saved && !error" class="tech-input__saved">Saved</span></Transition>
+            <Transition name="tech-input-fade"><span v-if="saved && !error" class="tech-input__saved" role="status">Saved</span></Transition>
             <small v-if="error" :id="`${id}-error`" class="tech-input__error" role="alert">{{ error }}</small>
         </div>
     </div>

@@ -278,6 +278,10 @@ const activeSource = computed({
     color: var(--fg-text);
     border-bottom: 1px solid var(--accent);
 }
+.source-tab:focus-visible, .profile-detect-toggle:focus-visible, .profile-switch select:focus-visible, .profile-overwrite footer button:focus-visible, .profile-overwrite input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
 .profile-switch {
     display: flex;
     align-items: center;
