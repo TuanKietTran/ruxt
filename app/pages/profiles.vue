@@ -770,7 +770,7 @@ watchEffect(() => {
 .profiles-new, .profile-card { width: 100%; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: inherit; font: inherit; text-align: left; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
 .profile-card__select { display: grid; flex: 1; min-width: 0; gap: 4px; border: 0 !important; background: transparent; text-align: left !important; cursor: pointer; }
 .profile-card__menu-wrap { position: relative; flex-shrink: 0; }
-.profile-card__menu-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0 !important; background: transparent; font-size: 16px !important; line-height: 1; opacity: 0; }
+.profile-card__menu-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0 !important; border: 0; background: transparent; font-size: 16px !important; line-height: 1; opacity: 0; }
 .profile-card:hover .profile-card__menu-button, .profile-card:focus-within .profile-card__menu-button, .profile-card__menu-button[aria-expanded="true"] { opacity: 1; }
 .profile-card__menu-button:focus-visible { opacity: 1; outline: 2px solid var(--accent, #89b4fa); outline-offset: 1px; }
 .profile-card__menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: grid; min-width: 140px; padding: 4px; border: 1px solid var(--border, #333); border-radius: 4px; background: var(--bg-surface0, #313244); box-shadow: 0 8px 24px rgb(0 0 0 / .24); }
@@ -779,7 +779,8 @@ watchEffect(() => {
 .profile-card__menu button:hover, .profile-card__menu button:focus-visible { background: var(--bg-base, #1e1e2e); }
 .duplicate-warning { display: inline-block; justify-self: start; color: var(--warning, #f9e2af); font-size: 11px; font-style: normal; font-weight: 600; white-space: nowrap; }
 .profiles-new { padding: 8px; margin-bottom: 12px; }
-.profiles-new:hover, .profile-card:hover, .profile-card.active { border-color: var(--accent, #89b4fa); background: var(--bg-base, #1e1e2e); }
+.profiles-new:hover { border-color: var(--accent, #89b4fa); background: var(--bg-base, #1e1e2e); }
+.profile-card:hover { border-color: var(--border-strong); background: var(--bg-surface0); }
 .profiles-empty { color: var(--fg-subtext1, #bac2de); font-size: 12px; }
 .profile-card { position: relative; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 12px; margin-bottom: 8px; }
 .profile-card.active { border-color: var(--accent, #89b4fa); background: var(--bg-base, #1e1e2e); box-shadow: inset 3px 0 0 var(--accent, #89b4fa); }
