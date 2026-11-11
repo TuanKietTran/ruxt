@@ -95,14 +95,17 @@ onBeforeUnmount(() => window.removeEventListener("pagehide", flushOnHide));
 .tech-input__status { display: flex; align-items: baseline; gap: 8px; min-height: 16px; line-height: 1.4; }
 .tech-input__saved { color: var(--success, #a6e3a1); font-size: 12px; }
 .tech-input__error { color: var(--danger, #f38ba8); font-size: 12px; }
-.tech-input__box { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 32px; padding: 4px 8px; border: 1px solid transparent; border-bottom-color: var(--border, #333); border-radius: 4px; cursor: text; }
+.tech-input__box { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 32px; padding: 4px 8px; border: 1px solid transparent; border-bottom-color: var(--border, #333); border-radius: 4px; cursor: text; transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease; }
 .tech-input__box:hover { border-color: var(--border, #333); background: var(--bg-mantle, #171717); }
 .tech-input__box:focus-within { border-color: var(--accent, #89b4fa); background: var(--bg-mantle, #171717); }
 .tech-input--error .tech-input__box { border-bottom-color: var(--danger, #f38ba8); }
 .tech-input--error .tech-input__box:focus-within { border-color: var(--danger, #f38ba8); }
 .tech-input__chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 8px; border: 1px solid var(--border, #333); border-radius: 4px; background: var(--bg-surface0, #242424); color: var(--fg-text, #ddd); font-size: 12px; }
-.tech-input__chip button { padding: 0 4px; border: 0; background: transparent; color: var(--fg-subtext0, #888); font: inherit; cursor: pointer; }
+.tech-input__chip button { padding: 0 4px; border: 0; background: transparent; color: var(--fg-subtext0, #888); font: inherit; cursor: pointer; transition: color 150ms ease, background-color 150ms ease; }
+.tech-input__chip button:hover { color: var(--fg-text, #ddd); }
+.tech-input__chip button:focus-visible { outline: 2px solid var(--accent, #89b4fa); outline-offset: 2px; }
 .tech-input__box input { flex: 1 1 140px; min-width: 0; padding: 4px 0; border: 0; outline: none; background: transparent; color: var(--fg-text, #ddd); font: inherit; font-size: 13px; }
 .tech-input-fade-leave-active { transition: opacity .2s ease; }
 .tech-input-fade-leave-to { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .tech-input__box, .tech-input__chip button, .tech-input-fade-leave-active { transition-duration: 0.01ms; } }
 </style>
