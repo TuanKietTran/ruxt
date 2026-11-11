@@ -156,6 +156,7 @@ const handleLogout = async () => {
 .nav-link.active {
     color: var(--fg-text);
     background: var(--bg-surface0);
+    font-weight: 600;
 }
 
 /* Header actions */
@@ -201,6 +202,10 @@ const handleLogout = async () => {
     background: var(--accent);
 }
 .btn-primary:hover { background: var(--accent-hover); }
+.logo:focus-visible, .nav-link:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+    .nav-link, .btn { transition-duration: 0.01ms; }
+}
 
 .main {
     flex: 1;
@@ -215,10 +220,11 @@ const handleLogout = async () => {
     white-space: nowrap;
 }
 
-@media (max-width: 620px) {
+@media (max-width: 640px) {
     .header-inner { height: auto; min-height: 56px; flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px; }
     .logo { font-size: 15px; }
-    .nav-link { padding: 6px 8px; font-size: 12px; }
+    .nav { overflow-x: auto; }
+    .nav-link { padding: 6px 8px; font-size: 12px; white-space: nowrap; }
     .header-actions { flex-wrap: wrap; gap: 8px; margin-left: 0; }
     .header-actions .btn-sm { padding: 6px 8px; }
     .user-email { max-width: 100px; }
