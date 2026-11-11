@@ -221,7 +221,7 @@ const startEdit = async (profile: LocalProfile, discardConfirmed = false) => {
     editingId.value = profile.id;
     lastSavedAt.value = updatedAt;
 };
-const duplicateName = (profile: LocalProfile) => profiles.value.some(item => item.id !== profile.id && item.identity.fullName.trim().toLocaleLowerCase() === profile.identity.fullName.trim().toLocaleLowerCase());
+const duplicateName = (profile: LocalProfile) => { const label = profileLabel(profile).trim().toLocaleLowerCase(); return label !== "" && profiles.value.some(item => item.id !== profile.id && profileLabel(item).trim().toLocaleLowerCase() === label); };
 /** Sidebar primary line: the editable profile label when w-server's label field is present, else the headline, else the CV full name. */
 const profileLabel = (profile: LocalProfile) => (profile as { label?: string }).label?.trim() || profile.identity.headline?.trim() || profile.identity.fullName;
 const profileDate = (timestamp: number) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(timestamp));
@@ -777,7 +777,7 @@ watchEffect(() => {
 .profile-card__menu-divider { margin: 4px 0; border: 0; border-top: 1px solid var(--border, #333); }
 .profile-card__menu button { padding: 6px 8px !important; border: 0 !important; background: transparent; font-size: 12px !important; text-align: left; white-space: nowrap; transition: background-color 150ms ease, color 150ms ease; }
 .profile-card__menu button:hover, .profile-card__menu button:focus-visible { background: var(--bg-base, #1e1e2e); }
-.duplicate-warning { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--yellow, #f9e2af); color: #11111b; font-size: 12px; font-style: normal; font-weight: 600; white-space: nowrap; }
+.duplicate-warning { display: inline-block; justify-self: start; color: var(--warning, #f9e2af); font-size: 11px; font-style: normal; font-weight: 600; white-space: nowrap; }
 .profiles-new { padding: 8px; margin-bottom: 12px; }
 .profiles-new:hover, .profile-card:hover, .profile-card.active { border-color: var(--accent, #89b4fa); background: var(--bg-base, #1e1e2e); }
 .profiles-empty { color: var(--fg-subtext1, #bac2de); font-size: 12px; }
