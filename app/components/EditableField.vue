@@ -22,7 +22,7 @@ const props = withDefaults(defineProps<{
     startEditing?: boolean;
     maxlength?: number | string;
     autocomplete?: string;
-    /** Optional and empty: collapse to a small "＋ label" button while not editing. */
+    /** Optional and empty: collapse to a small "+ label" button while not editing. */
     optional?: boolean;
 }>(), { optional: false, multiline: false, placeholder: "", options: undefined, saved: false, error: undefined, startEditing: false, maxlength: undefined, autocomplete: "off" });
 const emit = defineEmits<{ commit: [value: string]; dirty: [dirty: boolean] }>();
@@ -112,7 +112,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div v-if="collapsed" ref="root" class="editable-field editable-field--collapsed">
-        <button type="button" class="editable-field__add" @click="startEdit">＋ {{ label }}</button>
+        <button type="button" class="editable-field__add" @click="startEdit">+ {{ label }}</button>
     </div>
     <div v-else ref="root" class="editable-field" :class="{ 'editable-field--editing': editing, 'editable-field--error': error }" @focusout="onFocusOut">
         <span :id="`${id}-label`" class="editable-field__label">{{ label }}</span>
@@ -152,30 +152,30 @@ onBeforeUnmount(() => {
         </div>
         <div class="editable-field__status">
             <Transition name="editable-field-fade">
-                <span v-if="saved && !error && !editing" class="editable-field__saved">✓ saved</span>
+                <span v-if="saved && !error && !editing" class="editable-field__saved">Saved</span>
             </Transition>
-            <span v-if="dirty" class="editable-field__unsaved">unsaved</span>
+            <span v-if="dirty" class="editable-field__unsaved">Unsaved</span>
             <small v-if="error" :id="`${id}-error`" class="editable-field__error" role="alert">{{ error }}</small>
         </div>
     </div>
 </template>
 
 <style scoped>
-.editable-field { display: grid; align-content: start; gap: 5px; min-width: 0; color: var(--fg-subtext1, #aaa); font-size: 12px; }
-.editable-field__label { display: flex; align-items: baseline; gap: 8px; min-height: 14px; }
-.editable-field__status { display: flex; align-items: baseline; gap: 8px; min-height: 14px; line-height: 1.4; }
-.editable-field__saved { color: var(--success, #a6e3a1); font-size: 10px; }
-.editable-field__unsaved { color: var(--warning, #f9e2af); font-size: 10px; }
-.editable-field__error { color: var(--danger, #f38ba8); font-size: 10px; }
+.editable-field { display: grid; align-content: start; gap: 4px; min-width: 0; color: var(--fg-subtext1, #aaa); font-size: 12px; }
+.editable-field__label { display: flex; align-items: baseline; gap: 8px; min-height: 16px; }
+.editable-field__status { display: flex; align-items: baseline; gap: 8px; min-height: 16px; line-height: 1.4; }
+.editable-field__saved { color: var(--success, #a6e3a1); font-size: 12px; }
+.editable-field__unsaved { color: var(--warning, #f9e2af); font-size: 12px; }
+.editable-field__error { color: var(--danger, #f38ba8); font-size: 12px; }
 .editable-field__display {
     box-sizing: border-box;
     width: 100%;
-    min-height: 34px;
+    min-height: 32px;
     margin: 0;
-    padding: 8px 9px;
+    padding: 8px;
     border: 1px solid transparent;
     border-bottom-color: var(--border, #333);
-    border-radius: 3px;
+    border-radius: 4px;
     background: transparent;
     color: var(--fg-text, #ddd);
     font: inherit;
@@ -190,23 +190,23 @@ onBeforeUnmount(() => {
 .editable-field__display:hover { border-color: var(--border, #333); background: var(--bg-mantle, #171717); }
 .editable-field__display:focus-visible { outline: none; border-color: var(--accent, #89b4fa); }
 .editable-field__display--empty { color: var(--fg-subtext1, #aaa); font-style: italic; }
-.editable-field__display--multiline { min-height: calc(2.8em + 18px); white-space: pre-wrap; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.editable-field__display--multiline { min-height: calc(2.8em + 16px); white-space: pre-wrap; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 .editable-field--error .editable-field__display { border-bottom-color: var(--danger, #f38ba8); }
-.editable-field__control { display: grid; gap: 6px; min-width: 0; }
-.editable-field__control select { box-sizing: border-box; width: 100%; min-height: 34px; padding: 7px 8px; border: 1px solid var(--accent, #89b4fa); border-radius: 3px; outline: none; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; font-size: 13px; }
+.editable-field__control { display: grid; gap: 8px; min-width: 0; }
+.editable-field__control select { box-sizing: border-box; width: 100%; min-height: 32px; padding: 8px; border: 1px solid var(--accent, #89b4fa); border-radius: 4px; outline: none; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; font-size: 13px; }
 .editable-field--error .editable-field__control :deep(textarea) { border-color: var(--danger, #f38ba8); }
-.editable-field__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
-.editable-field__hint { flex-basis: 100%; color: var(--fg-subtext0, #777); font-size: 11px; text-align: right; }
-.editable-field__actions button { padding: 4px 10px; border: 1px solid var(--border, #333); border-radius: 3px; background: transparent; color: var(--fg-text, #ddd); font: inherit; cursor: pointer; }
+.editable-field__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.editable-field__hint { flex-basis: 100%; color: var(--fg-subtext0, #777); font-size: 12px; text-align: right; }
+.editable-field__actions button { padding: 4px 8px; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: var(--fg-text, #ddd); font: inherit; cursor: pointer; }
 .editable-field__actions .editable-field__save { border-color: var(--accent, #89b4fa); background: var(--accent, #89b4fa); color: var(--bg-crust, #11111b); }
-.editable-field--collapsed { align-self: start; padding-top: 19px; }
-.editable-field__add { justify-self: start; padding: 4px 8px; border: 1px dashed var(--border, #333); border-radius: 3px; background: transparent; color: var(--fg-subtext0, #888); font: inherit; font-size: 11px; cursor: pointer; }
+.editable-field--collapsed { align-self: start; padding-top: 20px; }
+.editable-field__add { justify-self: start; padding: 4px 8px; border: 1px dashed var(--border, #333); border-radius: 4px; background: transparent; color: var(--fg-subtext0, #888); font: inherit; font-size: 12px; cursor: pointer; }
 .editable-field__add:hover, .editable-field__add:focus-visible { outline: none; border-color: var(--accent, #89b4fa); color: var(--fg-text, #ddd); }
 .editable-field__display :slotted(ul) { margin: 0; padding-left: 16px; white-space: normal; }
-.editable-field__display :slotted(li + li) { margin-top: 3px; }
+.editable-field__display :slotted(li + li) { margin-top: 4px; }
 .editable-field__display :slotted(.chips) { display: flex; flex-wrap: wrap; gap: 4px; white-space: normal; }
-.editable-field__display :slotted(.chips span) { padding: 1px 7px; border: 1px solid var(--border, #333); border-radius: 999px; background: var(--bg-surface0, #242424); font-size: 12px; }
-.editable-field-fade-leave-active { transition: opacity .4s ease; }
+.editable-field__display :slotted(.chips span) { padding: 2px 8px; border: 1px solid var(--border, #333); border-radius: 4px; background: var(--bg-surface0, #242424); font-size: 12px; }
+.editable-field-fade-leave-active { transition: opacity .2s ease; }
 .editable-field-fade-leave-to { opacity: 0; }
 @media (hover: none) { .editable-field__hint { display: none; } }
 </style>
