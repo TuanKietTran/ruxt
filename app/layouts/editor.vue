@@ -821,7 +821,7 @@ const handleLogout = async () => {
                     <div v-if="sessionsLoading" class="document-tree__skeleton" role="status" aria-label="Loading sessions">
                         <span v-for="n in 3" :key="n" />
                     </div>
-                    <p v-else-if="!sessions.length" class="document-tree__empty">No sessions yet</p>
+                    <p v-else-if="!sessions.length" class="document-tree__empty" role="status">No sessions yet</p>
                     <div v-for="document in sessions" :key="document.id" class="document-tree__row">
                         <NuxtLink
                             class="document-tree__item"
@@ -852,7 +852,7 @@ const handleLogout = async () => {
                     <div v-if="templatesLoading" class="document-tree__skeleton" role="status" aria-label="Loading templates">
                         <span v-for="n in 3" :key="n" />
                     </div>
-                    <p v-else-if="!cvTemplates.length" class="document-tree__empty">No templates available</p>
+                    <p v-else-if="!cvTemplates.length" class="document-tree__empty" role="status">No templates available</p>
                     <button
                         v-for="cvTemplate in cvTemplates"
                         :key="`${cvTemplate.id}:${cvTemplate.version}`"
@@ -935,7 +935,7 @@ const handleLogout = async () => {
                     </button>
                 </div>
                 <p v-if="operationError" class="template-picker__error" role="alert">{{ operationError }}</p>
-                <p v-else-if="!templatesLoading && !cvTemplates.length" class="template-picker__empty">No templates are available. Start with a blank CV.</p>
+                <p v-else-if="!templatesLoading && !cvTemplates.length" class="template-picker__empty" role="status">No templates are available. Start with a blank CV.</p>
             </section>
 
             <template v-else-if="selectedTemplate">
@@ -1645,7 +1645,7 @@ button {
 
 .document-tree__menu-button:hover { background: var(--bg-surface1); color: var(--fg-text); }
 
-.document-tree__menu-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; background: var(--bg-surface1); color: var(--fg-text); }
+.document-tree__menu-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; background: var(--bg-surface1); color: var(--fg-text); }
 
 .document-tree__item:hover,
 .document-tree__item--active {
@@ -1790,7 +1790,7 @@ button {
     inset: 0 2px;
     background: var(--border-strong);
     content: "";
-    transition: background 0.15s;
+    transition: background-color .15s ease;
 }
 
 .workspace-divider:hover::after,
@@ -1951,7 +1951,7 @@ button {
 .template-readonly-label { margin: auto 8px; color: var(--fg-subtext0); font-size: 11px; line-height: 1; white-space: nowrap; }
 .template-clone-button, .template-back-button { height: 100%; margin: 0; padding: 0 11px; border: 0; border-left: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--fg-subtext0); font: inherit; font-size: 11px; white-space: nowrap; cursor: pointer; }
 .template-clone-button:hover, .template-back-button:hover { background: var(--bg-surface0); color: var(--fg-text); }
-.template-clone-button:focus-visible, .template-back-button:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }
+.template-clone-button:focus-visible, .template-back-button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .template-clone-button:disabled { opacity: .55; cursor: wait; }
 .template-inline-error { position: absolute; right: 12px; bottom: 8px; z-index: 2; margin: 0; padding: 5px 8px; border: 1px solid var(--danger); border-radius: var(--radius-sm); background: var(--bg-mantle); color: var(--danger); font-size: 10px; }
 
