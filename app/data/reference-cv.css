@@ -9,19 +9,19 @@
   color: #171717;
   font-family: Georgia, "Times New Roman", Times, serif;
   font-size: 10pt;
-  line-height: 1.24;
+  line-height: 1.25;
 }
 
 .resume * { box-sizing: border-box; }
 .resume > :first-child { margin-top: 0; }
 .resume a { color: inherit; text-decoration: none; }
-.resume p { margin: 0 0 1.4mm; }
+.resume p { margin: 0 0 1.5mm; }
 
 .cv-name {
   margin: 0 0 2.5mm;
-  padding: 0 0 1.8mm;
-  border-bottom: .6pt solid #171717;
-  font-size: 15.5pt;
+  padding: 0 0 2mm;
+  border-bottom: .5pt solid #171717;
+  font-size: 16pt;
   line-height: 1.1;
   text-align: center;
 }
@@ -33,7 +33,7 @@
 .resume h2 {
   margin: 3.5mm 0 2mm;
   border: 0;
-  font-size: 11.5pt;
+  font-size: 12pt;
   line-height: 1.15;
   text-align: center;
   text-decoration: underline;
@@ -63,10 +63,10 @@
 .resume table + p { margin-top: 0; }
 
 .resume ul {
-  margin: .8mm 0 1.5mm;
+  margin: 1mm 0 1.5mm;
   padding-left: 6mm;
 }
-.resume li { margin: 0 0 .7mm; padding-left: .7mm; }
+.resume li { margin: 0 0 .5mm; padding-left: .5mm; }
 .resume strong { font-weight: 700; }
 .resume em { font-style: italic; }
 

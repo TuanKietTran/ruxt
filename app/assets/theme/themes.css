@@ -1,29 +1,29 @@
 /* ──────────────────────────────────────────────
-   CATPPUCCIN MOCHA (default dark)
+   MOCHA (default dark, warm neutral)
    ────────────────────────────────────────────── */
 :root,
 [data-theme="mocha"] {
-  --bg-base:      #1e1e2e;
-  --bg-mantle:    #181825;
-  --bg-crust:     #11111b;
-  --bg-surface0:  #313244;
-  --bg-surface1:  #45475a;
-  --bg-surface2:  #585b70;
-  --bg-overlay0:  #6c7086;
-  --bg-overlay1:  #7f849c;
-  --bg-overlay2:  #9399b2;
+  --bg-base:      #1d1d1b;
+  --bg-mantle:    #171716;
+  --bg-crust:     #111110;
+  --bg-surface0:  #2b2b28;
+  --bg-surface1:  #3f3f3a;
+  --bg-surface2:  #565650;
+  --bg-overlay0:  #6d6d65;
+  --bg-overlay1:  #85857c;
+  --bg-overlay2:  #9d9d94;
 
-  --fg-text:      #cdd6f4;
-  --fg-subtext1:  #bac2de;
-  --fg-subtext0:  #a6adc8;
+  --fg-text:      #edeae3;
+  --fg-subtext1:  #cbc8c0;
+  --fg-subtext0:  #a9a69d;
 
   --accent:       #89b4fa;   /* blue */
-  --accent-hover: #b4befe;   /* lavender */
-  --accent-muted: #313244;
-  --on-accent:    #11111b;
+  --accent-hover: #a9c6f5;   /* blue, lighter */
+  --accent-muted: #2b2f36;
+  --on-accent:    #111110;
 
-  --pink:         #f5c2e7;
-  --mauve:        #cba6f7;
+  --pink:         #d6a3b8;
+  --mauve:        #aba0c6;
   --red:          #f38ba8;
   --peach:        #fab387;
   --yellow:       #f9e2af;
@@ -36,8 +36,8 @@
   --sky:          #89dceb;
   --sapphire:     #74c7ec;
 
-  --border:       #313244;
-  --border-strong: #45475a;
+  --border:       #2b2b28;
+  --border-strong: #3f3f3a;
 
   --radius-sm:    6px;
   --radius-md:    10px;
@@ -48,32 +48,32 @@
 }
 
 /* ──────────────────────────────────────────────
-   CATPPUCCIN LATTE (light)
+   LATTE (light, warm paper)
    ────────────────────────────────────────────── */
 [data-theme="latte"] {
-  --bg-base:      #eff1f5;
-  --bg-mantle:    #e6e9ef;
-  --bg-crust:     #dce0e8;
-  --bg-surface0:  #ccd0da;
-  --bg-surface1:  #bcc0cc;
-  --bg-surface2:  #acb0be;
-  --bg-overlay0:  #9ca0b0;
-  --bg-overlay1:  #8c8fa1;
-  --bg-overlay2:  #7c7f93;
+  --bg-base:      #f6f4ef;
+  --bg-mantle:    #efede7;
+  --bg-crust:     #e4e1d9;
+  --bg-surface0:  #dbd8cf;
+  --bg-surface1:  #c6c3b9;
+  --bg-surface2:  #adaaa0;
+  --bg-overlay0:  #949188;
+  --bg-overlay1:  #7e7c74;
+  --bg-overlay2:  #67655e;
 
-  --fg-text:      #4c4f69;
-  --fg-subtext1:  #505268;
-  --fg-subtext0:  #53566e;
+  --fg-text:      #2c2c29;
+  --fg-subtext1:  #454540;
+  --fg-subtext0:  #55554e;
 
   --accent:       #164cc0;
   --accent-hover: #1445b0;
-  --accent-muted: #ccd0da;
+  --accent-muted: #dbd8cf;
   --on-accent:    #ffffff;
 
-  --pink:         #ea76cb;
-  --mauve:        #8839ef;
+  --pink:         #b04a8a;
+  --mauve:        #68459a;
   --red:          #d20f39;
-  --peach:        #fe640b;
+  --peach:        #bc4a08;
   --yellow:       #df8e1d;
   --warning:      #7b4e10;
   --danger:       #b00d30;
@@ -84,14 +84,14 @@
   --sky:          #04a5e5;
   --sapphire:     #209fb5;
 
-  --border:       #ccd0da;
-  --border-strong: #bcc0cc;
+  --border:       #dbd8cf;
+  --border-strong: #c6c3b9;
 
   color-scheme: light;
 }
 
 /* ──────────────────────────────────────────────
-   OPENCODE THEME (terminal dark)
+   OPENCODE THEME (terminal dark, neutral)
    ────────────────────────────────────────────── */
 [data-theme="opencode"] {
   --bg-base:      #0a0a0a;
@@ -113,8 +113,8 @@
   --accent-muted: #1a2e1a;
   --on-accent:    #0a0a0a;
 
-  --pink:         #f472b6;
-  --mauve:        #a78bfa;
+  --pink:         #e08bb5;
+  --mauve:        #9d8fc7;
   --red:          #f87171;
   --peach:        #fb923c;
   --yellow:       #fbbf24;
