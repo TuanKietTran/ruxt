@@ -1,17 +1,14 @@
 import { expect, test, vi } from 'vitest';
 import { cpSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { mkdtempSync } from 'node:fs';
+import { makePlatformRoot } from '../helpers/platform';
 
 // Sunset data: legacy.json is the single source for the Jan 2027 retirements.
 // The committed registry, the registry loader (post checklist-array fix),
 // the `legacy list` handler, and every legacy adapter's sunset + retirement
 // plan must all agree on provider order, sunset date, dependents, checklist
 // ids/states, and replacement. Native is not a legacy provider.
-const root = mkdtempSync(join(tmpdir(), 'plt-sunset-'));
-process.env.PLATFORM_DATA_DIR = join(root, 'data');
-process.env.PLATFORM_ACTOR = 'sunset-actor';
+const root = makePlatformRoot('plt-sunset-', 'sunset-actor');
 
 mkdirSync(join(root, 'data', 'registries'), { recursive: true });
 cpSync(join(process.cwd(), 'tools/platform/data/registries/legacy.json'), join(root, 'data', 'registries', 'legacy.json'));

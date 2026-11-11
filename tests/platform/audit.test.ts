@@ -1,9 +1,7 @@
 import { expect, test } from 'vitest';
-import { mkdtempSync } from 'node:fs';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { makePlatformRoot } from '../helpers/platform';
 
-process.env.PLATFORM_DATA_DIR = join(mkdtempSync(join(tmpdir(), 'plt-audit-')), 'data');
+makePlatformRoot('plt-audit-');
 
 const { appendAudit, readAudit } = await import('../../tools/platform/src/audit.ts');
 
