@@ -45,7 +45,7 @@ ui("profile safety browser regressions", () => {
     page.setDefaultTimeout(5000);
     const now = Date.now();
     const profiles = ["profile-identity-a", "profile-identity-b"].map((id, index) => ({
-      version: 1, id, createdAt: now - index - 1, updatedAt: now - index - 1,
+      version: 1, id, label: index ? "Other profile" : "Selected profile", createdAt: now - index - 1, updatedAt: now - index - 1,
       identity: { fullName: "Same Name", headline: index ? "Other profile" : "Selected profile", summary: "Before", location: "A" },
       contacts: [], experiences: [], skills: [], certifications: index ? [] : [{ name: "AZ-X", issuer: "Old issuer", start: "2024", end: "2025" }], education: [], languages: [],
       projects: [{ name: "Project", url: "", description: "Before", technologies: [] }],
@@ -112,7 +112,8 @@ ui("profile safety browser regressions", () => {
     const now = Date.now(); const profile = { version: 1, id: `profile-stale-${id}`, createdAt: now, updatedAt: now, identity: { fullName: "Stale Profile", headline: "", summary: "", location: "" }, contacts: [], experiences: [], skills: [], certifications: [], education: [], projects: [], languages: [] };
     await page.addInitScript(profile => localStorage.setItem("cv-sv:local-profiles:v1", JSON.stringify([profile])), profile);
     await page.goto(`${baseUrl}/p`); await page.locator(".profile-card__select").filter({ hasText: "Stale Profile" }).click();
-    await page.getByRole("button", { name: "Apply to sessions…" }).click();
+    await page.getByRole("button", { name: "More actions" }).click();
+    await page.getByRole("menuitem", { name: "Apply to sessions…" }).click();
     await page.locator(`.apply-session input[value="${id}"]`).check();
     await page.getByRole("button", { name: "Preview overwrite" }).click();
     const concurrent = "# Stale target\\n\\nConcurrent editor content\\n";
@@ -170,7 +171,8 @@ ui("profile safety browser regressions", () => {
     }])), { now });
     await page.goto(`${baseUrl}/p`);
     await page.locator(".profile-card__select").filter({ hasText: "Preview Candidate" }).click();
-    await page.getByRole("button", { name: "Apply to sessions…" }).click();
+    await page.getByRole("button", { name: "More actions" }).click();
+    await page.getByRole("menuitem", { name: "Apply to sessions…" }).click();
     await page.locator(`.apply-session input[value="${id}"]`).check();
     await page.getByRole("button", { name: "Preview overwrite" }).click();
     const previewText = await page.locator(".overwrite-preview").innerText();
