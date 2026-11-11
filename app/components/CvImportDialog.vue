@@ -159,13 +159,13 @@ onBeforeUnmount(() => {
                     <button class="primary" type="button" :disabled="!file || !templateKey || busy || !capabilities?.available || Boolean(job)" @click="triggerPipeline">{{ busy ? "Uploading…" : "Start import" }}</button>
                 </div>
                 <aside>
-                    <div v-if="!job" class="empty">Select a file to start the import.</div>
+                    <div v-if="!job" class="empty">No file selected. Choose or drop a CV file to start the import.</div>
                     <template v-else>
                         <h3>{{ file?.name }}</h3>
                         <dl role="status" aria-live="polite"><div><dt>State</dt><dd>{{ job.state }}</dd></div><div><dt>Stage</dt><dd>{{ job.stage.replaceAll('_', ' ') }}</dd></div><div><dt>Progress</dt><dd>{{ job.progress }}%</dd></div><div><dt>Attempt</dt><dd>{{ job.attempt }}</dd></div></dl>
-                        <div class="progress"><span :style="{ width: `${Math.max(2, job.progress)}%` }" /></div>
+                        <div class="progress" role="progressbar" aria-label="Import progress" :aria-valuenow="job.progress" aria-valuemin="0" aria-valuemax="100"><span :style="{ width: `${Math.max(2, job.progress)}%` }" /></div>
                         <div v-if="job.warnings.length" class="warning"><strong>Warnings</strong><p v-for="warning in job.warnings" :key="warning">{{ warning }}</p></div>
-                        <div v-if="job.error" class="error"><strong>{{ job.error.code }}</strong><p>{{ job.error.message }}</p></div>
+                        <div v-if="job.error" class="error" role="alert"><strong>{{ job.error.code }}</strong><p>{{ job.error.message }}</p></div>
                         <template v-if="preview">
                             <h4>Extracted structure</h4>
                             <pre>{{ preview.markdown.slice(0, 5000) }}</pre>
@@ -217,7 +217,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 0; }
 dl div { padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
 dt { color: var(--fg-subtext0); font-size: 11px; }
-dd { margin: 4px 0 0; font-size: 12px; }
+dd { margin: 4px 0 0; font-size: 12px; overflow-wrap: anywhere; }
 .progress { height: 4px; margin: 12px 0; border-radius: var(--radius-full); background: var(--bg-surface0); overflow: hidden; }
 .progress span { display: block; height: 100%; background: var(--accent); transition: width .2s; }
 pre { max-height: 260px; overflow: auto; margin-top: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-crust); color: var(--fg-subtext1); font-size: 11px; line-height: 1.5; white-space: pre-wrap; }
@@ -226,4 +226,6 @@ pre { max-height: 260px; overflow: auto; margin-top: 12px; padding: 12px; border
 .error p { margin: 0; }
 .error-action { margin-top: 8px; }
 @media (max-width: 720px) { .import-grid { grid-template-columns: 1fr; overflow: auto; } aside { border-left: 0; border-top: 1px solid var(--border); } }
+@media (max-width: 640px) { .import-backdrop { padding: 16px; } .import-grid > div, aside { padding: 16px; } dl { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .drop-zone, .primary, .secondary, .progress span { transition: none; } }
 </style>
