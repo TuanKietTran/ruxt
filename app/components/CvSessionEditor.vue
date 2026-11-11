@@ -2,7 +2,7 @@
 import { toRaw } from "vue";
 import referenceCvCss from "~/data/reference-cv.css?raw";
 import { exportCvImages, type CvImageExportOptions, type CvImageFormat } from "~/utils/exportCvImage";
-import { exportCvBundle, exportCvPdf, type CvDocumentExportFormat, type CvPdfExportOptions } from "~/utils/exportCvDocument";
+import { exportCvBundle, type CvDocumentExportFormat } from "~/utils/exportCvDocument";
 import type { CodeMirrorHighlight, EditorStats, MarkdownFormat } from "@ruxt/editor/composables/useCodeMirror";
 import { composeCvMarkdown, detectCvProfile, normalizeCvProfile, toCvTemplateSkeleton, type CvDetectedField, type CvDocumentProps as CvDocument, type CvProfileDetection, type CvTemplate } from "@ruxt/shared/cv";
 import { localCvStore } from "~/utils/localCvStore";
@@ -51,29 +51,15 @@ watchEffect(() => {
 const formatSource = (format: MarkdownFormat) => sourceEditor.value?.applyMarkdownFormat(format);
 const previewFrame = useTemplateRef<HTMLElement>("previewFrame");
 const pdfOpen = ref(false);
-const pdfBusy = ref(false);
-const pdfError = ref("");
-const pdfMessage = ref("");
-const pdfProgress = ref("");
+const pdf = useCvPdfExport(() => previewFrame.value);
 const pdfPageCount = ref(0);
 const refreshPdfPageCount = () => { pdfPageCount.value = previewFrame.value?.querySelectorAll(".cv-sheet").length ?? 0; };
 watch([markdown, css], () => nextTick(refreshPdfPageCount), { flush: "post" });
 const exportPdf = async () => {
-    pdfError.value = ""; pdfMessage.value = ""; pdfOpen.value = true;
+    pdf.clearMessages(); void pdf.hydrate(); pdfOpen.value = true;
     await nextTick(); await document.fonts?.ready;
     await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     refreshPdfPageCount();
-};
-const generatePdf = async (options: CvPdfExportOptions) => {
-    const root = previewFrame.value;
-    if (!root) { pdfError.value = "The CV preview is not ready. Wait for it to render, then retry."; return; }
-    pdfBusy.value = true; pdfError.value = ""; pdfMessage.value = ""; pdfProgress.value = "Preparing rendered CV pages…";
-    try {
-        await exportCvPdf({ ...options, root, onProgress: (completed, total) => { pdfProgress.value = `Creating page ${completed} of ${total}…`; } });
-        pdfProgress.value = ""; pdfMessage.value = "PDF downloaded. If it did not appear, check your browser downloads.";
-    } catch (error) {
-        pdfProgress.value = ""; pdfError.value = error instanceof Error ? error.message : "PDF export failed. Check the preview and retry.";
-    } finally { pdfBusy.value = false; }
 };
 const exportImage = (format: CvImageFormat, options: CvImageExportOptions) =>
     exportCvImages(
@@ -271,7 +257,7 @@ const activeSource = computed({
             <div ref="previewFrame" class="cv-export-scope"><CodePreview :doc="markdown" :css="css" /></div>
         </template>
     </NuxtLayout>
-    <CvPdfExportDialog :open="pdfOpen" :document-name="documentTitle" :preview-root="previewFrame" :page-count="pdfPageCount" :busy="pdfBusy" :progress="pdfProgress" :error="pdfError" :success="pdfMessage" @close="pdfOpen = false" @generate="generatePdf" />
+    <CvPdfExportDialog :open="pdfOpen" :document-name="documentTitle" :preview-root="previewFrame" :page-count="pdfPageCount" :busy="pdf.busy.value" :progress="pdf.progress.value" :error="pdf.error.value" :success="pdf.success.value" :folder-label="pdf.folderLabel.value" :can-pick="pdf.canPick.value" @close="pdfOpen = false" @generate="pdf.generate" @pick="pdf.pick" @reset="pdf.reset" />
 </template>
 
 <style scoped>
