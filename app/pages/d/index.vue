@@ -1033,7 +1033,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 9px 18px;
+    padding: 8px 16px;
     background: var(--accent);
     color: var(--bg-crust);
     border: none;
@@ -1079,8 +1079,6 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
 .stat-label {
     font-size: 12px;
     font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
     color: var(--fg-subtext0);
     margin-bottom: 12px;
 }
@@ -1155,27 +1153,25 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     text-align: left;
     font-size: 11px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
     color: var(--fg-subtext0);
     background: var(--bg-crust);
     border-bottom: 1px solid var(--border);
 }
 .sub-row td {
-    padding: 14px 20px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--border);
     vertical-align: middle;
     color: var(--fg-text);
 }
 .sub-row:last-child td { border-bottom: none; }
 .sub-row:hover td { background: var(--bg-surface0); }
-.sub-name { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.sub-name { display: flex; align-items: center; gap: 8px; font-weight: 500; }
 .muted { color: var(--fg-subtext0); }
 .amount { font-weight: 600; font-variant-numeric: tabular-nums; }
 
 .status-badge {
     display: inline-block;
-    padding: 3px 10px;
+    padding: 4px 8px;
     border: 1px solid;
     border-radius: var(--radius-full);
     font-size: 11px;
@@ -1344,7 +1340,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--fg-text);
-    padding: 9px 12px;
+    padding: 8px 12px;
     font-size: 14px;
     outline: none;
     transition: border-color 0.15s;
@@ -1379,7 +1375,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
 .tm-btn-cancel:hover { background: var(--bg-surface0); color: var(--fg-text); }
 
 .tm-btn-terminate {
-    padding: 8px 18px;
+    padding: 8px 16px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--red);
     background: color-mix(in srgb, var(--red) 15%, transparent);
@@ -1419,7 +1415,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--fg-text);
-    padding: 9px 12px;
+    padding: 8px 12px;
     font-size: 14px;
     outline: none;
     transition: border-color 0.15s;
@@ -1466,7 +1462,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
 
 .field-row {
     display: flex;
-    gap: 10px;
+    gap: 8px;
 }
 .field-row .field { flex: 1; }
 .field-currency { max-width: 100px; }
@@ -1495,7 +1491,7 @@ input[type="datetime-local"].input {
 .btn-secondary:hover { background: var(--bg-surface0); color: var(--fg-text); }
 
 .btn-primary {
-    padding: 8px 18px;
+    padding: 8px 16px;
     border-radius: var(--radius-sm);
     border: none;
     background: var(--accent);
