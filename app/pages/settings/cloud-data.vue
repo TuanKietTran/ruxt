@@ -49,7 +49,7 @@ async function setConsent(category: ConsentCategory, input: HTMLInputElement) {
             </p>
         </header>
 
-        <p v-if="status === 'pending'" class="notice">Loading your consent settings…</p>
+        <p v-if="status === 'pending'" class="notice" role="status">Loading your consent settings…</p>
         <p v-else-if="loadError" class="notice error" role="alert">Consent settings could not be loaded.</p>
 
         <template v-else-if="consent && user">
@@ -109,7 +109,7 @@ async function setConsent(category: ConsentCategory, input: HTMLInputElement) {
             </section>
 
             <p v-if="mutationError" class="notice error" role="alert">{{ mutationError }}</p>
-            <p v-else-if="saving" class="notice" aria-live="polite">Saving consent…</p>
+            <p v-else-if="saving" class="notice" role="status">Saving consent…</p>
         </template>
     </div>
 </template>
@@ -130,7 +130,7 @@ async function setConsent(category: ConsentCategory, input: HTMLInputElement) {
     background: var(--bg-mantle);
     padding: 24px;
 }
-.consent-card { cursor: pointer; display: flex; justify-content: space-between; gap: 24px; align-items: center; }
+.consent-card { cursor: pointer; display: flex; justify-content: space-between; gap: 24px; align-items: center; transition: background 150ms ease, color 150ms ease, border-color 150ms ease; }
 .consent-card h2, .retention-note h2 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
 .consent-card p, .retention-note p { margin: 8px 0; color: var(--fg-subtext0); line-height: 1.55; }
 .detail { font-size: 13px; }
@@ -141,8 +141,10 @@ async function setConsent(category: ConsentCategory, input: HTMLInputElement) {
 .notice { margin: 0; padding: 12px 16px; border-radius: var(--radius-sm); background: var(--bg-surface0); }
 .error { color: var(--danger); }
 code { color: var(--fg-subtext1); }
-@media (max-width: 620px) {
+@media (max-width: 640px) {
     .cloud-settings { margin-top: 24px; }
+    .consent-card, .retention-note { padding: 16px; }
     .consent-card { align-items: flex-start; flex-direction: column; }
+    .toggle-row { min-width: 0; }
 }
 </style>
