@@ -107,6 +107,7 @@ async function setSaveMode(mode: ProfileSaveMode) {
 .choice-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 8px; }
 .choice { display: flex; min-width: 0; gap: 8px; align-items: flex-start; padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: background 150ms ease, color 150ms ease, border-color 150ms ease; }
 .choice--active { border-color: var(--accent); background: var(--bg-surface0); }
+.choice:has(> input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 .choice:has(input:disabled) { opacity: .7; cursor: wait; }
 .choice input { margin-top: 4px; accent-color: var(--accent); }
 .choice span { display: grid; gap: 4px; }
