@@ -102,7 +102,7 @@ function onKeydown(event: KeyboardEvent) {
 .app-dialog footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 24px; }.app-dialog__button { min-height: 40px; padding: 8px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; cursor: pointer; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
 .app-dialog__button:hover { background: var(--bg-surface0); }
 .app-dialog__button--primary:hover { background: var(--accent-hover); }
-.app-dialog__button--danger:hover { background: var(--red); }.app-dialog__button--primary { border-color: transparent; background: var(--accent); color: var(--bg-crust); }.app-dialog__button--danger { background: var(--red); color: var(--bg-crust); }
+.app-dialog__button--danger:hover { background: var(--danger); }.app-dialog__button--primary { border-color: transparent; background: var(--accent); color: var(--bg-crust); }.app-dialog__button--danger { background: var(--danger); color: var(--bg-crust); }
 @media (prefers-reduced-motion: reduce) {
     .app-dialog__button, .app-dialog__field input { transition-duration: 0.01ms; }
 }
