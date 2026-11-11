@@ -13,11 +13,13 @@ describe("profile row menu contract (static source checks)", () => {
         expect(page).toContain(".profile-card__meta { white-space: normal; overflow-wrap: anywhere; }");
     });
 
-    it("shows name, project count and a formatted date in the meta line, with the id only in the select title", () => {
+    it("shows name, project count and a formatted date in the meta line, with no Profile ID title on the select button", () => {
         const page = profilesPage();
         expect(page).toContain('new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" })');
         expect(page).toContain("{{ profile.identity.fullName }} · {{ profile.projects.length }} projects · {{ profileDate(profile.updatedAt) }}");
-        expect(page).toContain(':title="`Profile ID: ${profile.id}`"');
+        expect(page).toContain('<button class="profile-card__select" type="button" @click="closeProfileMenu(); startEdit(profile)">');
+        expect(page).not.toContain(':title="`Profile ID: ${profile.id}`"');
+        expect(page).not.toContain("Profile ID:");
         expect(page).not.toContain("profile.id.slice(-8)");
         expect(page).not.toContain("new Date(profile.updatedAt).toLocaleDateString()");
     });
