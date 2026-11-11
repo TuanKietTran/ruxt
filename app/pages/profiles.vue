@@ -573,8 +573,8 @@ watchEffect(() => {
         <template #workspace>
             <main class="profiles-page">
             <section class="profile-form">
-                <div v-if="editingId === null" class="profile-placeholder">
-                    <p>{{ profiles.length ? "Select a profile or create a new one." : "No local profiles yet." }}</p>
+                <div v-if="editingId === null" class="profile-placeholder" role="status">
+                    <p>{{ profiles.length ? "Select a profile or create a new one." : "No local profiles yet. Create a new profile or import one to get started." }}</p>
                     <div><button type="button" class="profile-save" @click="startCreate">＋ New profile</button><button type="button" @click="openTransfer('import')">Import</button></div>
                 </div>
                 <div v-else :key="formKey" class="profile-sheet">
@@ -767,7 +767,7 @@ watchEffect(() => {
 .profiles-page { display: grid; grid-template-rows: minmax(0, 1fr); min-width: 0; min-height: 0; height: 100%; overflow: hidden; background: var(--bg-base, #111); color: var(--fg-text, #ddd); font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .profiles-list { box-sizing: border-box; height: 100%; padding: 16px 12px; overflow: auto; background: var(--bg-mantle, #171717); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .profiles-list__header { margin: 0 4px 12px; color: var(--fg-subtext1, #bac2de); font-size: 12px; font-weight: 600; }
-.profiles-new, .profile-card { width: 100%; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: inherit; font: inherit; text-align: left; }
+.profiles-new, .profile-card { width: 100%; border: 1px solid var(--border, #333); border-radius: 4px; background: transparent; color: inherit; font: inherit; text-align: left; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
 .profile-card__select { display: grid; flex: 1; min-width: 0; gap: 4px; border: 0 !important; background: transparent; text-align: left !important; cursor: pointer; }
 .profile-card__menu-wrap { position: relative; flex-shrink: 0; }
 .profile-card__menu-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0 !important; background: transparent; font-size: 16px !important; line-height: 1; opacity: 0; }
@@ -775,7 +775,7 @@ watchEffect(() => {
 .profile-card__menu-button:focus-visible { opacity: 1; outline: 2px solid var(--accent, #89b4fa); outline-offset: 1px; }
 .profile-card__menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: grid; min-width: 140px; padding: 4px; border: 1px solid var(--border, #333); border-radius: 4px; background: var(--bg-surface0, #313244); box-shadow: 0 8px 24px rgb(0 0 0 / .24); }
 .profile-card__menu-divider { margin: 4px 0; border: 0; border-top: 1px solid var(--border, #333); }
-.profile-card__menu button { padding: 6px 8px !important; border: 0 !important; background: transparent; font-size: 12px !important; text-align: left; white-space: nowrap; }
+.profile-card__menu button { padding: 6px 8px !important; border: 0 !important; background: transparent; font-size: 12px !important; text-align: left; white-space: nowrap; transition: background-color 150ms ease, color 150ms ease; }
 .profile-card__menu button:hover, .profile-card__menu button:focus-visible { background: var(--bg-base, #1e1e2e); }
 .duplicate-warning { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--yellow, #f9e2af); color: #11111b; font-size: 12px; font-style: normal; font-weight: 600; white-space: nowrap; }
 .profiles-new { padding: 8px; margin-bottom: 12px; }
@@ -793,7 +793,7 @@ watchEffect(() => {
 .profile-delete:hover { color: var(--danger, #f38ba8); }
 
 /* Shared controls */
-.profiles-page button { border: 1px solid var(--border, #333); border-radius: 3px; padding: 6px 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; white-space: nowrap; }
+.profiles-page button { border: 1px solid var(--border, #333); border-radius: 3px; padding: 6px 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; white-space: nowrap; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
 .profiles-page button:hover { border-color: var(--accent, #89b4fa); }
 .profiles-page .profile-save { border-color: var(--accent, #89b4fa); background: var(--accent, #89b4fa); color: var(--bg-crust, #11111b); }
 .profiles-page .profile-danger { border-color: var(--danger, #f38ba8); color: var(--danger, #f38ba8); }
@@ -801,7 +801,7 @@ watchEffect(() => {
 .profiles-page .profile-danger:focus-visible { outline: 2px solid var(--danger, #f38ba8); outline-offset: 2px; }
 .profiles-page select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 34px; padding: 8px; border: 1px solid var(--border, #333); border-radius: 3px; outline: none; background: var(--bg-mantle, #171717); color: var(--fg-text, #ddd); font: inherit; }
 .profiles-page select:focus { border-color: var(--accent, #89b4fa); }
-.profiles-page button:focus-visible, .profiles-page a:focus-visible, .profiles-page select:focus-visible, .profiles-page input:focus-visible { outline: 2px solid var(--accent, #89b4fa); outline-offset: 2px; }
+.profiles-page button:focus-visible, .profiles-page a:focus-visible, .profiles-page select:focus-visible, .profiles-page input:focus-visible, .profiles-page textarea:focus-visible { outline: 2px solid var(--accent, #89b4fa); outline-offset: 2px; }
 
 
 .profile-form { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; }
@@ -903,4 +903,16 @@ watchEffect(() => {
 .apply-select-all { justify-self: start; margin-bottom: 8px; border: 1px solid var(--border, #333); border-radius: 3px; padding: 4px 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .transfer-dialog .apply-session { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; margin: 0; padding: 4px 2px; color: var(--fg-text, #ddd); font-size: 12px; }
 .apply-session span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) {
+    .profile-card { flex-direction: column; align-items: stretch; }
+    .profile-card__menu-wrap { align-self: flex-end; }
+    .profile-card__menu { max-width: calc(100vw - 32px); }
+    .profile-card__menu button { white-space: normal; }
+    .profiles-transfer { grid-template-columns: 1fr; }
+    .profile-section-nav { overflow-x: auto; }
+    .profile-placeholder div { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .profiles-new, .profile-card, .profiles-page button, .profile-card__menu button { transition-duration: 0.01ms; }
+}
 </style>
