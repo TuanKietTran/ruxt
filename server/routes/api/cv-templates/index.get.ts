@@ -8,5 +8,9 @@ export default defineEventHandler(async (event) => {
    await requireCvOwner(event);
    setPrivateCache(event, 60);
    const templates = await sendApiRequest<CvTemplate[]>(useMediator(), listCvTemplatesQuery());
-   return { templates: templates.filter(isPublicCvTemplate) };
+   const body = { templates: templates.filter(isPublicCvTemplate) };
+   const etag = jsonEtag(body);
+   if (matchesIfNoneMatch(event, etag)) return sendNotModified(event, etag);
+   setResponseHeader(event, "etag", etag);
+   return body;
 });

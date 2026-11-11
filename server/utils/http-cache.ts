@@ -32,6 +32,29 @@ export function sendNotModified(event: H3Event, etag: string) {
    return null;
 }
 
+/** Strong validator for a JSON response body: stable for one body, different as soon as it changes. */
+export function jsonEtag(value: unknown): string {
+   const body = JSON.stringify(value) ?? "";
+   let hash = 0x811c9dc5;
+   let hash2 = 5381;
+   for (const character of body) {
+      const code = character.codePointAt(0)!;
+      hash = Math.imul(hash ^ code, 0x01000193) >>> 0;
+      hash2 = (Math.imul(hash2, 33) ^ code) >>> 0;
+   }
+   return `"${body.length.toString(36)}-${hash.toString(36)}${hash2.toString(36)}"`;
+}
+
+/** Whether the request's If-None-Match names this validator (exact, weak, one of a list, or *). */
+export function matchesIfNoneMatch(event: H3Event, etag: string): boolean {
+   const header = getHeader(event, "if-none-match");
+   if (!header) return false;
+   return header.split(",").some(candidate => {
+      const trimmed = candidate.trim();
+      return trimmed === "*" || trimmed === etag || trimmed === `W/${etag}`;
+   });
+}
+
 /**
  * Serve a public JSON GET through the Workers Cache API (`caches.default`) so repeat hits in one data
  * center skip KV and D1. The Worker still runs for each request; only the browser max-age in

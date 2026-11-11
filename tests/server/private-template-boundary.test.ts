@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeTemplate } from "../helpers/fakes";
+import { jsonEtag, matchesIfNoneMatch, sendNotModified } from "../../server/utils/http-cache";
 
 vi.mock("@ruxt/shared/cqrs", () => ({ useMediator: () => ({}) }));
 vi.mock("../../server/services/cv-import-worker", () => ({ runCvImport: vi.fn() }));
@@ -15,6 +16,12 @@ beforeEach(() => {
     vi.stubGlobal("defineEventHandler", (handler: unknown) => handler);
     vi.stubGlobal("createError", (input: object) => Object.assign(new Error(), input));
     vi.stubGlobal("setPrivateCache", vi.fn());
+    vi.stubGlobal("jsonEtag", jsonEtag);
+    vi.stubGlobal("matchesIfNoneMatch", matchesIfNoneMatch);
+    vi.stubGlobal("sendNotModified", sendNotModified);
+    vi.stubGlobal("getHeader", () => undefined);
+    vi.stubGlobal("setResponseHeader", vi.fn());
+    vi.stubGlobal("setResponseStatus", vi.fn());
     vi.stubGlobal("getRouterParam", () => "private-example");
     vi.stubGlobal("readBody", async () => ({ newId: "synthetic-copy", name: "Example", markdownSkeleton: "# Example", css: "" }));
 });
