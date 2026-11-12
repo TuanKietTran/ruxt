@@ -63,8 +63,11 @@ truncated response body.
 
 Phase B (done 2026-11-06, after ds-library LAB-DONE):
 
-- `ruxt-design-system.penpot` — 1,136,369 bytes, 899 zip entries,
-  `testzip` clean, `manifest.json` present.
+- `ruxt-design-system.penpot` — originally 1,136,369 bytes / 899 zip
+  entries, `testzip` clean, `manifest.json` present; replaced on
+  `int/penpot` (2026-11-06) with the phantom-stripped version below:
+  1,120,946 bytes / 897 entries, `testzip` clean, zero references to
+  the phantom page in entry names or file contents.
 - Library counts at export: 93 colors (3 themes x 31), 10 typographies,
   24 library components covering all 16 component types, 12 pages.
 - `png/` — 30 PNGs (16 component groups + 11 pages + 3 Latte variants),
@@ -101,18 +104,22 @@ see below). Do not treat this export as restorable as-is.
   committed file was not modified) imports cleanly: `event: end`,
   new file created (`Ruxt Design System`, revn 160, `is-shared`
   preserved), verified via `get-project-files`.
-- Known script issue: `reimport.sh` only checks the HTTP status,
-  so on this in-band SSE error it would print `IMPORT_OK` — a
-  false positive. Check the SSE stream for `event: end` vs
-  `event: error`, not the status alone.
+- Known script issue (fixed on `int/penpot`, 2026-11-06):
+  `reimport.sh` only checked the HTTP status, so on this in-band
+  SSE error it would print `IMPORT_OK` — a false positive. The
+  script now fails unless the stream ends in `event: end` and
+  contains no `event: error` / `~:server-error` / `~:assertion`.
 - Cleanup: all test projects created for this test were deleted
   (`delete-project` 204; Penpot soft-deletes, so tombstones remain
   in project listings). The original library file was not modified
   (still revn 162 at the end of the test).
-- Outstanding decision (manager): replace the committed export
-  with the phantom-stripped version, or heal the source file and
-  re-export. Until then the restore path requires stripping the
-  2 phantom entries first.
+- Resolution (2026-11-06, on `int/penpot`): the committed export
+  was replaced with the phantom-stripped version of itself (899 ->
+  897 entries; NOT the older revn-136 healed snapshot, which only
+  holds the Tokens+Components pages). Verified live: the patched
+  `reimport.sh` imported it into a throwaway project
+  (`RuxtHealVerify`, deleted afterwards) — `IMPORT_OK status=200
+  sse=event:end`. The as-committed export is now restorable as-is.
 
 ## Rules
 
