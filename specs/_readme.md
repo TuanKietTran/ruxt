@@ -6,6 +6,7 @@
 
 | Specification | Covers |
 | --- | --- |
+| [Product requirements](prd.md) | Goals, personas, information architecture, per-surface requirements, non-goals, success metrics, release channels, legacy sunset, security requirements |
 | [Architecture](architecture-runtime.md) | Runtime, ownership, packages, boot |
 | [Editor](cv-editor.md) | Layout, profiles, rendering, exports |
 | [Design system](design-system.md) | Token source, generation and drift, ownership, platform consumption |
