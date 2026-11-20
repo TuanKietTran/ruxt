@@ -1,4 +1,5 @@
 import { CvTemplate, type CvTemplateProps } from "@ruxt/shared/cv";
+import { emitLocalChange } from "./cloudSync/localChanges";
 
 export const LOCAL_CV_TEMPLATES_KEY = "cv-sv:local-templates:v1";
 type TemplateStorage = Pick<Storage, "getItem" | "setItem">;
@@ -23,5 +24,6 @@ export function cloneLocalCvTemplate(source: CvTemplateProps | CvTemplate, id: s
         css: source.css, capabilities: source.capabilities, builtIn: false, tags: ["local"], createdAt: new Date().toISOString(),
     });
     storage.setItem(LOCAL_CV_TEMPLATES_KEY, JSON.stringify([...values, template.toJSON()]));
+    emitLocalChange({ kind: "template", id, origin: "local" });
     return template;
 }

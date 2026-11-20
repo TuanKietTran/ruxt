@@ -1,6 +1,7 @@
 import type { CvDocumentProps as CvDocument } from "@ruxt/shared/cv";
 import { CV_SESSION_BACKUP_PREFIX } from "~/utils/cvSessionBackup";
 import { localCvStore } from "~/utils/localCvStore";
+import { onLocalChange, registerOpenEditor } from "~/utils/cloudSync/localChanges";
 
 export type CvSaveState = "saved" | "saving" | "conflict" | "offline";
 
@@ -49,6 +50,8 @@ export async function useCvDocument(
     let timer: ReturnType<typeof setTimeout> | undefined;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     let firstEditAt = 0;
+    let unregisterEditor: (() => void) | undefined;
+    let unsubscribeLocalChange: (() => void) | undefined;
 
     const cancelRetry = () => { if (retryTimer) clearTimeout(retryTimer); retryTimer = undefined; };
 
@@ -57,7 +60,7 @@ export async function useCvDocument(
         firstEditAt = 0;
         if (sessionActions.deleted.value[id]) { dirty = false; cancelRetry(); return; }
         const snapshot = { markdown: markdown.value, css: css.value };
-        const saved = localCvStore.save(resolvedId.value, snapshot);
+        const saved = localCvStore.save(resolvedId.value, snapshot, { baseRevision: revision.value });
         if (!saved) {
             saveState.value = "offline";
             cancelRetry();
@@ -125,6 +128,12 @@ export async function useCvDocument(
         window.addEventListener("pagehide", onPageHide);
         window.addEventListener("storage", onStorage);
         document.addEventListener("visibilitychange", onVisibilityChange);
+        unregisterEditor = registerOpenEditor("session", resolvedId.value, () => dirty);
+        unsubscribeLocalChange = onLocalChange(change => {
+            if (change.kind !== "session" || change.id !== resolvedId.value || change.origin !== "cloud") return;
+            const next = localCvStore.get(resolvedId.value);
+            if (next) apply(next);
+        });
     };
     deactivated = () => flushPending();
     activated = () => {};
@@ -132,6 +141,10 @@ export async function useCvDocument(
         // Leaving the session must not drop the last edit.
         flushPending();
         cancelRetry();
+        unregisterEditor?.();
+        unsubscribeLocalChange?.();
+        unregisterEditor = undefined;
+        unsubscribeLocalChange = undefined;
         window.removeEventListener("pagehide", onPageHide);
         window.removeEventListener("storage", onStorage);
         document.removeEventListener("visibilitychange", onVisibilityChange);
