@@ -117,4 +117,40 @@ describe("cloud sync push hub on workerd", () => {
       expect(first.messages).toEqual([]);
       second.socket.close(1000);
    });
+
+   it('greets a new connection with no hello when the owner has no history', async () => {
+      const device = await connect('owner-hello-none', 'device-first');
+      await settle();
+      expect(device.messages).toEqual([]);
+      device.socket.close(1000);
+   });
+
+   it('greets a newly connected device with the latest cursor first', async () => {
+      await notify('owner-hello', 9, 'device-other');
+      const device = await connect('owner-hello', 'device-new');
+      await settle();
+      expect(device.messages).toEqual([JSON.stringify({ t: 'hello', cursor: 9 })]);
+      await notify('owner-hello', 10, 'device-other');
+      expect(device.messages).toEqual([
+         JSON.stringify({ t: 'hello', cursor: 9 }),
+         JSON.stringify({ t: 'changed', cursor: 10 }),
+      ]);
+      device.socket.close(1000);
+   });
+
+   it('never lowers the stored cursor, and raises it on a higher notify', async () => {
+      await notify('owner-hello-cursor', 9, 'device-other');
+      const first = await connect('owner-hello-cursor', 'device-first');
+      await settle();
+      expect(first.messages).toEqual([JSON.stringify({ t: 'hello', cursor: 9 })]);
+      await notify('owner-hello-cursor', 5, 'device-other');
+      const second = await connect('owner-hello-cursor', 'device-second');
+      await settle();
+      expect(second.messages).toEqual([JSON.stringify({ t: 'hello', cursor: 9 })]);
+      await notify('owner-hello-cursor', 12, 'device-other');
+      const third = await connect('owner-hello-cursor', 'device-third');
+      await settle();
+      expect(third.messages).toEqual([JSON.stringify({ t: 'hello', cursor: 12 })]);
+      for (const { socket } of [first, second, third]) socket.close(1000);
+   });
 });
