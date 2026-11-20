@@ -146,6 +146,7 @@ export class CloudSyncEngine implements EngineActions {
 
    /** The page became visible: reconcile only when stale and live updates are not flowing. */
    onVisible(): void {
+      if (this.halted === "offline") this.halted = null;
       if (!this.leader || this.halted) return;
       const state = this.deps.store.load();
       const last = state.lastSyncAt ? Date.parse(state.lastSyncAt) : 0;
@@ -156,6 +157,7 @@ export class CloudSyncEngine implements EngineActions {
 
    /** The network came back: one batched reconciliation. */
    onOnline(): void {
+      if (this.halted === "offline") this.halted = null;
       if (!this.leader || this.halted) return;
       void this.exchange("online", { wantPush: this.wantsPush() });
    }
@@ -281,7 +283,7 @@ export class CloudSyncEngine implements EngineActions {
 
       for (let page = 0; page < MAX_PAGES_PER_EXCHANGE; page += 1) {
          await this.catchUp(state);
-         const mutations = await this.collectMutations(state);
+         const mutations = await this.collectMutations(state, Boolean(options.explicit));
          const pullOnly = reason === "local" || reason === "page-hide";
          if (page === 0 && pullOnly && mutations.length === 0) {
             this.deps.store.save(state);
@@ -392,7 +394,7 @@ export class CloudSyncEngine implements EngineActions {
       return state.consent ? state.consent[CONSENT_CATEGORY[kind]].granted : null;
    }
 
-   private async collectMutations(state: SyncState): Promise<SyncMutationDto[]> {
+   private async collectMutations(state: SyncState, explicit = false): Promise<SyncMutationDto[]> {
       const mutations: SyncMutationDto[] = [];
       let bytes = 0;
       const now = new Date(this.clock.now()).toISOString();
@@ -440,7 +442,8 @@ export class CloudSyncEngine implements EngineActions {
             else this.markConflict(state, link, "both-changed");
             continue;
          }
-         if (this.consentGranted(state, link.kind) === false) {
+         // Saves the request a known refusal; an explicit retry always asks the server (consent may be new).
+         if (!explicit && this.consentGranted(state, link.kind) === false) {
             link.state = "blocked";
             link.error = { code: "CLOUD_COPY_CONSENT_REQUIRED", message: "Turn on cloud saving for this kind of record", at: now };
             continue;
@@ -514,7 +517,15 @@ export class CloudSyncEngine implements EngineActions {
    private async applyResponse(state: SyncState, response: SyncResponseDto, sent: SyncMutationDto[]): Promise<void> {
       const at = new Date(this.clock.now()).toISOString();
       if (response.policy?.protocol === 1) this.policy = { ...DEFAULT_SYNC_POLICY, ...response.policy };
-      if (response.consent) state.consent = response.consent;
+      if (response.consent) {
+         state.consent = response.consent;
+         for (const link of Object.values(state.links)) {
+            if (link.state === "blocked" && link.error?.code === "CLOUD_COPY_CONSENT_REQUIRED" && this.consentGranted(state, link.kind)) {
+               link.state = "pending";
+               delete link.error;
+            }
+         }
+      }
       if (response.quota) state.quota = response.quota;
       state.retentionConfigured = response.retentionConfigured;
 

@@ -86,7 +86,7 @@ describe("cloud sync request budget (measured)", () => {
       a!.editSession("s0", "edited in tab 3", undefined, 3);
       await clock.advance(HOUR);
       const requests = server.requests.length - before;
-      results["5 tabs, 1 edit, 1h"] = { httpRequests: requests, requestsToOpenFiveTabs: opened, pushSockets: server.socketCount(OWNER) };
+      results["5 tabs, 1 edit, 1h"] = { httpRequests: requests, requestsBeforeScenario: opened, pushSockets: server.socketCount(OWNER) };
       expect(requests).toBe(1);
       expect(server.socketCount(OWNER)).toBe(1);
    });
