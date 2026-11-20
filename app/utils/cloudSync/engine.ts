@@ -113,6 +113,9 @@ export class CloudSyncEngine implements EngineActions {
    stop(): void {
       if (!this.started) return;
       this.started = false;
+      const state = this.deps.store.load();
+      this.flushPushCounters(state);
+      this.deps.store.save(state);
       for (const name of Object.keys(this.timers) as Array<keyof typeof this.timers>) this.cancel(name);
       this.push?.close();
       this.push = null;
@@ -231,9 +234,15 @@ export class CloudSyncEngine implements EngineActions {
             }, Math.round(500 + this.random() * 1_500));
          },
          onMetric: metric => {
-            const state = this.deps.store.load();
-            recordMetrics(state, this.clock.now(), metric === "ping" ? { pushPings: 1 } : metric === "message" ? { pushMessages: 1 } : { pushConnects: 1 });
-            this.deps.store.save(state);
+            // Counted in memory; persisting every heartbeat would rewrite state (and wake other tabs) each minute.
+            if (metric === "ping") this.pushCounters.pushPings += 1;
+            else if (metric === "message") this.pushCounters.pushMessages += 1;
+            else this.pushCounters.pushConnects += 1;
+            if (this.clock.now() - this.pushCountersSavedAt >= 10 * 60_000) {
+               const state = this.deps.store.load();
+               this.flushPushCounters(state);
+               this.deps.store.save(state);
+            }
          },
       });
       return this.push;
@@ -316,6 +325,7 @@ export class CloudSyncEngine implements EngineActions {
             noopRequests: mutations.length === 0 && response.changes.length === 0 ? 1 : 0,
          });
          await this.applyResponse(state, response, mutations);
+         this.flushPushCounters(state);
          this.deps.store.save(state);
          this.morePages = response.hasMore;
          if (!response.hasMore && !(await this.hasUnsentWork(state))) break;
@@ -328,6 +338,15 @@ export class CloudSyncEngine implements EngineActions {
    }
 
    private morePages = false;
+   private pushCounters = { pushPings: 0, pushMessages: 0, pushConnects: 0 };
+   private pushCountersSavedAt = 0;
+
+   private flushPushCounters(state: SyncState): void {
+      const counters = this.pushCounters;
+      if (counters.pushPings || counters.pushMessages || counters.pushConnects) recordMetrics(state, this.clock.now(), { ...counters });
+      this.pushCounters = { pushPings: 0, pushMessages: 0, pushConnects: 0 };
+      this.pushCountersSavedAt = this.clock.now();
+   }
 
    private scheduleRetry(delay: number): void {
       this.cancel("retry");

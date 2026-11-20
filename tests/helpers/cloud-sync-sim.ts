@@ -232,7 +232,17 @@ class SimChannelHub {
 
 export interface SimTab { engine: CloudSyncEngine; close(): void }
 
+/** Overrides that point a simulated device at a real HTTP server instead of the in-process one. */
+export interface DeviceTransport {
+   sync(body: SyncRequestDto): Promise<SyncResponseDto>;
+   history(kind: CloudCopyKind, id: string): Promise<any>;
+   createSocket?: (url: string) => WebSocketLike;
+   origin?: string;
+}
+
 export class SimDevice {
+   transportOverride: DeviceTransport | null = null;
+   requestLog: Array<{ at: number; mutations: number; changes: number; ok: boolean }> = [];
    readonly storage = new MemoryStorage();
    readonly blobs = createMemoryBlobStore();
    readonly locks = new SimLocks();
@@ -252,15 +262,19 @@ export class SimDevice {
          adapters: createRecordAdapters(storage),
          transport: async body => {
             if (!this.online) throw new SyncHttpError(0, "offline");
-            const response = await this.server.sync(this.ownerId, body);
+            const entry = { at: clock.now(), mutations: body.mutations.length, changes: 0, ok: false };
+            this.requestLog.push(entry);
+            const response = this.transportOverride ? await this.transportOverride.sync(body) : await this.server.sync(this.ownerId, body);
+            entry.changes = response.changes.length;
+            entry.ok = true;
             return { response, bytesUp: JSON.stringify(body).length, bytesDown: JSON.stringify(response).length };
          },
-         fetchHistory: (kind, id) => this.server.history(this.ownerId, kind, id),
+         fetchHistory: (kind, id) => this.transportOverride ? this.transportOverride.history(kind, id) : this.server.history(this.ownerId, kind, id),
          coordinator: createSyncCoordinator(owner, { locks: this.locks, createChannel: name => this.channels.create(name) }),
          createPush: events => createPushChannel(events, {
-            createSocket: url => this.server.connect(url),
+            createSocket: url => this.transportOverride?.createSocket ? this.transportOverride.createSocket(url) : this.server.connect(url),
             clock: { now: clock.now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout },
-            origin: "https://sim.test",
+            origin: this.transportOverride?.origin ?? "https://sim.test",
          }),
          clock,
          online: () => this.online,
