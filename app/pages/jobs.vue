@@ -114,14 +114,13 @@ async function toggleSource(src: JobSource) {
 }
 async function discover(src: JobSource) {
     try {
-        const r = await call<any>(`sources/${encodeURIComponent(src.id)}/discover`, { method: "POST" });
-        toast.push(`${src.name}: ${r.Found} found, ${r.New} new, ${r.Duplicates} duplicates`, { tone: "success" });
-        await load();
+        await call(`sources/${encodeURIComponent(src.id)}/discover`, { method: "POST" });
+        toast.push(`${src.name}: discovery started; new jobs appear here as they arrive.`, { tone: "success" });
     } catch (e) { fail(e); }
 }
-const atsForm = reactive({ kind: "greenhouse", token: "", company: "" });
+const atsForm = reactive({ kind: "greenhouse", token: "", company: "", location_filter: "" });
 async function addATS() {
-    try { await call("sources/ats", { method: "POST", body: { ...atsForm } }); atsForm.token = ""; atsForm.company = ""; await load(); } catch (e) { fail(e); }
+    try { await call("sources/ats", { method: "POST", body: { ...atsForm } }); atsForm.token = ""; atsForm.company = ""; atsForm.location_filter = ""; await load(); } catch (e) { fail(e); }
 }
 const credential = reactive<Record<string, string>>({});
 async function saveCredential(sourceId: string) {
@@ -261,6 +260,7 @@ const toggleCv = (id: string) => { selection.cvIds = selection.cvIds.includes(id
                         <select v-model="atsForm.kind" aria-label="ATS"><option value="greenhouse">Greenhouse</option><option value="lever">Lever</option></select>
                         <input v-model="atsForm.token" required placeholder="Board token / site name" aria-label="Board token">
                         <input v-model="atsForm.company" required placeholder="Company" aria-label="Company">
+                        <input v-model="atsForm.location_filter" placeholder="Locations to keep (regex, e.g. Vietnam|Singapore)" aria-label="Location filter">
                         <button type="submit">Add</button>
                     </form>
                 </section>

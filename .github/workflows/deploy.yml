@@ -78,3 +78,19 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Job automation is optional: its Worker secrets are synced only when all three are configured.
+      - name: Sync job automation secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          JOB_URL: ${{ secrets.NUXT_JOB_AUTOMATION_URL }}
+          JOB_TOKEN: ${{ secrets.NUXT_JOB_AUTOMATION_TOKEN }}
+          JOB_OWNER: ${{ secrets.NUXT_JOB_AUTOMATION_OWNER }}
+        run: |
+          if [ -z "$JOB_URL" ] || [ -z "$JOB_TOKEN" ] || [ -z "$JOB_OWNER" ]; then
+            echo "Job automation secrets not configured; skipping."
+            exit 0
+          fi
+          printf '%s' "$JOB_URL" | pnpm exec wrangler secret put NUXT_JOB_AUTOMATION_URL --config wrangler.json
+          printf '%s' "$JOB_TOKEN" | pnpm exec wrangler secret put NUXT_JOB_AUTOMATION_TOKEN --config wrangler.json
+          printf '%s' "$JOB_OWNER" | pnpm exec wrangler secret put NUXT_JOB_AUTOMATION_OWNER --config wrangler.json
