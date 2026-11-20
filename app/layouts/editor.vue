@@ -82,6 +82,7 @@ watch(
 
 const sessionActions = useCvSessionActions();
 const { user, logout } = useAppAuth();
+const cloudSync = useCloudSync();
 const { authenticated } = useFeatureFlags();
 const { openAuthDialog } = useAuthDialog();
 const appDialog = useAppDialog();
@@ -761,6 +762,7 @@ const handleLogout = async () => {
                     </button>
                     <button class="template-back-button" type="button" @click="closeTemplate">Back to CV</button>
                 </div>
+                <CloudSyncStatus v-if="authenticated && user" :view="cloudSync.view.value" @sync-now="cloudSync.syncNow()" />
                 <NuxtLink class="header-button header-button--settings" to="/settings">Settings</NuxtLink>
                 <button v-if="authenticated && user" class="header-button" type="button" @click="handleLogout">Logout</button>
                 <button v-if="authenticated && user && hasFeature('import')" class="header-button" type="button" @click="isImportOpen = true">Import</button>
