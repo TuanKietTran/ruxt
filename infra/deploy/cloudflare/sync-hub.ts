@@ -17,6 +17,7 @@ interface HubSocket {
 }
 
 interface HubState {
+   storage: { get<T>(key: string): Promise<T | undefined>; put(key: string, value: unknown): Promise<void> };
    acceptWebSocket(socket: HubSocket, tags?: string[]): void;
    getWebSockets(tag?: string): HubSocket[];
    getTags(socket: HubSocket): string[];
@@ -44,7 +45,7 @@ export class CloudSyncHub {
       return new Response("Not found", { status: 404 });
    }
 
-   private connect(request: Request, url: URL): Response {
+   private async connect(request: Request, url: URL): Promise<Response> {
       if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") return new Response("Expected WebSocket", { status: 426 });
       const device = url.searchParams.get("device") ?? "";
       if (!device) return new Response("Device required", { status: 400 });
@@ -63,6 +64,10 @@ export class CloudSyncHub {
       const server = pair[1];
       this.state.acceptWebSocket(server, [device]);
       server.serializeAttachment({ device, connectedAt: Date.now() } satisfies Attachment);
+      // Greet a reconnecting device with the newest cursor announced so far, so it only pulls
+      // data when it actually missed a change; no history means no hello.
+      const stored = await this.state.storage.get<number>('cursor');
+      if (typeof stored === 'number') server.send(JSON.stringify({ t: 'hello', cursor: stored }));
       return new Response(null, { status: 101, webSocket: client } as ResponseInit);
    }
 
@@ -70,6 +75,9 @@ export class CloudSyncHub {
       const body = await request.json().catch(() => null) as { cursor?: unknown; origin?: unknown } | null;
       const cursor = Number(body?.cursor);
       if (!Number.isSafeInteger(cursor) || cursor < 0) return new Response("Invalid cursor", { status: 400 });
+      // Remember only the newest cursor, so a reconnecting device is greeted with it.
+      const stored = await this.state.storage.get<number>('cursor');
+      if (typeof stored !== 'number' || stored < cursor) await this.state.storage.put('cursor', cursor);
       const origin = typeof body?.origin === "string" ? body.origin : "";
       const message = JSON.stringify({ t: "changed", cursor });
       let sent = 0;
