@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
    const lastEventId = getRequestHeader(event, "last-event-id");
    if (lastEventId) headers["last-event-id"] = lastEventId;
 
-   const body = method === "GET" ? undefined : await readRawBody(event, false);
+   const body = method === "GET" ? undefined : await readRawBody(event, "utf8");
    const upstream = await fetch(`${config.url.replace(/\/$/, "")}/api/${path}${query}`, {
       method, headers, body: body ?? undefined, signal: path === "v1/events/stream" ? undefined : AbortSignal.timeout(120_000),
    }).catch(() => null);
