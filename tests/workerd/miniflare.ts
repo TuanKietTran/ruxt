@@ -1,13 +1,13 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { Miniflare, convertV4MiniflareOptions, type MiniflareOptions } from "miniflare";
 
 export const COMPATIBILITY_DATE = "2026-10-18";
-const MIGRATION = new URL("../../infra/deploy/cloudflare/migrations/0001_init.sql", import.meta.url);
+const MIGRATIONS = new URL("../../infra/deploy/cloudflare/migrations/", import.meta.url);
 
-/** Statements of the checked-in migration, one per entry (the file is one statement per line plus comments). */
+/** Statements of every checked-in migration in apply order (each file is one statement per line plus comments). */
 export function migrationStatements(): string[] {
-   return readFileSync(MIGRATION, "utf8")
-      .split("\n")
+   return readdirSync(MIGRATIONS).filter(name => name.endsWith(".sql")).sort()
+      .flatMap(name => readFileSync(new URL(name, MIGRATIONS), "utf8").split("\n"))
       .map(line => line.trim())
       .filter(line => line && !line.startsWith("--"));
 }

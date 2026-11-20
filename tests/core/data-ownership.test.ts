@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CloudConsentCategoryState, CloudConsentEvent } from "@ruxt/core/domain/cloud-data/consent";
+import type { CloudConsentCategoryState, CloudConsentEvent, CloudRetentionAcknowledgement } from "@ruxt/core/domain/cloud-data/consent";
 import { createGetCloudDataConsentHandler } from "@ruxt/core/handlers/get-cloud-data-consent";
 import { createSetCloudDataConsentHandler } from "@ruxt/core/handlers/set-cloud-data-consent";
 import type { CloudConsentRepository } from "@ruxt/core/repos/cloud-consent.repo";
@@ -23,7 +23,32 @@ class OwnerScopedConsentRepo implements CloudConsentRepository {
    async listEvents(ownerId: string) {
       return this.events.filter(event => event.ownerId === ownerId).map(event => structuredClone(event));
    }
+
+   readonly acknowledgements = new Map<string, CloudRetentionAcknowledgement>();
+
+   async getRetentionAcknowledgement(ownerId: string) {
+      return structuredClone(this.acknowledgements.get(ownerId) ?? null);
+   }
+
+   async acknowledgeRetention(acknowledgement: CloudRetentionAcknowledgement) {
+      this.acknowledgements.set(acknowledgement.ownerId, structuredClone(acknowledgement));
+   }
+
+   acknowledge(...owners: string[]) {
+      for (const ownerId of owners) this.acknowledgements.set(ownerId, { ownerId, policyVersion: TEST_RETENTION.noticeVersion, acknowledgedAt: "2026-09-20T00:00:00.000Z" });
+      return this;
+   }
 }
+
+/** Labeled synthetic retention values for tests; no production values are implied. */
+const TEST_RETENTION = {
+   noticeVersion: "test-notice-1",
+   sessionCurrentCopyRetentionDays: 30,
+   templateRetentionDays: 30,
+   profileRetentionDays: 30,
+   checkpointRetentionDays: 7,
+   retentionExtensionDays: 30,
+};
 
 const data = async <I, O>(handler: {
    execute(input: I): Promise<{ success: true; data: O } | { success: false; error: string }>;
@@ -53,10 +78,11 @@ describe("authenticated cloud-data ownership", () => {
    });
 
    it("never exposes one authenticated owner's grant to another owner", async () => {
-      const repo = new OwnerScopedConsentRepo();
+      const repo = new OwnerScopedConsentRepo().acknowledge("owner-alice");
       const set = createSetCloudDataConsentHandler(repo, {
          now: () => new Date("2026-09-21T12:00:00.000Z"),
          newId: () => "event-alice",
+         retentionConfiguration: () => TEST_RETENTION,
       });
       const get = createGetCloudDataConsentHandler(repo);
 
@@ -67,7 +93,9 @@ describe("authenticated cloud-data ownership", () => {
       });
       await expect(data(get, { userId: "owner-bob" })).resolves.toMatchObject({
          cloudSessions: { granted: false },
+         retentionAcknowledgement: { acknowledgedVersion: null },
       });
+      await expect(data(set, { userId: "owner-bob", category: "cloudSessions", granted: true })).rejects.toThrow(/must be acknowledged/);
       expect(await repo.listEvents("owner-bob")).toEqual([]);
       expect(await repo.listEvents("owner-alice")).toEqual([
          expect.objectContaining({ ownerId: "owner-alice", actorUserId: "owner-alice" }),
@@ -75,11 +103,12 @@ describe("authenticated cloud-data ownership", () => {
    });
 
    it("keeps legacy and Clerk ownership namespaces separate", async () => {
-      const repo = new OwnerScopedConsentRepo();
+      const repo = new OwnerScopedConsentRepo().acknowledge("user_123");
       let event = 0;
       const set = createSetCloudDataConsentHandler(repo, {
          now: () => new Date("2026-09-21T12:00:00.000Z"),
          newId: () => `event-${++event}`,
+         retentionConfiguration: () => TEST_RETENTION,
       });
       const get = createGetCloudDataConsentHandler(repo);
       const legacyOwner = "user_123";

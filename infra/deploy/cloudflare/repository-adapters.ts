@@ -1,7 +1,7 @@
 import { Plan, PlanId } from "@ruxt/core/domain/catalog";
 import { Subscription, SubscriptionId } from "@ruxt/core/domain/subscription/subscription";
 import { UserId } from "@ruxt/core/domain/iam/user-id";
-import type { CloudConsentCategoryState, CloudConsentEvent } from "@ruxt/core/domain/cloud-data/consent";
+import type { CloudConsentCategoryState, CloudConsentEvent, CloudRetentionAcknowledgement } from "@ruxt/core/domain/cloud-data/consent";
 import { normalizeUserPreferences, type UserPreferencesRecord } from "@ruxt/core/domain/preferences";
 import type { SubscriptionRepository } from "@ruxt/core/repos/subscription.repo";
 import type { PlanRepository } from "@ruxt/core/repos/plan.repo";
@@ -56,6 +56,13 @@ export class D1CloudConsentRepo implements CloudConsentRepository {
       ]); if(result.some(x=>!x.success)) throw new Error("Cloudflare D1 consent transaction failed");
    }
    async listEvents(ownerId: string) { return (await all<any>("SELECT * FROM cloud_consent_events WHERE owner_id=? ORDER BY changed_at",ownerId)).map(r=>({id:r.id,ownerId:r.owner_id,actorUserId:r.actor_user_id,category:r.category,granted:Boolean(r.granted),policyVersion:r.policy_version,changedAt:r.changed_at} as CloudConsentEvent)); }
+   async getRetentionAcknowledgement(ownerId: string): Promise<CloudRetentionAcknowledgement | null> {
+      const r = await getD1().prepare("SELECT * FROM cloud_retention_acknowledgements WHERE owner_id=?").bind(ownerId).first<any>();
+      return r ? { ownerId: r.owner_id, policyVersion: r.policy_version, acknowledgedAt: r.acknowledged_at } : null;
+   }
+   async acknowledgeRetention(a: CloudRetentionAcknowledgement) {
+      await upsert("INSERT INTO cloud_retention_acknowledgements(owner_id,policy_version,acknowledged_at) VALUES(?,?,?) ON CONFLICT(owner_id) DO UPDATE SET policy_version=excluded.policy_version,acknowledged_at=excluded.acknowledged_at", a.ownerId, a.policyVersion, a.acknowledgedAt);
+   }
 }
 
 export class D1UserPreferencesRepo implements UserPreferencesRepository {

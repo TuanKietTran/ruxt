@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ruxt",
   "account_id": "46c2828c378df7fe9f02544b74e296c3",
-  "main": ".output/server/index.mjs",
+  "main": "infra/deploy/cloudflare/worker-entry.ts",
   "compatibility_date": "2026-10-18",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
@@ -32,5 +32,9 @@
       "binding": "RUXT_KV",
       "id": "62ef57bf79e3482db10e800d2b211510"
     }
-  ]
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "SYNC_HUB", "class_name": "CloudSyncHub" }]
+  },
+  "migrations": [{ "tag": "cloud-sync-hub-v1", "new_sqlite_classes": ["CloudSyncHub"] }]
 }

@@ -1,5 +1,6 @@
 import { createDeployStrategy } from "@infra/deploy/strategy";
 import { D1CloudConsentRepo, D1IamRepo, D1PlanRepo, D1SubscriptionRepo, D1UserPreferencesRepo, D1UserRepo } from "./repository-adapters";
+import { D1CloudCopyRepo } from "./cloud-copy-repo-d1";
 
 createDeployStrategy({
    label: "Cloudflare D1",
@@ -18,6 +19,7 @@ createDeployStrategy({
          user: new D1UserRepo(),
          cloudConsent: new D1CloudConsentRepo(),
          preferences: new D1UserPreferencesRepo(),
+         cloudCopies: new D1CloudCopyRepo(),
       };
    },
 });
