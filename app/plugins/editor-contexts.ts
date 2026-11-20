@@ -16,4 +16,11 @@ export default defineNuxtPlugin(() => {
         home: "/p",
         features: [],
     });
+    registerEditorContext({
+        id: "jobs",
+        label: "Job automation",
+        icon: "lucide:briefcase",
+        home: "/jobs",
+        features: [],
+    });
 });

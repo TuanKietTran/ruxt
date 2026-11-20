@@ -30,6 +30,7 @@
 | [Local sessions](cv-documents-realtime.md) | Browser storage, autosave, recovery |
 | [CV workflows](cv-server-workflows.md) | Import, templates, profile transformations |
 | [MCP](mcp-automation.md) | Authenticated transport and rendering automation |
+| [Job automation](job-automation.md) | `/jobs` context, owner-only proxy to the Job CV Finder core, browser-side candidate snapshots |
 | [iOS platform](platform-ios.md) | Native iOS app: architecture, flavors, theme, auth, testing |
 | [Android platform](platform-android.md) | Android app: architecture, flavors, theme, API use, tests and CI |
 

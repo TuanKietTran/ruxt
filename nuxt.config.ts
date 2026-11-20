@@ -72,6 +72,9 @@ export default defineNuxtConfig({
       // Nuxt applies NUXT_SESSION_SECRET at runtime. Keep this fallback local-only;
       // deployed Deno timelines are validated by validate-deployment-env.ts.
       sessionSecret: "dev-only-secret-change-me-in-production!!",
+      // Job automation (Job CV Finder core). Server-only: NUXT_JOB_AUTOMATION_URL / _TOKEN / _OWNER.
+      // Empty values keep the feature unavailable; the token never reaches the browser.
+      jobAutomation: { url: "", token: "", owner: "" },
       public: {
          appVersion,
          appCommit,

@@ -4,6 +4,7 @@
  * bundled into the client, never fetched from the Iconify API. Add a code here before using it.
  */
 export const ICONS = [
+    "lucide:briefcase",
     "lucide:circle-help",
     "lucide:circle-user-round",
     "lucide:file-text",
