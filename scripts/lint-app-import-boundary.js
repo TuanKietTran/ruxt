@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { extname, join, relative } from "node:path";
+import { extname, join, relative, sep } from "node:path";
 import ts from "typescript";
 
 const SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx", ".vue"]);
@@ -67,7 +67,7 @@ export function findForbiddenAppImports(appRoot) {
                 if (specifier && isForbidden(specifier.text)) {
                     const position = block.offset + specifier.getStart(sourceFile) - sourceFile.getStart(sourceFile);
                     const line = source.slice(0, position).split("\n").length;
-                    findings.push({ file: relative(appRoot, file), line, specifier: specifier.text });
+                    findings.push({ file: relative(appRoot, file).split(sep).join("/"), line, specifier: specifier.text });
                 }
                 ts.forEachChild(node, visit);
             };

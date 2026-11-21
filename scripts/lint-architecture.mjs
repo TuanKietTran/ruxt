@@ -78,7 +78,7 @@ for (const file of ["nuxt.config.ts", "vitest.config.ts", "tsconfig.json", "infr
 }
 // The control document maps every subsystem spec once and excludes local artifacts.
 {
-  const index = readFileSync("specs/_readme.md", "utf8");
+  const index = readFileSync("specs/_readme.md", "utf8").replace(/\r\n/g, "\n");
   const mapSection = index.split("## Subsystem Map\n")[1]?.split("## Cross-Cutting")[0] ?? "";
   const mapped = [...mapSection.matchAll(/\]\(([^)]+\.md)\)/g)].map(match => `specs/${match[1]}`);
   const actual = trackedFiles.filter(file => file.startsWith("specs/") && file.endsWith(".md") && file !== "specs/_readme.md");
