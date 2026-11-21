@@ -1,5 +1,6 @@
 import { normalizeCvProfile } from "@ruxt/shared/cv";
 import type { CvProfileProps } from "@ruxt/shared/cv";
+import { emitLocalChange } from "./cloudSync/localChanges";
 
 /** Browser-only profiles shared by the profile editor and CV sessions. */
 export type LocalProfile = CvProfileProps & { id: string; createdAt: number; updatedAt: number; label?: string };
@@ -73,6 +74,8 @@ export function writeLocalProfiles(profiles: LocalProfile[]): void {
         label: typeof profile.label === "string" && profile.label.trim() ? profile.label.trim() : defaultProfileLabel(profile),
     }));
     localStorage.setItem(LOCAL_PROFILES_KEY, JSON.stringify(withLabels));
+    // Whole-array store: "*" means some profile changed (save, delete, reorder, upgrade write-back).
+    emitLocalChange({ kind: "profile", id: "*", origin: "local" });
 }
 
 /**

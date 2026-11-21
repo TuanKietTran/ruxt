@@ -1,6 +1,7 @@
 import { cvTitleFromMarkdown, parseCvSessionBackup } from "@ruxt/shared/cv";
 import type { CvDocumentProps, CvDocumentSummary } from "@ruxt/shared/cv";
 import { CV_SESSION_BACKUP_PREFIX } from "./cvSessionBackup";
+import { emitLocalChange } from "./cloudSync/localChanges";
 
 /**
  * Browser-local CV documents. Anonymous visitors never reach the server for CVs: every session lives in
@@ -16,8 +17,12 @@ export interface LocalCvStore {
     /** Write a whole document. Returns false when the browser refused the write. */
     put(document: CvDocumentProps): boolean;
     create(input: { id: string; title?: string; markdown: string; css: string }): CvDocumentProps | null;
-    /** Save new source, bumping the revision only when it changed. */
-    save(id: string, source: { markdown: string; css: string }): CvDocumentProps | null;
+    /**
+     * Save new source, bumping the revision only when it changed. `options.baseRevision` is the
+     * revision the editor started from; when it is older than a cloud-applied stored revision the
+     * save still lands but the record is flagged as conflicted.
+     */
+    save(id: string, source: { markdown: string; css: string }, options?: { baseRevision?: number }): CvDocumentProps | null;
     rename(id: string, title: string): CvDocumentProps | null;
     fork(sourceId: string, newId: string, title?: string): CvDocumentProps | null;
     remove(id: string): void;
@@ -50,18 +55,38 @@ export function createLocalCvStore(storage: () => Storage | undefined = () => {
         }
     };
 
-    const put = (document: CvDocumentProps) => {
+    // Extra fields sync may have stored alongside a session (cloudApplied, syncConflict, ...).
+    // Local writes keep them verbatim, except that a local write clears cloudApplied below.
+    const storedExtras = (id: string): Record<string, unknown> => {
+        try {
+            const raw = storage()?.getItem(CV_SESSION_BACKUP_PREFIX + id);
+            if (!raw) return {};
+            const parsed: unknown = JSON.parse(raw);
+            return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+        } catch {
+            return {};
+        }
+    };
+
+    const put = (document: CvDocumentProps, extra?: { syncConflict?: boolean }) => {
         try {
             const target = storage();
             if (!target) return false;
-            target.setItem(CV_SESSION_BACKUP_PREFIX + document.id, JSON.stringify({
+            const record: Record<string, unknown> = {
+                ...storedExtras(document.id),
                 markdown: document.markdown,
                 css: document.css,
                 title: document.title,
                 revision: document.revision,
                 pending: false,
                 savedAt: Date.parse(document.updatedAt) || Date.now(),
-            }));
+            };
+            // The latest write is local, so the cloud-applied marker goes; a conflict marker
+            // survives until the sync engine clears it after resolution.
+            delete record.cloudApplied;
+            if (extra?.syncConflict) record.syncConflict = true;
+            target.setItem(CV_SESSION_BACKUP_PREFIX + document.id, JSON.stringify(record));
+            emitLocalChange({ kind: "session", id: document.id, origin: "local" });
             return true;
         } catch {
             return false;
@@ -99,13 +124,17 @@ export function createLocalCvStore(storage: () => Storage | undefined = () => {
             };
             return put(document) ? document : null;
         },
-        save(id, source) {
+        save(id, source, options?: { baseRevision?: number }) {
             const current = read(id);
             let raw: string | null;
             try { raw = storage()?.getItem(CV_SESSION_BACKUP_PREFIX + id) ?? null; } catch { return null; }
             // A corrupt existing backup is still user data: never treat a failed parse as a missing session.
             if (raw !== null && !current) return null;
             if (current && current.markdown === source.markdown && current.css === source.css) return current;
+            // A stale editor must not silently overwrite a version sync applied from the cloud:
+            // keep the new source (never lose edits) but flag the record as conflicted.
+            const staleCloud = typeof options?.baseRevision === "number" && current !== null
+                && storedExtras(id).cloudApplied === true && options.baseRevision < current.revision;
             const next: CvDocumentProps = {
                 id,
                 title: current?.title ?? PLACEHOLDER_TITLE,
@@ -114,7 +143,7 @@ export function createLocalCvStore(storage: () => Storage | undefined = () => {
                 revision: (current?.revision ?? 0) + 1,
                 updatedAt: new Date().toISOString(),
             };
-            return put(next) ? next : null;
+            return put(next, staleCloud ? { syncConflict: true } : undefined) ? next : null;
         },
         rename(id, title) {
             const current = read(id);
@@ -131,6 +160,7 @@ export function createLocalCvStore(storage: () => Storage | undefined = () => {
             const target = storage();
             if (!target) throw new Error("Browser storage is unavailable.");
             target.removeItem(CV_SESSION_BACKUP_PREFIX + id);
+            emitLocalChange({ kind: "session", id, origin: "local" });
         },
     };
     return store;
