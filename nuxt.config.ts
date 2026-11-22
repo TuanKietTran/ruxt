@@ -59,6 +59,9 @@ export default defineNuxtConfig({
       fallbackToApi: false,
    },
    clerk: {
+      // Clerk is installed explicitly by server/middleware/00-clerk.ts: the module appends its own handler
+      // after the app's middleware, so every middleware above it would see no authenticated user.
+      skipServerMiddleware: true,
       signInUrl: "/login",
       signUpUrl: "/login?mode=signup",
       signInFallbackRedirectUrl: "/",

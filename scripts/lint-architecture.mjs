@@ -90,6 +90,14 @@ for (const file of ["nuxt.config.ts", "vitest.config.ts", "tsconfig.json", "infr
 for (const file of ["server/plugins/analytics.ts", "server/plugins/init-cv.ts", "server/plugins/init-infra.ts"]) {
   if (/^\s*(?:setInterval|setTimeout|fetch|useStorage|openKv)\s*\(/m.test(readFileSync(file, "utf8"))) failures.push(`${file}: Worker global scope must not start timers or perform I/O`);
 }
+// Clerk must authenticate a request before any other middleware reads event.context.auth. The module appends
+// its own handler after the app's middleware, so it is skipped and installed first by name instead.
+{
+  const middleware = trackedFiles.filter(file => /^server\/middleware\/[^/]+\.ts$/.test(file)).sort();
+  if (!/skipServerMiddleware:\s*true/.test(readFileSync("nuxt.config.ts", "utf8"))) failures.push("nuxt.config.ts: clerk.skipServerMiddleware must be true (server/middleware/00-clerk.ts installs Clerk first)");
+  if (middleware[0] !== "server/middleware/00-clerk.ts") failures.push("server/middleware/00-clerk.ts must be the lexically first middleware so Clerk authenticates before any other middleware runs");
+  else if (!/export default clerkMiddleware\(\)/.test(readFileSync(middleware[0], "utf8"))) failures.push("server/middleware/00-clerk.ts must export clerkMiddleware()");
+}
 
 if (failures.length) {
   console.error(`Architecture lint failed:\n- ${failures.join("\n- ")}`);

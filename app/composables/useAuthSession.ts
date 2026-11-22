@@ -1,4 +1,5 @@
 import { hasUnsavedEditorEdits } from "~/utils/cloudSync/localChanges";
+import { OWNER_MISMATCH_EVENT } from "~/composables/useCloudSync";
 import {
    clerkOwnerOf,
    passiveSignOutTarget,
@@ -82,6 +83,12 @@ export function useAuthSession() {
       return true;
    };
 
+   // The server refused a request because the session belongs to another account: describe the real one.
+   const onOwnerMismatch = () => {
+      if (!checkBrowserSession()) { describedFor = null; void fetchMe(); }
+   };
+   window.addEventListener(OWNER_MISMATCH_EVENT, onOwnerMismatch);
+
    const onVisible = () => { if (document.visibilityState === "visible") checkBrowserSession(); };
    document.addEventListener("visibilitychange", onVisible);
    window.addEventListener("focus", onVisible);
@@ -102,5 +109,6 @@ export function useAuthSession() {
       stopListening();
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
+      window.removeEventListener(OWNER_MISMATCH_EVENT, onOwnerMismatch);
    });
 }

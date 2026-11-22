@@ -95,12 +95,12 @@ export async function clerkSessionToken(secret: string, user: ClerkTestUser): Pr
 
 export function clerkFetcher(secret: string, base: string, user: ClerkTestUser) {
    let sessionId: string | null = null;
-   return async (path: string, init: { method?: string; body?: unknown } = {}): Promise<{ status: number; json: any }> => {
+   return async (path: string, init: { method?: string; body?: unknown; headers?: Record<string, string> } = {}): Promise<{ status: number; json: any }> => {
       if (!sessionId) sessionId = (await clerkApi<{ id: string }>(secret, "/sessions", { method: "POST", body: JSON.stringify({ user_id: user.id }) })).id;
       const jwt = (await clerkApi<{ jwt: string }>(secret, `/sessions/${sessionId}/tokens`, { method: "POST", body: "{}" })).jwt;
       const response = await fetch(`${base}${path}`, {
          method: init.method ?? "GET",
-         headers: { authorization: `Bearer ${jwt}`, ...(init.body === undefined ? {} : { "content-type": "application/json" }) },
+         headers: { authorization: `Bearer ${jwt}`, ...(init.body === undefined ? {} : { "content-type": "application/json" }), ...(init.headers ?? {}) },
          body: init.body === undefined ? undefined : JSON.stringify(init.body),
       });
       const text = await response.text();

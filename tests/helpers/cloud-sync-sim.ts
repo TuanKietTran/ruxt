@@ -90,6 +90,8 @@ export class SimServer {
    consent = new Map<string, ConsentViewDto>();
    pushEnabled = true;
    down = false;
+   /** When set, every sync answers with this error before touching any data (e.g. the server's OWNER_MISMATCH). */
+   refuse: SyncHttpError | null = null;
    requests: Array<{ owner: string; device: string; mutations: number; changes: number; at: number; status: number }> = [];
    private sockets: HubSocket[] = [];
    private lastCursor = new Map<string, number>();
@@ -103,6 +105,7 @@ export class SimServer {
       const record = { owner: ownerId, device: body.deviceId, mutations: body.mutations?.length ?? 0, changes: 0, at: this.clock.now(), status: 200 };
       this.requests.push(record);
       if (this.down) { record.status = 503; throw new SyncHttpError(503, "Service unavailable"); }
+      if (this.refuse) { record.status = this.refuse.status; throw this.refuse; }
       const consent = this.consent.get(ownerId) ?? grantedConsent();
       const handler = createSyncCloudCopiesHandler(this.repo, {
          ownerId: () => ownerId,

@@ -363,7 +363,8 @@ export class CloudSyncEngine implements EngineActions {
       recordMetrics(state, this.clock.now(), { requests: status ? 1 : 0, failedRequests: 1 });
       state.lastError = { code, message, at };
       appendJournal(state, { at, event: "sync-failed", detail: `${code}: ${message}` });
-      if (status === 401) {
+      if (status === 401 || (status === 409 && code === "OWNER_MISMATCH")) {
+         // Signed out, or the session now belongs to another account: stop until restarted for the right one.
          this.halted = "signed-out";
          this.push?.close();
          return;
