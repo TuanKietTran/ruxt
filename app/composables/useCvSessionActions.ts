@@ -1,7 +1,10 @@
 import type { CvDocumentProps, CvDocumentSummary, CvTemplate } from "@ruxt/shared/cv";
 import { cvTitleFromMarkdown } from "@ruxt/shared/cv";
 import { localCvStore } from "~/utils/localCvStore";
-import { cloneLocalCvTemplate } from "~/utils/localCvTemplates";
+import { toCvTemplateSkeleton } from "@ruxt/shared/cv";
+import {
+    cloneLocalCvTemplate, importLocalCvTemplate, removeLocalCvTemplate, renameLocalCvTemplate, saveLocalCvTemplate,
+} from "~/utils/localCvTemplates";
 
 type CvTemplateIndex = { templates: CvTemplate[] };
 
@@ -73,5 +76,39 @@ export function useCvSessionActions() {
         return cloned;
     };
 
-    return { documents, buffers, deleted, reloadDocuments, renameDocument, forkDocument, deleteDocument, createFromTemplate, cloneTemplate, upsertDocument };
+    const setTemplates = (templates: CvTemplate[]) => {
+        if (!templateIndex.value) return;
+        templateIndex.value = { templates: [...templates].sort((left, right) => left.name.localeCompare(right.name) || right.version - left.version) };
+    };
+
+    /** Keep a CV's structure as a private template; personal text becomes placeholders and the CV is untouched. */
+    const saveSessionAsTemplate = (sessionId: string, name: string) => {
+        const source = buffers.value[sessionId] ?? localCvStore.get(sessionId);
+        if (!source) throw new Error("That session is no longer in this browser.");
+        const template = saveLocalCvTemplate({ name, markdownSkeleton: toCvTemplateSkeleton(source.markdown), css: source.css });
+        setTemplates([...(templateIndex.value?.templates ?? []), template]);
+        return template;
+    };
+
+    const renameTemplate = (id: string, name: string) => {
+        const renamed = renameLocalCvTemplate(id, name);
+        setTemplates((templateIndex.value?.templates ?? []).map(template => template.id === id ? renamed : template));
+        return renamed;
+    };
+
+    const deleteTemplate = (id: string) => {
+        removeLocalCvTemplate(id);
+        setTemplates((templateIndex.value?.templates ?? []).filter(template => template.id !== id));
+    };
+
+    const importTemplate = (text: string) => {
+        const imported = importLocalCvTemplate(text);
+        setTemplates([...(templateIndex.value?.templates ?? []), imported]);
+        return imported;
+    };
+
+    return {
+        documents, buffers, deleted, reloadDocuments, renameDocument, forkDocument, deleteDocument, createFromTemplate, cloneTemplate, upsertDocument,
+        saveSessionAsTemplate, renameTemplate, deleteTemplate, importTemplate,
+    };
 }
