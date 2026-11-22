@@ -12,7 +12,7 @@ const error = ref<string | null>(null);
 const answerDraft = reactive<Record<string, string>>({});
 const attest = reactive({ evidence: "", url: "" });
 const outcome = ref("");
-const cvTitles = ref<Record<string, string>>({});
+const cvTitles = ref<Record<string, string | undefined>>({});
 onMounted(() => { cvTitles.value = Object.fromEntries(localCvStore.list().map(c => [c.id, c.title])); });
 /** Automated sources submit by themselves once the questions are answered; only a handoff needs the candidate to apply. */
 const mode = computed(() => submitMode(data.value?.source));
