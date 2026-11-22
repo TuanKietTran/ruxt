@@ -98,7 +98,10 @@ export function currentCloudSyncEngine(): CloudSyncEngine | null {
 
 /** Reactive view plus actions; every action is a no-op while sync is not running. */
 export function useCloudSync() {
-   const view = useState<EngineView | null>("cloud-sync:view", () => null);
+   const state = useState<EngineView | null>("cloud-sync:view", () => null);
+   // A plain read-only ref: Vue's deep `readonly()` types make every nested array readonly and no longer
+   // assignable to the components' props.
+   const view = computed<EngineView | null>(() => state.value);
    const busy = useState<boolean>("cloud-sync:busy", () => false);
    const lastActionError = useState<string>("cloud-sync:error", () => "");
    const run = async <T>(action: (active: CloudSyncEngine) => Promise<T>): Promise<T | null> => {
@@ -115,7 +118,7 @@ export function useCloudSync() {
       }
    };
    return {
-      view: readonly(view),
+      view,
       busy: readonly(busy),
       error: readonly(lastActionError),
       syncNow: () => run(active => active.syncNow()),

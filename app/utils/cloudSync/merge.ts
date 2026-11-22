@@ -61,9 +61,9 @@ function diffMiddle(a: string[], b: string[]): DiffLine[] {
    const dp = new Uint32Array((n + 1) * width);
    for (let i = 1; i <= n; i++) {
       for (let j = 1; j <= m; j++) {
-         const up = dp[(i - 1) * width + j];
-         const left = dp[i * width + j - 1];
-         const diag = dp[(i - 1) * width + j - 1];
+         const up = dp[(i - 1) * width + j]!;
+         const left = dp[i * width + j - 1]!;
+         const diag = dp[(i - 1) * width + j - 1]!;
          if (a[i - 1] === b[j - 1]) {
             dp[i * width + j] = diag + 1;
          } else {
@@ -76,14 +76,14 @@ function diffMiddle(a: string[], b: string[]): DiffLine[] {
    let j = m;
    while (i > 0 || j > 0) {
       if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
-         ops.push({ op: 'equal', text: a[i - 1] });
+         ops.push({ op: 'equal', text: a[i - 1]! });
          i--;
          j--;
-      } else if (j > 0 && (i === 0 || dp[i * width + j - 1] >= dp[(i - 1) * width + j])) {
-         ops.push({ op: 'insert', text: b[j - 1] });
+      } else if (j > 0 && (i === 0 || dp[i * width + j - 1]! >= dp[(i - 1) * width + j]!)) {
+         ops.push({ op: 'insert', text: b[j - 1]! });
          j--;
       } else {
-         ops.push({ op: 'delete', text: a[i - 1] });
+         ops.push({ op: 'delete', text: a[i - 1]! });
          i--;
       }
    }
@@ -102,9 +102,9 @@ export function diffLines(before: string, after: string): DiffLine[] {
       suffix++;
    }
    const ops: DiffLine[] = [];
-   for (let i = 0; i < prefix; i++) ops.push({ op: 'equal', text: a[i] });
+   for (let i = 0; i < prefix; i++) ops.push({ op: 'equal', text: a[i]! });
    ops.push(...diffMiddle(a.slice(prefix, a.length - suffix), b.slice(prefix, b.length - suffix)));
-   for (let i = a.length - suffix; i < a.length; i++) ops.push({ op: 'equal', text: a[i] });
+   for (let i = a.length - suffix; i < a.length; i++) ops.push({ op: 'equal', text: a[i]! });
    return ops;
 }
 interface Change {

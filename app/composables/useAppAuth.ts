@@ -85,7 +85,8 @@ export function useAppAuth() {
       appUserId: user.value?.id ?? null,
       clerkSignedIn: Boolean(clerkSession.value),
       clerk: resolveClerk(),
-      serverLogout: () => $fetch("/api/auth/logout", { method: "POST", retry: 0 }),
+      // The transport signature rather than Nitro's route-inferred union, whose type depth the compiler cannot bear.
+      serverLogout: () => ($fetch as unknown as typeof import("ofetch").$fetch)("/api/auth/logout", { method: "POST", retry: 0 }),
       onSignedOut: () => { user.value = null; },
       redirectUrl: options.redirectUrl,
       online: () => !import.meta.client || navigator.onLine !== false,

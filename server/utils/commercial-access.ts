@@ -74,7 +74,7 @@ export async function resolveSubject(event: H3Event, requested: unknown): Promis
    return { principal, userId: requested, admin: true };
 }
 
-async function lookup<T>(request: unknown): Promise<T | null> {
+async function lookup<T>(request: Parameters<ReturnType<typeof useMediator>["send"]>[0]): Promise<T | null> {
    try {
       return await useMediator().send<T>(request);
    } catch (error) {

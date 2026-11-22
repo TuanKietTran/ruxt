@@ -664,6 +664,7 @@ export class CloudSyncEngine implements EngineActions {
          }
          return;
       }
+      if (ack.status !== "rejected") return;
       if (ack.code === "CLOUD_COPY_NOT_FOUND" && ack.operation === "remove") return;
       if (ack.code === "CLOUD_COPY_IDEMPOTENCY_CONFLICT") return; // rebuilt with a new id next time
       link.state = BLOCKING_CODES.has(ack.code) ? "blocked" : "error";
