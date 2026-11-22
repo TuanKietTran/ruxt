@@ -16,11 +16,17 @@ import { SyncHttpError, type CloudHistoryDto, type SyncKind, type SyncRequestDto
  */
 let engine: CloudSyncEngine | null = null;
 let engineOwner: string | null = null;
+let engineAccount: string | null = null;
 let unsubscribe: (() => void) | null = null;
+
+/** Tells the app that the server refused a request because the session now belongs to another account. */
+export const OWNER_MISMATCH_EVENT = "ruxt:owner-mismatch";
+const ownerHeaders = (): Record<string, string> => (engineAccount ? { "x-ruxt-expected-owner": engineAccount } : {});
 
 async function readError(response: Response): Promise<SyncHttpError> {
    let data: { statusMessage?: string; message?: string; data?: { code?: string } } | null = null;
    try { data = await response.json(); } catch { /* not JSON */ }
+   if (response.status === 409 && data?.data?.code === "OWNER_MISMATCH" && typeof window !== "undefined") window.dispatchEvent(new Event(OWNER_MISMATCH_EVENT));
    return new SyncHttpError(response.status, data?.statusMessage || data?.message || response.statusText || "Request failed", data?.data?.code);
 }
 
@@ -29,7 +35,7 @@ async function send(body: SyncRequestDto) {
    let response: Response;
    try {
       response = await fetch("/api/cloud-data/sync", {
-         method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: json,
+         method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", ...ownerHeaders() }, body: json,
       });
    } catch (error) {
       throw new SyncHttpError(0, error instanceof Error ? error.message : "Network error");
@@ -42,7 +48,7 @@ async function send(body: SyncRequestDto) {
 async function fetchHistory(kind: SyncKind, id: string): Promise<CloudHistoryDto> {
    let response: Response;
    try {
-      response = await fetch(`/api/cloud-data/copies/${kind}/${encodeURIComponent(id)}`, { credentials: "same-origin" });
+      response = await fetch(`/api/cloud-data/copies/${kind}/${encodeURIComponent(id)}`, { credentials: "same-origin", headers: ownerHeaders() });
    } catch (error) {
       throw new SyncHttpError(0, error instanceof Error ? error.message : "Network error");
    }
@@ -54,6 +60,7 @@ export async function startCloudSync(ownerId: string, onView: (view: EngineView)
    const owner = await ownerFingerprint(ownerId);
    if (engine && engineOwner === owner) return engine;
    stopCloudSync();
+   engineAccount = ownerId;
    engine = new CloudSyncEngine({
       owner,
       store: createSyncStateStore(owner),
@@ -82,6 +89,7 @@ export function stopCloudSync(): void {
    engine?.stop();
    engine = null;
    engineOwner = null;
+   engineAccount = null;
 }
 
 export function currentCloudSyncEngine(): CloudSyncEngine | null {
@@ -90,7 +98,10 @@ export function currentCloudSyncEngine(): CloudSyncEngine | null {
 
 /** Reactive view plus actions; every action is a no-op while sync is not running. */
 export function useCloudSync() {
-   const view = useState<EngineView | null>("cloud-sync:view", () => null);
+   const state = useState<EngineView | null>("cloud-sync:view", () => null);
+   // A plain read-only ref: Vue's deep `readonly()` types make every nested array readonly and no longer
+   // assignable to the components' props.
+   const view = computed<EngineView | null>(() => state.value);
    const busy = useState<boolean>("cloud-sync:busy", () => false);
    const lastActionError = useState<string>("cloud-sync:error", () => "");
    const run = async <T>(action: (active: CloudSyncEngine) => Promise<T>): Promise<T | null> => {
@@ -107,7 +118,7 @@ export function useCloudSync() {
       }
    };
    return {
-      view: readonly(view),
+      view,
       busy: readonly(busy),
       error: readonly(lastActionError),
       syncNow: () => run(active => active.syncNow()),

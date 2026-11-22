@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const route = useRoute();
 const { user } = useAppAuth();
-const { openAuthDialog } = useAuthDialog();
+const { openAuthDialog, closeAuthDialog } = useAuthDialog();
 
 const mode = route.query.mode === "signup" ? "signup" : "login";
 const redirectTo = typeof route.query.redirect === "string" ? route.query.redirect : null;
@@ -11,6 +11,13 @@ if (user.value) {
 } else {
     openAuthDialog(mode, redirectTo);
 }
+
+// Clerk signs in on the client; when the account arrives (see useAuthSession) leave the dialog for the destination.
+watch(() => user.value?.id, async (id) => {
+    if (!id) return;
+    closeAuthDialog();
+    await navigateTo(safeAuthRedirect(redirectTo) ?? "/");
+});
 
 useSeoMeta({
     title: mode === "signup" ? "Create account" : "Sign in",

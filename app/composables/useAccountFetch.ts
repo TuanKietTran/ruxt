@@ -10,6 +10,7 @@ export function useAccountFetch() {
     return <T>(url: string, options?: FetchOptions<"json">): Promise<T | null> => accountRequest(
         authenticated.value && Boolean(user.value),
         expireSession,
-        () => fetch<T>(url, { ...options, retry: 0 }),
+        // Name the account this page believes it is, so a tab that missed an account switch is refused, not obeyed.
+        () => fetch<T>(url, { ...options, retry: 0, headers: { ...(options?.headers as Record<string, string> | undefined), "x-ruxt-expected-owner": user.value?.id ?? "" } }),
     );
 }

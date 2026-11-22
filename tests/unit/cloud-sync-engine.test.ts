@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SimClock, SimDevice, SimServer, flush } from "../helpers/cloud-sync-sim";
+import { SyncHttpError } from "../../app/utils/cloudSync/types";
 import type { RecordKey } from "../../app/utils/cloudSync/contracts";
 
 const OWNER = "clerk:user_alice";
@@ -21,6 +22,23 @@ async function world(devices = 1) {
 const status = async (device: SimDevice, id: string) => (await device.leader!.refreshView()).records.find(record => record.key === key(id))?.status;
 
 describe("cloud sync engine", () => {
+   it("stops, instead of retrying, when the server says the session now belongs to another account, and keeps local data", async () => {
+      const { server, clock, devices: [a] } = await world();
+      a!.editSession("s1", "v1");
+      await a!.leader!.upload([key("s1")]);
+      await flush();
+      server.refuse = new SyncHttpError(409, "The signed-in account changed", "OWNER_MISMATCH");
+      a!.editSession("s1", "edited while the account had changed");
+      const before = server.requests.length;
+      await clock.advance(15_000);
+      expect(server.requests.length).toBe(before + 1);
+      // No retry storm: the engine halted until it is restarted for the right account.
+      await clock.advance(10 * 60_000);
+      expect(server.requests.length).toBe(before + 1);
+      expect((await a!.leader!.refreshView()).status).toBe("signed-out");
+      expect((a!.readSession("s1") as { markdown: string }).markdown).toBe("edited while the account had changed");
+   });
+
    it("does one exchange on start and never uploads unselected local data", async () => {
       const { server, clock, devices: [a] } = await world();
       a!.editSession("s1", "# Local only");

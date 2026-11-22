@@ -1,8 +1,7 @@
-import { useMediator } from "@ruxt/shared/cqrs";
-import { getSubscriptionQuery } from "@ruxt/core/handlers/get-subscription";
+import { requireOwnedSubscription } from "../../../utils/commercial-access";
 
 export default defineEventHandler(async (event) => {
    const id = getRouterParam(event, "id")!;
-   const mediator = useMediator();
-   return sendApiRequest(mediator, getSubscriptionQuery({ subscriptionId: id }));
+   setPrivateCache(event);
+   return (await requireOwnedSubscription(event, id)).subscription;
 });

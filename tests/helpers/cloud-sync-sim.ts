@@ -48,7 +48,28 @@ export class SimClock implements EngineClock {
       await flush();
    }
 }
-export const flush = async () => { for (let i = 0; i < 30; i += 1) await new Promise(resolve => setImmediate(resolve)); };
+/**
+ * Hashing (`crypto.subtle.digest`) completes on a libuv thread, not in the microtask queue. A fixed number of
+ * event-loop turns therefore settles before the work finishes whenever the machine is busy, which made the
+ * simulation depend on CPU load (a conflict reported as "modified", or a 24-hour scenario timing out). Count
+ * in-flight digests and keep turning the loop until they are done.
+ */
+let digestsInFlight = 0;
+const subtle = globalThis.crypto.subtle as SubtleCrypto & { __tracked?: boolean };
+if (!subtle.__tracked) {
+   const digest = subtle.digest.bind(subtle);
+   subtle.digest = ((...args: Parameters<SubtleCrypto["digest"]>) => {
+      digestsInFlight += 1;
+      return digest(...args).finally(() => { digestsInFlight -= 1; });
+   }) as SubtleCrypto["digest"];
+   subtle.__tracked = true;
+}
+const turns = async (count: number) => { for (let i = 0; i < count; i += 1) await new Promise(resolve => setImmediate(resolve)); };
+export const flush = async () => {
+   await turns(30);
+   for (let guard = 0; digestsInFlight > 0 && guard < 20_000; guard += 1) await turns(1);
+   await turns(30);
+};
 
 // ------------------------------------------------------------------------------------------------
 // Server
@@ -90,6 +111,8 @@ export class SimServer {
    consent = new Map<string, ConsentViewDto>();
    pushEnabled = true;
    down = false;
+   /** When set, every sync answers with this error before touching any data (e.g. the server's OWNER_MISMATCH). */
+   refuse: SyncHttpError | null = null;
    requests: Array<{ owner: string; device: string; mutations: number; changes: number; at: number; status: number }> = [];
    private sockets: HubSocket[] = [];
    private lastCursor = new Map<string, number>();
@@ -103,6 +126,7 @@ export class SimServer {
       const record = { owner: ownerId, device: body.deviceId, mutations: body.mutations?.length ?? 0, changes: 0, at: this.clock.now(), status: 200 };
       this.requests.push(record);
       if (this.down) { record.status = 503; throw new SyncHttpError(503, "Service unavailable"); }
+      if (this.refuse) { record.status = this.refuse.status; throw this.refuse; }
       const consent = this.consent.get(ownerId) ?? grantedConsent();
       const handler = createSyncCloudCopiesHandler(this.repo, {
          ownerId: () => ownerId,

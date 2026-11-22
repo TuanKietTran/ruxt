@@ -38,6 +38,15 @@ For the Node build, leave Deno/Cloudflare storage flags unset. pnpm build explic
 
 Optional suites: test:workerd, test:smoke, test:session-continuity. Browser/auth suites require configured fixtures; skipped tests do not establish browser coverage. See [UI validation](cv-sv-ui-validation.md).
 
+Live Clerk suites (`tests/smoke/logout.test.ts`, `commercial-access.test.ts`, `owner-guard.test.ts`, `cloud-sync-ui.test.ts`) need no production credentials: run `pnpm dev` with no Clerk keys, which makes Nuxt create a throwaway keyless development instance and write its key to `.clerk/.tmp/keyless.json` (never committed), or set `E2E_CLERK_SECRET_KEY` to an `sk_test_` key (a live key is refused). The dev server also needs the feature flags and cloud retention values from `.env.example` in a local `.env`, and `NUXT_LEGACY_AUTH_REGISTRATION=true` for the older cookie-session suites. Then:
+
+```sh
+SMOKE_BASE_URL=http://localhost:3000 pnpm exec vitest run tests/smoke/logout.test.ts tests/smoke/commercial-access.test.ts tests/smoke/owner-guard.test.ts tests/smoke/cloud-sync-ui.test.ts tests/smoke/templates.test.ts
+E2E_BASE_URL=http://localhost:3000 pnpm exec vitest run tests/e2e
+```
+
+The tests mint users and one-time sign-in tickets through Clerk's backend API (a browser cannot pass the sign-up captcha) and redeem them in the page, so the browser holds a genuine Clerk session; API suites use real session tokens. Created users are deleted afterwards. A local `.env` is baked into local `nuxt build` output: build for deployment only from a clean checkout.
+
 ## Cloudflare and CI
 
 pnpm cf:build, pnpm check:request-budget, and pnpm cf:deploy:dry verify Worker bundling/configuration. They do not verify a deployed runtime, resource access, CPU quotas, or DNS.
@@ -48,4 +57,4 @@ The workflow verifies main pushes, pull requests, tags, and manual runs. Deploym
 
 Stop the server before resetting disposable data. Preserve .data, local.db*, and browser storage unless reset is intended. Clearing browser site data removes primary local sessions/profiles. Credentials, exports, local databases, and runtime data do not belong in source control.
 
-Coverage gaps include live Clerk flows, responsive/export regression, multi-instance consistency, restore rehearsal, and production runtime smoke tests.
+Coverage gaps include responsive/export regression beyond the phone-width sign-out case, multi-instance consistency, restore rehearsal, a booted Cloudflare Worker (the worker-boot contract is skipped because Miniflare cannot serve this bundle; the built Worker was smoked with `wrangler dev --local`), and production runtime smoke tests.

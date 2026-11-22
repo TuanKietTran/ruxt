@@ -11,5 +11,6 @@ Current behavior and setup live in [specs/_readme.md](../specs/_readme.md).
 | [Local fleet](cloudflare-migration.md) | celld emulation |
 | [Data migration](data-migration.md) | Deno KV export, transform, import, verify |
 | [Cutover](cutover-checklist.md) | Routing, freeze, rollback |
+| [Functionality audit](functionality-audit.md) | What the source implements versus what the product promises |
 
 Administration specifications belong to [ruxt-admin/specs](https://github.com/TuanKietTran/ruxt-admin/tree/main/specs). Reusable package contracts belong to [ruxt-core/specs](https://github.com/TuanKietTran/ruxt-core/tree/main/specs).

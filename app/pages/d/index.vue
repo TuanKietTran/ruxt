@@ -10,7 +10,10 @@ import { calculateMonthlyAmount, formatMajorMoney, formatMoney, minorUnitsFor } 
 
 const route = useRoute();
 const appDialog = useAppDialog();
-const userId = computed(() => (route.query.userId as string) || "demo");
+const { user: signedInUser } = useAppAuth();
+// Signed in: your own subscriptions. Anonymous: the shared read-only demo. The server enforces both.
+const userId = computed(() => (route.query.userId as string) || signedInUser.value?.id || "demo");
+const readOnlyDemo = computed(() => !signedInUser.value);
 
 const {
     data: plansData,
@@ -243,14 +246,11 @@ async function submitPlanThenSub() {
                 name: f.name.trim(),
                 provider: f.provider.trim(),
                 description: f.description.trim(),
-                source: "user",
-                createdBy: userId.value,
                 amountMinor: Math.round(amount * units),
                 currency: f.currency,
                 billingPeriod: f.billingCycle,
                 trialDays: f.trialDays !== "" ? Number(f.trialDays) : null,
                 features: [],
-                isPublic: true,
             },
         });
         // refresh plans so the new plan appears in the map
@@ -372,11 +372,13 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
                         Subscriptions for user <code>{{ userId }}</code>
                     </p>
                 </div>
-                <button class="btn-add" type="button" @click="openPanel">
+                <button class="btn-add" type="button" :disabled="readOnlyDemo" :title="readOnlyDemo ? 'Sign in to manage subscriptions' : undefined" @click="openPanel">
                     <span aria-hidden="true">+</span>
                     Add subscription
                 </button>
             </div>
+
+            <p v-if="readOnlyDemo" class="demo-notice" role="note">This is read-only demo data. Sign in to manage your own subscriptions.</p>
 
             <div v-if="loading" class="loading" role="status">Loading…</div>
 
@@ -1001,6 +1003,9 @@ onUnmounted(() => document.removeEventListener("keydown", handleEsc));
     margin-top: auto;
     padding-top: 8px;
 }
+
+.demo-notice { margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--fg-subtext0); background: var(--bg-surface0); font-size: 13px; }
+.btn-add:disabled { opacity: .5; cursor: not-allowed; }
 
 /* ── Page layout ─────────────────────────────────────────────────────────── */
 .page-header {

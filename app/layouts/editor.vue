@@ -6,7 +6,8 @@ import type { CvDocumentSummary, CvTemplate } from "@ruxt/shared/cv";
 import type { CvSessionBackupEntry } from "@ruxt/shared/cv";
 import { hasEditorFeature, listEditorContexts, resolveEditorContext, type EditorContext, type EditorFeature } from "~/utils/editorContexts";
 import { reuseFor } from "~/utils/fetchCache";
-import { readLocalCvTemplates } from "~/utils/localCvTemplates";
+import { readLocalCvTemplates, exportLocalCvTemplate } from "~/utils/localCvTemplates";
+import { downloadBlob, safeFilename } from "~/utils/exportCvImage";
 import { cvSessionLabel } from "~/utils/cv-session-label";
 
 const LIST_REUSE_MS = 60_000;
@@ -81,10 +82,9 @@ watch(
 );
 
 const sessionActions = useCvSessionActions();
-const { user, logout } = useAppAuth();
+const { user } = useAppAuth();
 const cloudSync = useCloudSync();
 const { authenticated } = useFeatureFlags();
-const { openAuthDialog } = useAuthDialog();
 const appDialog = useAppDialog();
 const toast = useToast();
 // CV sessions live in this browser; listing them makes no request.
@@ -216,7 +216,7 @@ const restoreSessionMenuFocus = async () => {
 };
 const openDocumentMenu = (event: MouseEvent, document: CvDocumentSummary) => {
     sessionMenuTrigger.value = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
-    contextMenu.value = { x: Math.min(event.clientX, window.innerWidth - 170), y: Math.min(event.clientY, window.innerHeight - 126), document };
+    contextMenu.value = { x: Math.min(event.clientX, window.innerWidth - 170), y: Math.min(event.clientY, window.innerHeight - 160), document };
 };
 const closeDocumentMenuOnEscape = (event: KeyboardEvent) => {
     if (event.key !== "Escape" || !contextMenu.value) return;
@@ -308,6 +308,82 @@ watch(
 const closeTemplate = async () => {
     selectedTemplate.value = null;
     await navigateTo("/");
+};
+
+// Private templates live in this browser: save one from a CV, then rename, export or delete it here.
+const isLocalTemplate = computed(() => Boolean(selectedTemplate.value && !selectedTemplate.value.builtIn && selectedTemplate.value.tags.includes("local")));
+const templateFileInput = ref<HTMLInputElement | null>(null);
+const saveSelectedAsTemplate = async () => {
+    if (!contextMenu.value) return;
+    const source = contextMenu.value.document;
+    contextMenu.value = null;
+    sessionMenuTrigger.value = null;
+    const response = await appDialog.prompt({
+        title: "Save as template",
+        message: "Keeps this CV's layout and styles. Your personal text is replaced with placeholders, and the CV itself is not changed.",
+        inputLabel: "Template name",
+        initialValue: `${documentLabel(source)} template`,
+        confirmLabel: "Save template",
+        validate: value => value.trim() ? null : "Enter a name.",
+    });
+    const name = response?.trim();
+    if (!name) return;
+    try {
+        const saved = sessionActions.saveSessionAsTemplate(source.id, name);
+        toast.push(`Saved template ${saved.name}`, { tone: "success" });
+        await viewTemplate(saved);
+    } catch (error: any) {
+        operationError.value = error?.message || "Could not save template.";
+    }
+};
+const renameSelectedTemplate = async () => {
+    const template = selectedTemplate.value;
+    if (!template || !isLocalTemplate.value) return;
+    const response = await appDialog.prompt({ title: "Rename template", inputLabel: "Template name", initialValue: template.name, confirmLabel: "Rename", validate: value => value.trim() ? null : "Enter a name." });
+    const name = response?.trim();
+    if (!name || name === template.name) return;
+    try {
+        selectedTemplate.value = sessionActions.renameTemplate(template.id, name);
+    } catch (error: any) {
+        operationError.value = error?.message || "Could not rename template.";
+    }
+};
+const deleteSelectedTemplate = async () => {
+    const template = selectedTemplate.value;
+    if (!template || !isLocalTemplate.value) return;
+    const confirmed = await appDialog.confirm({
+        title: "Delete template?",
+        message: `Delete ${template.name} from this browser? CVs already created from it keep their own copy. This cannot be undone.`,
+        confirmLabel: "Delete template",
+        cancelLabel: "Keep template",
+        destructive: true,
+    });
+    if (!confirmed) return;
+    try {
+        sessionActions.deleteTemplate(template.id);
+        await closeTemplate();
+        toast.push(`Deleted template ${template.name}`, { tone: "success" });
+    } catch (error: any) {
+        operationError.value = error?.message || "Could not delete template.";
+    }
+};
+const exportSelectedTemplate = () => {
+    const template = selectedTemplate.value;
+    if (!template) return;
+    downloadBlob(new Blob([exportLocalCvTemplate(template)], { type: "application/json" }), `${safeFilename(template.name)}.template.json`);
+};
+const importTemplateFile = async (event: Event) => {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    try {
+        const imported = sessionActions.importTemplate(await file.text());
+        toast.push(`Imported template ${imported.name}`, { tone: "success" });
+        await viewTemplate(imported);
+    } catch (error: any) {
+        operationError.value = error?.message || "Could not import template.";
+    }
 };
 
 const activeSessionTitle = computed(() => {
@@ -658,9 +734,6 @@ const handleImportCommitted = async (documentId: string) => {
     await navigateTo(documentPath(documentId));
 };
 
-const handleLogout = async () => {
-    await logout();
-};
 </script>
 
 <template>
@@ -760,11 +833,16 @@ const handleLogout = async () => {
                     >
                         {{ isCloningTemplate ? "Cloning…" : "Clone to local" }}
                     </button>
+                    <template v-if="isLocalTemplate">
+                        <button class="template-back-button" type="button" @click="renameSelectedTemplate">Rename</button>
+                        <button class="template-back-button" type="button" aria-label="Export template as a file" title="Export template as a file" @click="exportSelectedTemplate">Export file</button>
+                        <button class="template-back-button template-back-button--danger" type="button" @click="deleteSelectedTemplate">Delete</button>
+                    </template>
                     <button class="template-back-button" type="button" @click="closeTemplate">Back to CV</button>
                 </div>
-                <CloudSyncStatus v-if="authenticated && user" :view="cloudSync.view.value" @sync-now="cloudSync.syncNow()" />
+                <ClientOnly><CloudSyncStatus v-if="authenticated && user" :view="cloudSync.view.value" @sync-now="cloudSync.syncNow()" /></ClientOnly>
                 <NuxtLink class="header-button header-button--settings" to="/settings">Settings</NuxtLink>
-                <button v-if="authenticated && user" class="header-button" type="button" @click="handleLogout">Logout</button>
+                <AccountControl variant="text" class="header-button header-button--account" />
                 <button v-if="authenticated && user && hasFeature('import')" class="header-button" type="button" @click="isImportOpen = true">Import</button>
                 <button v-if="hasFeature('export')" class="header-button header-button--primary" type="button" :disabled="showTemplatePicker" @click="isExportOpen = true">Export</button>
                 <button v-if="hasFeature('export')" class="header-button" type="button" data-pdf-export-trigger="true" :disabled="showTemplatePicker" @click="emit('exportPdf')">Export PDF</button>
@@ -788,19 +866,7 @@ const handleLogout = async () => {
 
             <div class="activity-bar__bottom">
                 <NuxtLink class="activity-button" to="/about" aria-label="Help" title="Help"><AppIcon name="lucide:circle-help" /></NuxtLink>
-                <template v-if="authenticated">
-                    <button
-                        v-if="user"
-                        class="activity-button"
-                        type="button"
-                        :aria-label="`Sign out ${user.email}`"
-                        :title="`Sign out ${user.email}`"
-                        @click="handleLogout"
-                    >
-                        <AppIcon name="lucide:circle-user-round" />
-                    </button>
-                    <button v-else class="activity-button" type="button" aria-label="Sign in or create account" title="Sign in or create account" @click="openAuthDialog('login')"><AppIcon name="lucide:log-in" /></button>
-                </template>
+                <AccountControl variant="icon" class="activity-button" />
             </div>
         </nav>
 
@@ -850,6 +916,10 @@ const handleLogout = async () => {
                 <section class="document-group template-group">
                     <header class="document-group__header">
                         <h2>Templates</h2>
+                        <div>
+                            <button type="button" aria-label="Import template from file" title="Import template from file" @click.stop="templateFileInput?.click()">⤒</button>
+                            <input ref="templateFileInput" class="template-file-input" type="file" accept="application/json,.json" aria-label="Template file" tabindex="-1" @change="importTemplateFile">
+                        </div>
                     </header>
                     <div v-if="templatesLoading" class="document-tree__skeleton" role="status" aria-label="Loading templates">
                         <span v-for="n in 3" :key="n" />
@@ -1059,6 +1129,7 @@ const handleLogout = async () => {
             >
                 <button type="button" @click="startRename">Rename</button>
                 <button type="button" @click="forkSelectedDocument">Fork</button>
+                <button type="button" @click="saveSelectedAsTemplate">Save as template…</button>
                 <button class="document-context-menu__danger" type="button" @click="deleteSelectedDocument">Delete</button>
             </nav>
             <div v-if="isExportOpen" class="export-dialog-backdrop" @click.self="isExportOpen = false">
@@ -1955,6 +2026,8 @@ button {
 .template-clone-button:hover, .template-back-button:hover { background: var(--bg-surface0); color: var(--fg-text); }
 .template-clone-button:focus-visible, .template-back-button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .template-clone-button:disabled { opacity: .55; cursor: wait; }
+.template-back-button--danger { color: var(--danger); }
+.template-file-input { display: none; }
 .template-inline-error { position: absolute; right: 12px; bottom: 8px; z-index: 2; margin: 0; padding: 5px 8px; border: 1px solid var(--danger); border-radius: var(--radius-sm); background: var(--bg-mantle); color: var(--danger); font-size: 10px; }
 
 @media (max-width: 900px) {

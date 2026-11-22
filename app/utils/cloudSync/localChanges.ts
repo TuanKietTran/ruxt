@@ -51,6 +51,16 @@ export function isEditorDirty(kind: SyncKind, id: string): boolean {
    return false;
 }
 
+/** True when any editor open in this tab holds edits it has not written to browser storage yet. */
+export function hasUnsavedEditorEdits(): boolean {
+   for (const probes of editors.values()) {
+      for (const probe of probes) {
+         try { if (probe()) return true; } catch { return true; }
+      }
+   }
+   return false;
+}
+
 export function isEditorOpen(kind: SyncKind, id: string): boolean {
    return editors.has(editorKey(kind, id));
 }
