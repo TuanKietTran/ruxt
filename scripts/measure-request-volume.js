@@ -21,15 +21,12 @@ const IDLE_MINUTES = 10;
 const PER_DAY = (24 * 60) / IDLE_MINUTES;
 
 const isAsset = (pathname) => pathname.startsWith("/_nuxt/") || /\.(?:ico|txt|png|svg|jpe?g|webp|woff2?|css|js|json|webmanifest)$/.test(pathname) && !pathname.startsWith("/api/");
-const routeOf = (method, pathname) => `${method} ${pathname.replace(/\/api\/cvs\/[^/]+/, "/api/cvs/:id")}`;
+const routeOf = (method, pathname) => `${method} ${pathname}`;
 
+// CV sessions live in the browser (the server holds no CV documents), so the session this run edits is seeded
+// into localStorage before the page loads; nothing is created on, or read back from, the server.
 const id = crypto.randomUUID();
-const created = await fetch(`${BASE}/api/cvs`, {
-   method: "POST",
-   headers: { "content-type": "application/json" },
-   body: JSON.stringify({ id, title: "Request budget", markdown: "# Request budget\n\nBody.\n", css: "body { color: black; }" }),
-});
-if (!created.ok) throw new Error(`could not create a session: ${created.status} ${await created.text()}`);
+const backupKey = `cv-sv:session-backup:${id}`;
 
 const context = await chromium.launchPersistentContext("", {
    executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ?? (existsSync("/opt/pw-browsers/chromium") ? "/opt/pw-browsers/chromium" : undefined),
@@ -37,6 +34,9 @@ const context = await chromium.launchPersistentContext("", {
    viewport: { width: 1400, height: 900 },
 });
 await context.addCookies([{ name: "__clerk_db_jwt", value: "dvb_x", url: BASE }]);
+await context.addInitScript(({ key, session }) => {
+   if (window.top === window && !localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(session));
+}, { key: backupKey, session: { id, title: "Request budget", markdown: "# Request budget\n\nBody.\n", css: "body { color: black; }", revision: 1, pending: false, savedAt: 1_000 } });
 await context.route(/clerk\.accounts\.dev|clerk-telemetry|clerk\.com/, route => route.abort());
 const page = context.pages()[0] ?? await context.newPage();
 
@@ -111,8 +111,10 @@ try {
    await typeAtEnd(" leaving-now");
    await page.goto("about:blank");
    await settle(2_000);
-   const stored = await (await fetch(`${BASE}/api/cvs/${id}`)).json();
-   const flushedOnLeave = String(stored.markdown ?? "").includes("leaving-now");
+   // The edit must already be in browser storage when the tab leaves; read it back from a fresh page.
+   await page.goto(`${BASE}/about`, { waitUntil: "load" });
+   const stored = await page.evaluate(key => JSON.parse(localStorage.getItem(key) || "null"), backupKey);
+   const flushedOnLeave = String(stored?.markdown ?? "").includes("leaving-now");
 
    const rows = [...phases].map(([name, bucket]) => {
       const total = [...bucket.worker.values()].reduce((sum, count) => sum + count, 0);
@@ -132,9 +134,8 @@ try {
    else {
       for (const row of rows) console.log(`${row.phase.padEnd(32)} worker=${String(row.workerRequests).padStart(4)} assets=${String(row.assets).padStart(4)}  ${JSON.stringify(row.routes)}`);
       console.log(`per day (extrapolated x${PER_DAY}): idle visible tab=${summary.perDay.idleVisibleTab}, hidden tab=${summary.perDay.hiddenTab}`);
-      console.log(`edit typed just before leaving reached the server: ${flushedOnLeave}`);
+      console.log(`edit typed just before leaving reached browser storage: ${flushedOnLeave}`);
    }
 } finally {
    await context.close();
-   await fetch(`${BASE}/api/cvs/${id}`, { method: "DELETE" }).catch(() => undefined);
 }

@@ -1,8 +1,8 @@
 /**
  * Request-budget guardrail for the Cloudflare build (Workers Free: 100k requests/day). Run after
  * `pnpm cf:build`. Fails when:
- * - the client bundle calls setInterval with a literal delay under 30 s whose callback reaches /api/cvs
- *   (one open tab at 3 s was ~28.8k Worker requests a day);
+ * - the client bundle calls setInterval with a literal delay under 30 s whose callback reaches an account route
+ *   (/api/cvs, /api/cloud-data, /api/auth/me, /api/preferences; one open tab at 3 s was ~28.8k Worker requests a day);
  * - the server bundle does not turn CV live events off (the Worker answers EventSource with 501);
  * - `.output/public/_headers` lacks the immutable rule for hashed `/_nuxt/*` bundles;
  * - wrangler.json makes static asset hits invoke the Worker (`assets.run_worker_first`).
@@ -15,7 +15,8 @@ import { pathToFileURL } from "node:url";
 import ts from "typescript";
 
 const MIN_INTERVAL_MS = 30_000;
-const POLLED_ROUTE = "/api/cvs";
+// Routes an idle tab must never poll: the retired CV routes, and the account routes that replaced them.
+const POLLED_ROUTES = ["/api/cvs", "/api/cloud-data", "/api/auth/me", "/api/preferences"];
 const OUTPUT = ".output";
 const failures = [];
 
@@ -85,7 +86,7 @@ export function findShortPolls(input, file = "bundle.js") {
          const [callback, delay] = ts.isCallExpression(node) ? node.arguments : [];
          if (callback && delay && ts.isNumericLiteral(delay) && Number(delay.text) < MIN_INTERVAL_MS && isTimer(node.expression, aliases)) {
             const bodies = ts.isIdentifier(callback) ? declarations.get(callback.text) ?? [] : [callback.getText(sourceFile)];
-            if (bodies.some(body => body.includes(POLLED_ROUTE))) {
+            if (bodies.some(body => POLLED_ROUTES.some(route => body.includes(route)))) {
                const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
                findings.push({ file: chunkFile, line: line + 1, ms: Number(delay.text) });
             }
@@ -127,7 +128,7 @@ const main = () => {
    const clientChunks = listFiles(join(OUTPUT, "public", "_nuxt"), /\.js$/);
    if (!clientChunks.length) failures.push(`${OUTPUT}/public/_nuxt: no client chunks found`);
    for (const finding of findShortPolls(clientChunks.map(file => ({ file, source: readFileSync(file, "utf8") })))) {
-      failures.push(`${finding.file}:${finding.line}: setInterval every ${finding.ms} ms reaches ${POLLED_ROUTE}; poll no faster than ${MIN_INTERVAL_MS} ms`);
+      failures.push(`${finding.file}:${finding.line}: setInterval every ${finding.ms} ms reaches ${POLLED_ROUTES.join(", ")}; poll no faster than ${MIN_INTERVAL_MS} ms`);
    }
 
    const serverChunks = listFiles(join(OUTPUT, "server"), /\.mjs$/).map(file => readFileSync(file, "utf8"));
