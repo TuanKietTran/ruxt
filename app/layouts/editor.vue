@@ -840,7 +840,7 @@ const handleImportCommitted = async (documentId: string) => {
                     </template>
                     <button class="template-back-button" type="button" @click="closeTemplate">Back to CV</button>
                 </div>
-                <CloudSyncStatus v-if="authenticated && user" :view="cloudSync.view.value" @sync-now="cloudSync.syncNow()" />
+                <ClientOnly><CloudSyncStatus v-if="authenticated && user" :view="cloudSync.view.value" @sync-now="cloudSync.syncNow()" /></ClientOnly>
                 <NuxtLink class="header-button header-button--settings" to="/settings">Settings</NuxtLink>
                 <AccountControl variant="text" class="header-button header-button--account" />
                 <button v-if="authenticated && user && hasFeature('import')" class="header-button" type="button" @click="isImportOpen = true">Import</button>

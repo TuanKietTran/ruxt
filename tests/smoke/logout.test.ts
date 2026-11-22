@@ -78,6 +78,15 @@ ui("sign-out with a real Clerk session", () => {
       // The control appears from Clerk's session; /api/auth/me then names the account in its label.
       await page.waitForFunction((label) => document.querySelector('[data-account-action="sign-out"]')?.getAttribute("aria-label") === label, `Sign out ${user.email}`, { timeout: 20_000 });
       expect((await context.request.get(`${base}/api/auth/me`)).status()).toBe(200);
+
+      // A signed-in page load hydrates cleanly: the sync status the browser adds later must not mismatch the server HTML.
+      const hydration: string[] = [];
+      page.on("console", message => { if (/hydration/i.test(message.text())) hydration.push(message.text()); });
+      await page.reload();
+      await signOutControls(page).first().waitFor({ timeout: 20_000 });
+      await page.waitForFunction(() => Boolean((window as unknown as { Clerk?: { loaded?: boolean } }).Clerk?.loaded));
+      await page.waitForTimeout(2_000);
+      expect(hydration).toEqual([]);
       await context.close();
    });
 

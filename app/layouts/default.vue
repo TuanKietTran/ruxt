@@ -28,7 +28,7 @@ const cloudSync = useCloudSync();
                     <template v-if="authenticated">
                         <template v-if="signedIn">
                             <template v-if="user">
-                                <CloudSyncStatus :view="cloudSync.view.value" @sync-now="cloudSync.syncNow()" />
+                                <ClientOnly><CloudSyncStatus :view="cloudSync.view.value" @sync-now="cloudSync.syncNow()" /></ClientOnly>
                                 <NuxtLink to="/settings/cloud-data" class="btn btn-ghost btn-sm">Cloud data</NuxtLink>
                                 <span class="user-email">{{ user.email }}</span>
                             </template>
