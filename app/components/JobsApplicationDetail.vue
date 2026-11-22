@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { localCvStore } from "~/utils/localCvStore";
 import { STATE_LABELS } from "~/composables/useJobAutomation";
+import { cvLabel, submitMode } from "~/utils/jobsView";
 
 const props = defineProps<{ id: string }>();
 const emit = defineEmits<{ changed: [] }>();
@@ -11,6 +12,10 @@ const error = ref<string | null>(null);
 const answerDraft = reactive<Record<string, string>>({});
 const attest = reactive({ evidence: "", url: "" });
 const outcome = ref("");
+const cvTitles = ref<Record<string, string>>({});
+onMounted(() => { cvTitles.value = Object.fromEntries(localCvStore.list().map(c => [c.id, c.title])); });
+/** Automated sources submit by themselves once the questions are answered; only a handoff needs the candidate to apply. */
+const mode = computed(() => submitMode(data.value?.source));
 
 async function load() {
     try {
@@ -76,7 +81,7 @@ async function copy(text: string) {
                 <span class="pill" :data-state="state">{{ STATE_LABELS[state!] || state }}</span>
                 · {{ data.source?.name || data.job.source_id }}
                 <template v-if="data.job.application_url"> · <a :href="data.job.application_url" target="_blank" rel="noopener noreferrer">Open posting</a></template>
-                <template v-if="data.application.selected_cv_id"> · CV {{ data.application.selected_cv_id }} @{{ data.application.selected_cv_revision }}</template>
+                <template v-if="data.application.selected_cv_id"> · CV {{ cvLabel(data.application.selected_cv_id, data.application.selected_cv_revision, cvTitles) }}</template>
             </p>
             <p v-if="data.application.exception_reason" class="callout warn" role="status">{{ data.application.exception_reason }}</p>
             <p v-if="data.application.last_error && state !== 'SUBMITTED'" class="muted">Last error: {{ data.application.last_error }}</p>
@@ -98,7 +103,12 @@ async function copy(text: string) {
                 </form>
             </div>
 
-            <div v-if="state === 'HANDOFF_PENDING' || state === 'BLOCKED_EXCEPTION'" class="jobs-group">
+            <div v-if="mode === 'automated' && state === 'BLOCKED_EXCEPTION'" class="jobs-group">
+                <h2>Submission</h2>
+                <p class="muted">{{ data.source?.name }} accepts submissions through an authorized API. Once the questions above are answered the application is submitted automatically and verified with the platform; there is nothing to do on the platform yourself.</p>
+            </div>
+
+            <div v-if="mode === 'handoff' && (state === 'HANDOFF_PENDING' || state === 'BLOCKED_EXCEPTION')" class="jobs-group">
                 <h2>Apply on the platform</h2>
                 <p class="muted">{{ data.source?.name }} does not permit automated submission. Open the posting, apply with the documents below, and the platform's confirmation email will mark this submitted. If no email will arrive, record your evidence here.</p>
                 <form class="jobs-form grid" @submit.prevent="act('attest-submitted', { evidence: attest.evidence, url: attest.url })">

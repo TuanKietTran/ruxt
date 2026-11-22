@@ -6,6 +6,7 @@ import {
     buildCandidateSnapshot, emptyJobPreferences, normalizeJobPreferences, JOB_PREFERENCES_KEY, JOB_SNAPSHOT_SELECTION_KEY,
     STANDING_ANSWER_KEYS, type JobPreferences,
 } from "~/utils/jobSnapshot";
+import { cvLabel, sendResultMessage, splitReason } from "~/utils/jobsView";
 import { STATE_LABELS, type Application, type Job, type JobEvent, type JobSource, type PlatformAccount } from "~/composables/useJobAutomation";
 
 definePageMeta({ layout: false, path: "/jobs/:section?/:id?", editorContext: "jobs" });
@@ -154,6 +155,9 @@ async function intakeEmail(file?: File) {
 // ---------------------------------------------------------------- CV workspace (local Ruxt data)
 const localProfiles = ref<LocalProfile[]>([]);
 const localCvs = ref<CvDocumentSummary[]>([]);
+const cvTitles = computed(() => Object.fromEntries(localCvs.value.map(c => [c.id, c.title])));
+/** Preferences were saved here but not yet sent to job automation (they only take effect on the next send). */
+const prefsUnsent = ref(false);
 const selection = reactive<{ profileId: string; cvIds: string[] }>({ profileId: "", cvIds: [] });
 const preferences = ref<JobPreferences>(emptyJobPreferences());
 const prefsText = reactive({ locations: "", target_roles: "", excluded_keywords: "" });
@@ -173,7 +177,7 @@ function readLocal() {
 const splitList = (s: string) => s.split(",").map(x => x.trim()).filter(Boolean);
 function savePreferences() {
     preferences.value = normalizeJobPreferences({ ...preferences.value, locations: splitList(prefsText.locations), target_roles: splitList(prefsText.target_roles), excluded_keywords: splitList(prefsText.excluded_keywords) });
-    try { localStorage.setItem(JOB_PREFERENCES_KEY, JSON.stringify(preferences.value)); toast.push("Preferences saved in this browser.", { tone: "success" }); } catch { toast.push("This browser refused to save preferences.", { tone: "error" }); }
+    try { localStorage.setItem(JOB_PREFERENCES_KEY, JSON.stringify(preferences.value)); prefsUnsent.value = true; toast.push("Preferences saved in this browser.", { tone: "success" }); } catch { toast.push("This browser refused to save preferences.", { tone: "error" }); }
 }
 const toggleMode = (mode: "onsite" | "hybrid" | "remote") => {
     const modes = new Set(preferences.value.work_modes);
@@ -191,7 +195,8 @@ async function sendSnapshot() {
         const snapshot = buildCandidateSnapshot({ profileId: id, profileLabel: profileLabel(profile), profileUpdatedAt: updatedAt, profile: data as any, cvs, preferences: preferences.value, appVersion: String(runtime.public.appVersion ?? "") });
         try { localStorage.setItem(JOB_SNAPSHOT_SELECTION_KEY, JSON.stringify(selection)); } catch { /* selection memory is a convenience */ }
         const r = await call<any>("candidate/snapshots", { method: "POST", body: snapshot });
-        toast.push(r.created ? `Sent ${cvs.length} CV(s, { tone: "success" }); ${r.new_applications} job(s) queued for matching.` : "Nothing changed since the last send.");
+        prefsUnsent.value = false;
+        toast.push(sendResultMessage(r, cvs.length), { tone: "success" });
         await load();
     } catch (e: any) {
         if (e instanceof Error && !("statusCode" in e)) toast.push(e.message, { tone: "error" }); else fail(e);
@@ -344,12 +349,12 @@ const toggleCv = (id: string) => { selection.cvIds = selection.cvIds.includes(id
                     <p v-if="!localProfiles.length" class="muted">No local profiles. Create one in the Profile editor first.</p>
                     <h2>CVs</h2>
                     <ul class="jobs-list">
-                        <li v-for="cv in localCvs" :key="cv.id"><label><input type="checkbox" :checked="selection.cvIds.includes(cv.id)" @change="toggleCv(cv.id)"> {{ cv.title || "Untitled CV" }} <small class="muted">rev {{ cv.revision }} · {{ when(cv.updatedAt) }}</small></label></li>
+                        <li v-for="cv in localCvs" :key="cv.id"><label class="jobs-check"><input type="checkbox" :checked="selection.cvIds.includes(cv.id)" @change="toggleCv(cv.id)"><span>{{ cv.title || "Untitled CV" }} <small class="muted">rev {{ cv.revision }} · {{ when(cv.updatedAt) }}</small></span></label></li>
                     </ul>
                     <button type="button" class="primary" :disabled="sending || !selection.cvIds.length || !selection.profileId" @click="sendSnapshot">Send selected to job automation</button>
                     <h2>Last sent</h2>
                     <p v-if="!candidate" class="muted">Nothing sent yet.</p>
-                    <ul v-else class="jobs-list"><li>Received {{ when(candidate.received_at) }}</li><li v-for="cv in candidate.cvs" :key="cv.cv_id">{{ cv.cv_id }} <small class="muted">revision {{ cv.revision }}</small></li></ul>
+                    <ul v-else class="jobs-list"><li>Received {{ when(candidate.received_at) }}</li><li v-for="cv in candidate.cvs" :key="cv.cv_id">{{ cvLabel(cv.cv_id, cv.revision, cvTitles) }}</li></ul>
                     <p class="muted">Generated CVs and cover letters are listed on each application, where you can open them in the CV editor as new CVs. Originals are never changed.</p>
                 </section>
 
@@ -358,7 +363,7 @@ const toggleCv = (id: string) => { selection.cvIds = selection.cvIds.includes(id
                     <h1>Application queue</h1>
                     <div v-for="g in queueGroups" :key="g.label" class="jobs-group">
                         <h2>{{ g.label }} <small class="muted">({{ g.items.length }})</small></h2><p class="muted">{{ g.hint }}</p>
-                        <ul class="jobs-list"><li v-for="a in g.items" :key="a.id"><NuxtLink :to="`/jobs/applications/${a.id}`">{{ a.job.title }} — {{ a.job.company }}</NuxtLink> <span class="pill" :data-state="a.state">{{ STATE_LABELS[a.state] || a.state }}</span><small v-if="a.exception_reason" class="block warn">{{ a.exception_reason }}</small></li></ul>
+                        <ul class="jobs-list"><li v-for="a in g.items" :key="a.id"><NuxtLink :to="`/jobs/applications/${a.id}`">{{ a.job.title }} — {{ a.job.company }}</NuxtLink> <span class="pill" :data-state="a.state">{{ STATE_LABELS[a.state] || a.state }}</span><div v-if="a.exception_reason" class="warn"><small class="block">{{ splitReason(a.exception_reason).lead }}</small><ul v-if="splitReason(a.exception_reason).items.length" class="jobs-reasons"><li v-for="q in splitReason(a.exception_reason).items" :key="q"><small>{{ q }}</small></li></ul></div></li></ul>
                     </div>
                 </section>
 
@@ -368,7 +373,7 @@ const toggleCv = (id: string) => { selection.cvIds = selection.cvIds.includes(id
                     <table class="jobs-table"><thead><tr><th>Company</th><th>Job title</th><th>Source</th><th>CV</th><th>Status</th><th>Submitted</th><th>Outcome</th></tr></thead>
                         <tbody><tr v-for="a in applications" :key="a.id">
                             <td>{{ a.job.company }}</td><td><NuxtLink :to="`/jobs/applications/${a.id}`">{{ a.job.title }}</NuxtLink></td><td>{{ a.job.source_id }}</td>
-                            <td>{{ a.selected_cv_id ? `${a.selected_cv_id} @${a.selected_cv_revision}` : "—" }}</td>
+                            <td>{{ cvLabel(a.selected_cv_id, a.selected_cv_revision, cvTitles) }}</td>
                             <td><span class="pill" :data-state="a.state">{{ STATE_LABELS[a.state] || a.state }}</span></td><td>{{ when(a.submitted_at) }}</td><td>{{ a.outcome || "" }}</td>
                         </tr></tbody>
                     </table>
@@ -403,6 +408,7 @@ const toggleCv = (id: string) => { selection.cvIds = selection.cvIds.includes(id
                         <h2>Standing answers</h2>
                         <label v-for="k in STANDING_ANSWER_KEYS" :key="k.key">{{ k.label }} <input v-model="preferences.answers[k.key]" :placeholder="k.key === 'work_authorization' ? 'Leave empty to be asked each time' : ''"></label>
                         <button type="submit" class="primary">Save preferences</button>
+                        <p v-if="prefsUnsent" class="callout warn" role="status">Saved in this browser. Your applications keep using the data you last sent until you <NuxtLink to="/jobs/cvs">send your CV again</NuxtLink>.</p>
                     </form>
                 </section>
             </main>
@@ -437,6 +443,10 @@ const toggleCv = (id: string) => { selection.cvIds = selection.cvIds.includes(id
 .jobs-form.grid { display: grid; max-width: 640px; }
 .jobs-form.inline { margin: 0; }
 .jobs-page input, .jobs-page select, .jobs-page textarea { min-height: 32px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 3px; background: var(--bg-mantle); color: var(--fg-text); font: inherit; }
+.jobs-page input[type="checkbox"] { min-height: 0; width: 16px; height: 16px; padding: 0; accent-color: var(--accent); }
+.jobs-check { display: flex; align-items: flex-start; gap: 8px; }
+.jobs-check input { margin-top: 2px; flex: none; }
+.jobs-reasons { margin: 4px 0 8px; padding-left: 18px; display: grid; gap: 2px; }
 .jobs-page button { padding: 6px 10px; border: 1px solid var(--border); border-radius: 3px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .jobs-page button:hover { border-color: var(--accent); }
 .jobs-page button.primary { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
