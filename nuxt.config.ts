@@ -78,6 +78,9 @@ export default defineNuxtConfig({
       // Job automation (Job CV Finder core). Server-only: NUXT_JOB_AUTOMATION_URL / _TOKEN / _OWNER.
       // Empty values keep the feature unavailable; the token never reaches the browser.
       jobAutomation: { url: "", token: "", owner: "" },
+      // Legacy email/password accounts. Registration is closed unless NUXT_LEGACY_AUTH_REGISTRATION=true (local
+      // test servers); existing legacy sessions and logins keep working until they are migrated to Clerk.
+      legacyAuth: { registration: false },
       // Cloud data retention (NUXT_CLOUD_RETENTION_*). Every value is required before cloud consent,
       // the retention notice or session copies are enabled; empty values keep them fail-closed.
       cloudRetention: {
