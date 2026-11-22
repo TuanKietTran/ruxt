@@ -83,3 +83,34 @@ export async function revokeClerkSession(secret: string, page: Page): Promise<vo
    if (!sessionId) throw new Error("The page has no Clerk session to revoke");
    await clerkApi(secret, `/sessions/${sessionId}/revoke`, { method: "POST" });
 }
+
+/**
+ * A real Clerk session token for API-level tests: the server verifies it exactly like a browser cookie.
+ * Tokens live about a minute, so callers ask again for each request through `clerkFetch`.
+ */
+export async function clerkSessionToken(secret: string, user: ClerkTestUser): Promise<string> {
+   const session = await clerkApi<{ id: string }>(secret, "/sessions", { method: "POST", body: JSON.stringify({ user_id: user.id }) });
+   return (await clerkApi<{ jwt: string }>(secret, `/sessions/${session.id}/tokens`, { method: "POST", body: "{}" })).jwt;
+}
+
+export function clerkFetcher(secret: string, base: string, user: ClerkTestUser) {
+   let sessionId: string | null = null;
+   return async (path: string, init: { method?: string; body?: unknown } = {}): Promise<{ status: number; json: any }> => {
+      if (!sessionId) sessionId = (await clerkApi<{ id: string }>(secret, "/sessions", { method: "POST", body: JSON.stringify({ user_id: user.id }) })).id;
+      const jwt = (await clerkApi<{ jwt: string }>(secret, `/sessions/${sessionId}/tokens`, { method: "POST", body: "{}" })).jwt;
+      const response = await fetch(`${base}${path}`, {
+         method: init.method ?? "GET",
+         headers: { authorization: `Bearer ${jwt}`, ...(init.body === undefined ? {} : { "content-type": "application/json" }) },
+         body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      });
+      const text = await response.text();
+      let json: any = null;
+      try { json = text ? JSON.parse(text) : null; } catch { json = text; }
+      return { status: response.status, json };
+   };
+}
+
+/** Grant the server-managed administrator role (Clerk private metadata), as the dashboard would. */
+export async function grantAdminRole(secret: string, user: ClerkTestUser): Promise<void> {
+   await clerkApi(secret, `/users/${user.id}/metadata`, { method: "PATCH", body: JSON.stringify({ private_metadata: { role: "admin" } }) });
+}
