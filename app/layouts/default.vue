@@ -1,14 +1,10 @@
 <script setup lang="ts">
 const route = useRoute();
 
-const { user, logout } = useAppAuth();
+const { user, signedIn } = useAppAuth();
 const { authenticated } = useFeatureFlags();
 const { openAuthDialog } = useAuthDialog();
 const cloudSync = useCloudSync();
-const handleLogout = async () => {
-    await logout();
-    await navigateTo("/");
-};
 </script>
 
 <template>
@@ -30,17 +26,13 @@ const handleLogout = async () => {
                     <ThemeSelect />
                     <NuxtLink to="/settings" class="btn btn-ghost btn-sm">Settings</NuxtLink>
                     <template v-if="authenticated">
-                        <template v-if="user">
-                            <CloudSyncStatus :view="cloudSync.view.value" @sync-now="cloudSync.syncNow()" />
-                            <NuxtLink to="/settings/cloud-data" class="btn btn-ghost btn-sm">Cloud data</NuxtLink>
-                            <span class="user-email">{{ user.email }}</span>
-                            <button
-                                class="btn btn-ghost btn-sm"
-                                type="button"
-                                @click="handleLogout"
-                            >
-                                Logout
-                            </button>
+                        <template v-if="signedIn">
+                            <template v-if="user">
+                                <CloudSyncStatus :view="cloudSync.view.value" @sync-now="cloudSync.syncNow()" />
+                                <NuxtLink to="/settings/cloud-data" class="btn btn-ghost btn-sm">Cloud data</NuxtLink>
+                                <span class="user-email">{{ user.email }}</span>
+                            </template>
+                            <AccountControl variant="text" class="btn btn-ghost btn-sm" />
                         </template>
                         <template v-else>
                             <button class="btn btn-ghost btn-sm" type="button" @click="openAuthDialog('login')">Sign in</button>

@@ -81,10 +81,9 @@ watch(
 );
 
 const sessionActions = useCvSessionActions();
-const { user, logout } = useAppAuth();
+const { user } = useAppAuth();
 const cloudSync = useCloudSync();
 const { authenticated } = useFeatureFlags();
-const { openAuthDialog } = useAuthDialog();
 const appDialog = useAppDialog();
 const toast = useToast();
 // CV sessions live in this browser; listing them makes no request.
@@ -658,9 +657,6 @@ const handleImportCommitted = async (documentId: string) => {
     await navigateTo(documentPath(documentId));
 };
 
-const handleLogout = async () => {
-    await logout();
-};
 </script>
 
 <template>
@@ -764,7 +760,7 @@ const handleLogout = async () => {
                 </div>
                 <CloudSyncStatus v-if="authenticated && user" :view="cloudSync.view.value" @sync-now="cloudSync.syncNow()" />
                 <NuxtLink class="header-button header-button--settings" to="/settings">Settings</NuxtLink>
-                <button v-if="authenticated && user" class="header-button" type="button" @click="handleLogout">Logout</button>
+                <AccountControl variant="text" class="header-button header-button--account" />
                 <button v-if="authenticated && user && hasFeature('import')" class="header-button" type="button" @click="isImportOpen = true">Import</button>
                 <button v-if="hasFeature('export')" class="header-button header-button--primary" type="button" :disabled="showTemplatePicker" @click="isExportOpen = true">Export</button>
                 <button v-if="hasFeature('export')" class="header-button" type="button" data-pdf-export-trigger="true" :disabled="showTemplatePicker" @click="emit('exportPdf')">Export PDF</button>
@@ -788,19 +784,7 @@ const handleLogout = async () => {
 
             <div class="activity-bar__bottom">
                 <NuxtLink class="activity-button" to="/about" aria-label="Help" title="Help"><AppIcon name="lucide:circle-help" /></NuxtLink>
-                <template v-if="authenticated">
-                    <button
-                        v-if="user"
-                        class="activity-button"
-                        type="button"
-                        :aria-label="`Sign out ${user.email}`"
-                        :title="`Sign out ${user.email}`"
-                        @click="handleLogout"
-                    >
-                        <AppIcon name="lucide:circle-user-round" />
-                    </button>
-                    <button v-else class="activity-button" type="button" aria-label="Sign in or create account" title="Sign in or create account" @click="openAuthDialog('login')"><AppIcon name="lucide:log-in" /></button>
-                </template>
+                <AccountControl variant="icon" class="activity-button" />
             </div>
         </nav>
 
