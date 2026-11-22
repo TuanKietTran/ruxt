@@ -48,7 +48,28 @@ export class SimClock implements EngineClock {
       await flush();
    }
 }
-export const flush = async () => { for (let i = 0; i < 30; i += 1) await new Promise(resolve => setImmediate(resolve)); };
+/**
+ * Hashing (`crypto.subtle.digest`) completes on a libuv thread, not in the microtask queue. A fixed number of
+ * event-loop turns therefore settles before the work finishes whenever the machine is busy, which made the
+ * simulation depend on CPU load (a conflict reported as "modified", or a 24-hour scenario timing out). Count
+ * in-flight digests and keep turning the loop until they are done.
+ */
+let digestsInFlight = 0;
+const subtle = globalThis.crypto.subtle as SubtleCrypto & { __tracked?: boolean };
+if (!subtle.__tracked) {
+   const digest = subtle.digest.bind(subtle);
+   subtle.digest = ((...args: Parameters<SubtleCrypto["digest"]>) => {
+      digestsInFlight += 1;
+      return digest(...args).finally(() => { digestsInFlight -= 1; });
+   }) as SubtleCrypto["digest"];
+   subtle.__tracked = true;
+}
+const turns = async (count: number) => { for (let i = 0; i < count; i += 1) await new Promise(resolve => setImmediate(resolve)); };
+export const flush = async () => {
+   await turns(30);
+   for (let guard = 0; digestsInFlight > 0 && guard < 20_000; guard += 1) await turns(1);
+   await turns(30);
+};
 
 // ------------------------------------------------------------------------------------------------
 // Server
