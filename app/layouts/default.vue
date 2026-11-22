@@ -4,6 +4,7 @@ const route = useRoute();
 const { user, logout } = useAppAuth();
 const { authenticated } = useFeatureFlags();
 const { openAuthDialog } = useAuthDialog();
+const cloudSync = useCloudSync();
 const handleLogout = async () => {
     await logout();
     await navigateTo("/");
@@ -30,6 +31,7 @@ const handleLogout = async () => {
                     <NuxtLink to="/settings" class="btn btn-ghost btn-sm">Settings</NuxtLink>
                     <template v-if="authenticated">
                         <template v-if="user">
+                            <CloudSyncStatus :view="cloudSync.view.value" @sync-now="cloudSync.syncNow()" />
                             <NuxtLink to="/settings/cloud-data" class="btn btn-ghost btn-sm">Cloud data</NuxtLink>
                             <span class="user-email">{{ user.email }}</span>
                             <button

@@ -1,5 +1,5 @@
 import type { CloudConsentRepository } from "@ruxt/core/repos/cloud-consent.repo";
-import { CLOUD_DATA_CATEGORIES, type CloudConsentCategoryState, type CloudConsentEvent } from "@ruxt/core/domain/cloud-data/consent";
+import { CLOUD_DATA_CATEGORIES, type CloudConsentCategoryState, type CloudConsentEvent, type CloudRetentionAcknowledgement } from "@ruxt/core/domain/cloud-data/consent";
 import { getKv } from "@infra/kv";
 
 export class DenoKvCloudConsentRepo implements CloudConsentRepository {
@@ -25,5 +25,13 @@ export class DenoKvCloudConsentRepo implements CloudConsentRepository {
          if (entry.value) events.push(entry.value);
       }
       return events;
+   }
+
+   async getRetentionAcknowledgement(ownerId: string): Promise<CloudRetentionAcknowledgement | null> {
+      return (await (await getKv()).get<CloudRetentionAcknowledgement>(["cloud_retention_ack", ownerId])).value ?? null;
+   }
+
+   async acknowledgeRetention(acknowledgement: CloudRetentionAcknowledgement): Promise<void> {
+      await (await getKv()).set(["cloud_retention_ack", acknowledgement.ownerId], acknowledgement);
    }
 }

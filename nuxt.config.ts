@@ -75,6 +75,18 @@ export default defineNuxtConfig({
       // Job automation (Job CV Finder core). Server-only: NUXT_JOB_AUTOMATION_URL / _TOKEN / _OWNER.
       // Empty values keep the feature unavailable; the token never reaches the browser.
       jobAutomation: { url: "", token: "", owner: "" },
+      // Cloud data retention (NUXT_CLOUD_RETENTION_*). Every value is required before cloud consent,
+      // the retention notice or session copies are enabled; empty values keep them fail-closed.
+      cloudRetention: {
+         noticeVersion: "",
+         sessionCurrentCopyRetentionDays: 0,
+         templateRetentionDays: 0,
+         profileRetentionDays: 0,
+         checkpointRetentionDays: 0,
+         retentionExtensionDays: 0,
+      },
+      // Push tickets are signed with NUXT_CLOUD_SYNC_TICKET_SECRET, else the session secret.
+      cloudSync: { ticketSecret: "" },
       public: {
          appVersion,
          appCommit,

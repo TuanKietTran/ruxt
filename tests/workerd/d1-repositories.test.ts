@@ -22,7 +22,7 @@ afterAll(async () => {
    await mf.dispose();
 });
 beforeEach(async () => {
-   const tables = ["subscriptions", "plans", "users", "iam_subjects", "cloud_consent_states", "cloud_consent_events", "user_preferences"];
+   const tables = ["subscriptions", "plans", "users", "iam_subjects", "cloud_consent_states", "cloud_consent_events", "user_preferences", "cloud_retention_acknowledgements"];
    await db.batch(tables.map(t => db.prepare(`DELETE FROM ${t}`)));
 });
 
@@ -35,7 +35,20 @@ const plan = (id: string, over: Record<string, unknown> = {}) => Plan.create({
 describe("D1 repositories on workerd", () => {
    it("applies the checked-in migration", async () => {
       const { results } = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '_cf_%' AND name NOT LIKE 'sqlite_%' ORDER BY name").all<{ name: string }>();
-      expect(results.map(r => r.name)).toEqual(["cloud_consent_events", "cloud_consent_states", "iam_subjects", "plans", "subscriptions", "user_preferences", "users"]);
+      expect(results.map(r => r.name)).toEqual([
+         "cloud_consent_events", "cloud_consent_states", "cloud_copies", "cloud_copy_checkpoints", "cloud_copy_mutations",
+         "cloud_copy_owners", "cloud_copy_tombstones", "cloud_retention_acknowledgements", "iam_subjects", "plans",
+         "subscriptions", "user_preferences", "users",
+      ]);
+   });
+
+   it("cloud consent: retention acknowledgement is per owner and replaced on a new notice", async () => {
+      const repo = new D1CloudConsentRepo();
+      expect(await repo.getRetentionAcknowledgement("o1")).toBeNull();
+      await repo.acknowledgeRetention({ ownerId: "o1", policyVersion: "n1", acknowledgedAt: "2026-01-01T00:00:00.000Z" });
+      await repo.acknowledgeRetention({ ownerId: "o1", policyVersion: "n2", acknowledgedAt: "2026-02-01T00:00:00.000Z" });
+      expect(await repo.getRetentionAcknowledgement("o1")).toEqual({ ownerId: "o1", policyVersion: "n2", acknowledgedAt: "2026-02-01T00:00:00.000Z" });
+      expect(await repo.getRetentionAcknowledgement("o2")).toBeNull();
    });
 
    it("users: save, upsert by id and lookup by email/id", async () => {

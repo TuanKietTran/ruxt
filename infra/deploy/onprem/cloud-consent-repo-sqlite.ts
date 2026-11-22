@@ -1,7 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 import type { CloudConsentRepository } from "@ruxt/core/repos/cloud-consent.repo";
-import type { CloudConsentCategoryState, CloudConsentEvent } from "@ruxt/core/domain/cloud-data/consent";
-import { cloudConsentEvents, cloudConsentStates } from "@infra/db/schema";
+import type { CloudConsentCategoryState, CloudConsentEvent, CloudRetentionAcknowledgement } from "@ruxt/core/domain/cloud-data/consent";
+import { cloudConsentEvents, cloudConsentStates, cloudRetentionAcknowledgements } from "@infra/db/schema";
 import { getSqliteDb } from "@infra/db/sqlite";
 
 export class SqliteCloudConsentRepo implements CloudConsentRepository {
@@ -31,5 +31,18 @@ export class SqliteCloudConsentRepo implements CloudConsentRepository {
       return this.db.select().from(cloudConsentEvents)
          .where(eq(cloudConsentEvents.ownerId, ownerId))
          .orderBy(asc(cloudConsentEvents.changedAt), asc(cloudConsentEvents.id)).all();
+   }
+
+   async getRetentionAcknowledgement(ownerId: string): Promise<CloudRetentionAcknowledgement | null> {
+      return this.db.select().from(cloudRetentionAcknowledgements)
+         .where(eq(cloudRetentionAcknowledgements.ownerId, ownerId)).get() ?? null;
+   }
+
+   async acknowledgeRetention(acknowledgement: CloudRetentionAcknowledgement): Promise<void> {
+      this.db.insert(cloudRetentionAcknowledgements).values(acknowledgement)
+         .onConflictDoUpdate({
+            target: cloudRetentionAcknowledgements.ownerId,
+            set: { policyVersion: acknowledgement.policyVersion, acknowledgedAt: acknowledgement.acknowledgedAt },
+         }).run();
    }
 }
