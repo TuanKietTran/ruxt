@@ -39,7 +39,7 @@
 | Specification | Covers |
 | --- | --- |
 | [Authentication and IAM](auth-iam-security.md) | Identity, access checks, trust boundaries |
-| [Cloud data](authenticated-cloud-data.md) | Consent and planned synchronization |
+| [Cloud data](authenticated-cloud-data.md) | Consent, synchronization, conflicts and recovery |
 | [Subscriptions](subscriptions-catalog.md) | Plans, billing periods, lifecycle |
 | [Domain foundations](domain-foundations.md) | Shared primitives and private domain ownership |
 | [Persistence](persistence-deployment.md) | SQLite, Deno KV, Cloudflare, Nitro storage |

@@ -13,7 +13,7 @@ Run against disposable local data and a configured development Clerk instance.
 | Exports | Active document only; PDF A4 print; PNG/JPEG quality and multi-page ZIP |
 | Responsive | Narrow sidebar drawer, split resize, overflow, touch and keyboard navigation |
 | Accessibility | Labels, focus restoration, Escape dismissal, reduced motion |
-| Authentication | Sign-in/up/logout, protected redirects, independent consent categories |
+| Authentication | Sign-in/up/logout from every editor route and screen width, multi-tab sign-out and account switch, offline and revoked sessions (live Clerk, `tests/smoke/logout.test.ts`), protected redirects, independent consent categories |
 | Isolation | Sign-out, errors, and remote changes never clear browser-local CVs |
 
 Existing smoke/browser suites are opt-in. Mocked auth and skipped cases do not verify live Clerk behavior. Historical browser sessions are not a substitute for repeatable regression checks.

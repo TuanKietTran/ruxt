@@ -22,4 +22,4 @@ No server autosave, document SSE, or revision polling runs in the current browse
 
 ## Cloud copies
 
-Cloud synchronization is planned, separately consented, and owner-scoped. It must not delete local data or overwrite dirty edits. See [cloud data](authenticated-cloud-data.md).
+Cloud synchronization is implemented, separately consented, and owner-scoped. It must not delete local data or overwrite dirty edits. See [cloud data](authenticated-cloud-data.md).

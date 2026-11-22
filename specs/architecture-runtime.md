@@ -24,12 +24,12 @@ The shared CQRS module owns the mediator singleton. Private compatibility export
 ## Routes
 
 - / and /?s=<id>: local CV editor; /?t=<id>&v=<version>: template preview.
-- /p: local profiles; /settings: preferences; /settings/cloud-data: authenticated consent.
+- /p: local profiles; /settings: preferences; /settings/account: Clerk account management; /settings/cloud-data: cloud sync, conflicts, history and consent.
 - /login: Clerk dialog bridge; /d and /d/providers: subscription management.
 - /api/auth, /api/preferences, /api/cloud-data: account services.
 - /api/cv-imports, /api/cv-applications, /api/cv-artifacts, /api/cv-templates: authenticated workflows.
 - /api/public/templates: public catalog; /mcp: authenticated protocol endpoint.
-- /api/plans, /api/subscriptions, /api/iam: legacy APIs with enforcement gaps.
+- /api/plans, /api/subscriptions, /api/iam: legacy commercial APIs, owner-scoped (see [authentication](auth-iam-security.md)).
 
 The old /api/cvs routes are removed but remain authentication-gated. Admin is a separate application, with no /admin route here.
 

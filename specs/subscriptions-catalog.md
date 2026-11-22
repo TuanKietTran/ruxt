@@ -10,7 +10,11 @@ This spec covers:
 - API routes under `server/routes/api/plans/` and `server/routes/api/subscriptions/`;
 - retained browser surfaces `app/pages/d/index.vue`, `app/pages/d/providers.vue`, and `app/types/api.ts`; the plan-catalog page formerly at `/p` is retired and that path is now owned by the local profile editor.
 
-Authentication and authorization boundaries are specified in [auth-iam-security.md](auth-iam-security.md); backend storage is specified in [persistence-deployment.md](persistence-deployment.md).
+Authentication and authorization boundaries are specified in [auth-iam-security.md](auth-iam-security.md).
+
+## Authorization
+
+Every subscription route needs a session and acts on the caller's own subscriptions: the subject is the verified owner id, a body or query `userId` naming anyone else is refused (403) unless the caller is an administrator, and a subscription owned by someone else answers 404 exactly like a missing one. A subscription can only use a plan the caller can see. The one anonymous read is `GET /api/subscriptions?userId=demo`, the read-only sample behind `/d?userId=demo`; signed-in users on `/d` see their own subscriptions. `GET /api/plans` is the public catalog (anonymous callers never see plans people made for themselves); `all=true` and `userId` need a session and return the catalog plus the caller's own plans. A caller's `PUT /api/plans/:id` always stores a private plan owned by them, whatever `source`, `isPublic` or `createdBy` it names; only an administrator publishes catalog plans. There is no payment provider: the ledger records subscriptions and lifecycle state, it does not bill, hold entitlements or open a billing portal.; backend storage is specified in [persistence-deployment.md](persistence-deployment.md).
 
 ## Distribution boundary
 
