@@ -99,6 +99,7 @@ ui("sign-out with a real Clerk session", () => {
       { name: "settings", path: "/settings", staysOnPage: true },
       { name: "help", path: "/about", staysOnPage: true },
       { name: "cloud data (account-only page)", path: "/settings/cloud-data", staysOnPage: false },
+      { name: "account management (account-only page)", path: "/settings/account", staysOnPage: false },
    ];
 
    for (const route of routes) {
@@ -132,6 +133,24 @@ ui("sign-out with a real Clerk session", () => {
          await context.close();
       });
    }
+
+   it("shows Clerk's account management to a signed-in user, and only to them", async () => {
+      const user = await newUser("account");
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      await open(page, "/settings/account");
+      await page.waitForURL(url => new URL(url).pathname === "/login");
+      expect(new URL(page.url()).searchParams.get("redirect")).toBe("/settings/account");
+      await open(page, "/");
+      await signInPage(secret!, page, user);
+      await signOutControls(page).first().waitFor({ timeout: 20_000 });
+      await open(page, "/settings/account");
+      await page.getByRole("heading", { name: "Account", exact: true }).waitFor();
+      // Clerk's profile component lists the account's email address.
+      await page.getByText(user.email, { exact: false }).first().waitFor({ timeout: 30_000 });
+      await page.getByText("Profile details", { exact: false }).first().waitFor({ timeout: 30_000 });
+      await context.close();
+   });
 
    it("signs out from the activity bar on a phone-sized screen where header buttons are hidden", async () => {
       const user = await newUser("phone");

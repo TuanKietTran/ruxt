@@ -50,7 +50,7 @@ describe("routes around sign-out", () => {
             expect(postSignOutTarget(path)).toBeNull();
             expect(passiveSignOutTarget(path, `${path}?s=1`)).toBeNull();
         }
-        for (const path of ["/d", "/d/providers", "/settings/cloud-data"]) {
+        for (const path of ["/d", "/d/providers", "/settings/cloud-data", "/settings/account"]) {
             expect(isAccountRoute(path)).toBe(true);
             expect(postSignOutTarget(path)).toBe("/");
         }

@@ -68,7 +68,7 @@ export function reconcileBrowserSession(input: {
 }
 
 /** Routes that need an account. Kept in step with the protected prefixes in `auth.global.ts`. */
-const ACCOUNT_ROUTE_PREFIXES = ["/d", "/settings/cloud-data"];
+const ACCOUNT_ROUTE_PREFIXES = ["/d", "/settings/cloud-data", "/settings/account"];
 
 export function isAccountRoute(path: string): boolean {
    return ACCOUNT_ROUTE_PREFIXES.some(prefix => path === prefix || path.startsWith(`${prefix}/`));

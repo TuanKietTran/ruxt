@@ -84,6 +84,14 @@ async function setSaveMode(mode: ProfileSaveMode) {
 
         <section v-if="signedIn" class="settings-card settings-link">
             <div>
+                <h2>Account</h2>
+                <p class="detail">Profile, email, password, two-step verification, active sessions and account deletion.</p>
+            </div>
+            <NuxtLink to="/settings/account" class="btn btn-ghost btn-sm">Open</NuxtLink>
+        </section>
+
+        <section v-if="signedIn" class="settings-card settings-link">
+            <div>
                 <h2>Cloud data</h2>
                 <p class="detail">Choose which optional cloud features may store your sessions and templates.</p>
             </div>
