@@ -1,4 +1,4 @@
-import type { CvDocumentProps, CvProfileProps } from "@ruxt/shared/cv";
+import { cvTitleFromMarkdown, type CvDocumentProps, type CvProfileProps } from "@ruxt/shared/cv";
 
 /**
  * Candidate snapshot for the Job CV Finder core (contract: candidate-snapshot.schema.json, v1).
@@ -70,6 +70,14 @@ export interface SnapshotInput {
 
 const iso = (value: number | string) => new Date(value).toISOString();
 
+const PLACEHOLDER_TITLE = "Untitled CV";
+/** The title the candidate sees in the CV list: an explicit one, else the heading of the CV itself. A CV
+ *  that was never renamed stores the placeholder, and sending that made every CV arrive as "Untitled CV". */
+const snapshotTitle = (cv: Pick<CvDocumentProps, "title" | "markdown">) => {
+    const explicit = cv.title?.trim();
+    return explicit && explicit !== PLACEHOLDER_TITLE ? explicit : cvTitleFromMarkdown(cv.markdown) ?? explicit ?? PLACEHOLDER_TITLE;
+};
+
 export function buildCandidateSnapshot(input: SnapshotInput) {
     if (!input.cvs.length) throw new Error("Select at least one CV to send.");
     if (input.cvs.length > 50) throw new Error("Select at most 50 CVs.");
@@ -85,7 +93,7 @@ export function buildCandidateSnapshot(input: SnapshotInput) {
         cvs: input.cvs.map(cv => ({
             cv_id: cv.id,
             revision: Math.max(1, cv.revision || 1),
-            title: (cv.title ?? "Untitled CV").slice(0, 300),
+            title: snapshotTitle(cv).slice(0, 300),
             markdown: cv.markdown,
             css: cv.css,
             updated_at: iso(cv.updatedAt),

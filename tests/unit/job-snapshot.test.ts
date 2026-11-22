@@ -22,6 +22,19 @@ describe("buildCandidateSnapshot", () => {
         expect(snap.profile.data).toBe(profile);
     });
 
+    it("sends the CV's real title, not the placeholder a never-renamed CV stores", () => {
+        // Regression: a CV that was never renamed stores the placeholder, so every CV reached the core as "Untitled CV".
+        const send = (title: string | undefined, markdown: string) => buildCandidateSnapshot({
+            profileId: "p", profileUpdatedAt: 0, profile, preferences: emptyJobPreferences(),
+            cvs: [{ id: "cv-a", title, markdown, css: "", revision: 1, updatedAt: "2026-11-18T00:00:00.000Z" } as any],
+        }).cvs[0]!.title;
+        const body = "# Backend Engineer CV\n\nBody";
+        expect(send("Untitled CV", body)).toBe("Backend Engineer CV");
+        expect(send(undefined, body)).toBe("Backend Engineer CV");
+        expect(send("My renamed CV", "# Something else")).toBe("My renamed CV");
+        expect(send("Untitled CV", "no heading here")).toBe("Untitled CV");
+    });
+
     it("requires an explicit CV selection", () => {
         expect(() => buildCandidateSnapshot({ profileId: "p", profileUpdatedAt: 0, profile, preferences: emptyJobPreferences(), cvs: [] })).toThrow(/at least one CV/);
     });
