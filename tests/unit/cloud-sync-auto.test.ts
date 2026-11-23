@@ -361,6 +361,31 @@ describe("per-kind quota", () => {
    });
 });
 
+describe("a device upgraded from the previous release", () => {
+   it("catches up its unsynced records after the first exchange, though its saved quota said 10 of 10", async () => {
+      const { clock, devices: [a], server } = await world();
+      for (let index = 0; index < 10; index += 1) a!.editSession(`s${index}`, `# Session ${index}`);
+      await clock.advance(20_000);
+      expect((await server.repo.list(OWNER)).length).toBe(10);
+      for (const tab of [...a!.tabs]) tab.close();
+      // Bookkeeping as the previous release saved it: one shared quota of ten, no per-kind data, no modes.
+      const key = a!.storage.key(0) && Array.from({ length: a!.storage.length }, (_, index) => a!.storage.key(index)!).find(name => name.startsWith("cv-sv:cloud-sync:v1:"))!;
+      const saved = JSON.parse(a!.storage.getItem(key)!);
+      delete saved.modes; delete saved.optOut; delete saved.quotaAt;
+      saved.quota = { limit: 10, used: 10, remaining: 0, byKind: { session: 10 } };
+      a!.storage.setItem(key, JSON.stringify(saved));
+      for (let index = 10; index < 19; index += 1) {
+         a!.storage.setItem(`cv-sv:session-backup:s${index}`, JSON.stringify({ markdown: `# Session ${index}`, css: "", title: `Session ${index}`, revision: 1, pending: false, savedAt: clock.now() }));
+      }
+      await a!.openTab();
+      await clock.advance(30_000);
+      expect((await server.repo.list(OWNER)).length).toBe(19);
+      const seen = await view(a!);
+      expect(seen.records.filter(record => record.status === "over-limit")).toHaveLength(0);
+      expect(seen.quota?.kinds?.session).toMatchObject({ limit: 20, used: 19 });
+   });
+});
+
 describe("old servers", () => {
    it("treats a quota without per-kind caps as one shared total, and an unknown consent category as not granted", async () => {
       const { clock, devices: [a], server } = await world(1, (s) => {
