@@ -37,8 +37,8 @@ are ever lost, the design system can be restored from here.
 ## Re-import
 
 Prerequisites: local Penpot running at http://localhost:9001, and the
-credentials file present at
-`/Users/handlerone/Downloads/ruxt-lab/tmp/penpot/.credentials`.
+credentials file whose path is passed in `PENPOT_CREDS_FILE`
+(optionally `PENPOT_IDS_FILE` for known team and project ids).
 The script reads credentials at runtime from that file only; they are
 never hardcoded, printed, or committed.
 
