@@ -202,7 +202,11 @@ ui("cloud sync across two devices, in the UI", () => {
       // A brand-new browser, same account: the first page it shows already lists the session, with no Download
       // or Upload anywhere; the profiles page lists the profiles.
       const b = await device("device B", false);
-      await b.page.getByRole("link", { name: /Sync CV/ }).first().waitFor({ timeout: 60_000 });
+      const sidebarRow = b.page.getByRole("link", { name: /Sync CV/ }).first();
+      await sidebarRow.waitFor({ timeout: 60_000 });
+      // The sidebar row says where the session is, never a blanket "local" once an account syncs it.
+      await expect.poll(() => sidebarRow.innerText(), { timeout: 60_000, intervals: [500] }).toMatch(/In your cloud · r\d+/);
+      expect(await sidebarRow.innerText()).not.toMatch(/\blocal\b/i);
       expect((await readLocalCv(b.page, ID))?.markdown).toBe(baseMarkdown);
       await b.page.goto(`${base}/p`);
       await ready(b.page);

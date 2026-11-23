@@ -10,6 +10,7 @@ import { readLocalCvTemplates, exportLocalCvTemplate } from "~/utils/localCvTemp
 import { downloadBlob, safeFilename } from "~/utils/exportCvImage";
 import { cvSessionLabel } from "~/utils/cv-session-label";
 import { onLocalChange, type LocalChange } from "~/utils/cloudSync/localChanges";
+import { rowSyncLabel } from "~/utils/cloudSync/syncPresentation";
 
 const LIST_REUSE_MS = 60_000;
 
@@ -107,7 +108,17 @@ const sessions = computed(() => {
 const recoverLocalSessions = () => sessionActions.reloadDocuments();
 // What cloud sync is doing for each list; with it the lists never read as silently empty while records wait in the cloud.
 const sessionSync = useCloudSyncBanner(["session"]);
+// Whether an account is syncing here; only then does a row say what sync did with it instead of "local".
+const syncActive = computed(() => Boolean(authenticated.value && user.value && cloudSync.view.value && !["disabled", "signed-out"].includes(cloudSync.view.value.status)));
+const sessionRowSync = (id: string) => (authenticated.value && user.value ? rowSyncLabel(cloudSync.view.value, "session", id) : null);
 const templateSync = useCloudSyncBanner(["template"]);
+const templateRowSync = (template: CvTemplate) => (authenticated.value && user.value && !template.builtIn ? rowSyncLabel(cloudSync.view.value, "template", template.id) : null);
+// A browser-made template carries a "local" tag; once sync reports where it is, that word is replaced by the sync state.
+const templateMeta = (template: CvTemplate) => {
+    const sync = templateRowSync(template);
+    const tags = sync ? template.tags.filter(tag => tag !== "local") : template.tags;
+    return [...(sync ? [sync.label] : []), ...tags].join(" · ") + ` · v${template.version}`;
+};
 const accountFetch = useAccountFetch();
 const { data: templateIndex, refresh: reloadCvTemplates, status: templateStatus } = useAsyncData("editor-template-list", async () => {
     const account = await accountFetch<{ templates: CvTemplate[] }>("/api/cv-templates");
@@ -931,7 +942,9 @@ const handleImportCommitted = async (documentId: string) => {
                             @contextmenu.prevent="openDocumentMenu($event, document)"
                         >
                             <span>{{ cvSessionLabel(document) }}</span>
-                            <small title="Stored in this browser">local · r{{ document.revision }}</small>
+                            <small v-if="sessionRowSync(document.id)" :title="sessionRowSync(document.id)!.title">{{ sessionRowSync(document.id)!.label }} · r{{ document.revision }}</small>
+                            <small v-else-if="!syncActive" title="Stored in this browser">local · r{{ document.revision }}</small>
+                            <small v-else>r{{ document.revision }}</small>
                         </NuxtLink>
                         <button
                             type="button"
@@ -966,7 +979,7 @@ const handleImportCommitted = async (documentId: string) => {
                         @click="viewTemplate(cvTemplate)"
                     >
                         <span>{{ cvTemplate.name }}</span>
-                        <small>{{ cvTemplate.tags.join(" · ") }} · v{{ cvTemplate.version }}</small>
+                        <small :title="templateRowSync(cvTemplate)?.title">{{ templateMeta(cvTemplate) }}</small>
                     </button>
                 </section>
             </nav>
