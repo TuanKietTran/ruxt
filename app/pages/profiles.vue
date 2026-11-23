@@ -586,7 +586,7 @@ watchEffect(() => {
         <template #sidebar>
             <nav class="profiles-list" aria-label="Local profiles">
                 <header class="profiles-list__header"><span>Profiles</span></header>
-                <ClientOnly><CloudSyncBanner v-if="profileSync.banner.value" :banner="profileSync.banner.value" :busy="profileSync.busy.value" @download="profileSync.download" /></ClientOnly>
+                <ClientOnly><CloudSyncBanner v-if="profileSync.banner.value" :banner="profileSync.banner.value" :busy="profileSync.busy.value" @download="profileSync.download" @sync-now="profileSync.syncNow" /></ClientOnly>
                 <button class="profiles-new" type="button" @click="startCreate">＋ New profile</button>
                 <div class="profiles-transfer">
                     <button type="button" @click="openTransfer('import')">Import</button>
@@ -607,7 +607,7 @@ watchEffect(() => {
             <section class="profile-form">
                 <div v-if="editingId === null" class="profile-placeholder" role="status">
                     <p>{{ profiles.length ? "Select a profile or create a new one." : profileSync.banner.value ? "No profiles on this device yet." : "No local profiles yet. Create a new profile or import one to get started." }}</p>
-                    <ClientOnly><CloudSyncBanner v-if="profileSync.banner.value" :banner="profileSync.banner.value" :busy="profileSync.busy.value" @download="profileSync.download" /></ClientOnly>
+                    <ClientOnly><CloudSyncBanner v-if="profileSync.banner.value" :banner="profileSync.banner.value" :busy="profileSync.busy.value" @download="profileSync.download" @sync-now="profileSync.syncNow" /></ClientOnly>
                     <div><button type="button" class="profile-save" @click="startCreate">＋ New profile</button><button type="button" @click="openTransfer('import')">Import</button></div>
                 </div>
                 <div v-else :key="formKey" class="profile-sheet">

@@ -918,7 +918,7 @@ const handleImportCommitted = async (documentId: string) => {
                     <div v-if="sessionsLoading" class="document-tree__skeleton" role="status" aria-label="Loading sessions">
                         <span v-for="n in 3" :key="n" />
                     </div>
-                    <ClientOnly><CloudSyncBanner v-if="sessionSync.banner.value" :banner="sessionSync.banner.value" :busy="sessionSync.busy.value" @download="sessionSync.download" /></ClientOnly>
+                    <ClientOnly><CloudSyncBanner v-if="sessionSync.banner.value" :banner="sessionSync.banner.value" :busy="sessionSync.busy.value" @download="sessionSync.download" @sync-now="sessionSync.syncNow" /></ClientOnly>
                     <p v-if="!sessionsLoading && !sessions.length && !sessionSync.banner.value" class="document-tree__empty" role="status">No sessions yet</p>
                     <div v-for="document in sessions" :key="document.id" class="document-tree__row">
                         <NuxtLink
@@ -954,7 +954,7 @@ const handleImportCommitted = async (documentId: string) => {
                     <div v-if="templatesLoading" class="document-tree__skeleton" role="status" aria-label="Loading templates">
                         <span v-for="n in 3" :key="n" />
                     </div>
-                    <ClientOnly><CloudSyncBanner v-if="templateSync.banner.value" :banner="templateSync.banner.value" :busy="templateSync.busy.value" @download="templateSync.download" /></ClientOnly>
+                    <ClientOnly><CloudSyncBanner v-if="templateSync.banner.value" :banner="templateSync.banner.value" :busy="templateSync.busy.value" @download="templateSync.download" @sync-now="templateSync.syncNow" /></ClientOnly>
                     <p v-if="!templatesLoading && !cvTemplates.length && !templateSync.banner.value" class="document-tree__empty" role="status">No templates available</p>
                     <button
                         v-for="cvTemplate in cvTemplates"

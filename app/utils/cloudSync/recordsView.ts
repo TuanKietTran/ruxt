@@ -5,18 +5,20 @@
  */
 import type { EngineView, RecordKey, RecordStatus, SyncRecordView } from './contracts';
 import { kindConsentGranted, SYNC_KIND_REGISTRY, SYNC_KINDS } from './kinds';
+import { matchesPhase, presentRecord, type PhaseFilter } from './syncPresentation';
 import type { SyncKind } from './types';
 
-export type RecordFilter = { kind: SyncKind | 'all'; status: 'all' | 'local-only' | 'cloud-only' | 'synced' | 'attention' };
+export type RecordFilter = { kind: SyncKind | 'all'; status: PhaseFilter };
 
-/** Statuses that need the user to look at the record before anything else. */
+/**
+ * Statuses that are exceptions: sync cannot finish them without the user, so they sort first. Records still
+ * moving (changed here, cloud is newer, uploading) are not exceptions; they are "syncing".
+ */
 export const ATTENTION_STATUSES: readonly RecordStatus[] = [
-    'modified',
-    'behind',
-    'pending',
     'conflict',
     'error',
     'blocked',
+    'over-limit',
     'cloud-removed',
     'local-missing',
 ];
@@ -25,12 +27,11 @@ function isAttention(status: RecordStatus): boolean {
     return ATTENTION_STATUSES.includes(status);
 }
 
-export function filterRecords(records: SyncRecordView[], filter: RecordFilter): SyncRecordView[] {
+/** The records of `view` that pass the filter; the status filter matches what the Records tab shows for each. */
+export function filterRecords(view: EngineView, records: SyncRecordView[], filter: RecordFilter): SyncRecordView[] {
     return records.filter((record) => {
         if (filter.kind !== 'all' && record.kind !== filter.kind) return false;
-        if (filter.status === 'all') return true;
-        if (filter.status === 'attention') return isAttention(record.status);
-        return record.status === filter.status;
+        return matchesPhase(presentRecord(view, record), filter.status);
     });
 }
 
@@ -114,25 +115,6 @@ export function uploadPreview(view: EngineView, keys: RecordKey[]): UploadPrevie
     }
     const blockedKinds = SYNC_KINDS.filter((kind) => blocked.has(kind));
     return { count: selected.length, newCopies, bytes, quotaUsedAfter, quotaLimit, overQuota, blockedKinds, kinds, overKinds };
-}
-
-const STATUS_TEXT: Record<RecordStatus, string> = {
-    'local-only': 'Only on this device',
-    'cloud-only': 'Only in the cloud',
-    synced: 'Synced',
-    modified: 'Changed here',
-    behind: 'Cloud is newer',
-    pending: 'Uploading',
-    conflict: 'Conflict',
-    error: 'Error',
-    blocked: 'Blocked',
-    'over-limit': 'Not synced: over limit',
-    'cloud-removed': 'Removed from cloud',
-    'local-missing': 'Deleted on this device',
-};
-
-export function statusText(status: RecordStatus): string {
-    return STATUS_TEXT[status];
 }
 
 export function formatBytes(bytes: number): string {

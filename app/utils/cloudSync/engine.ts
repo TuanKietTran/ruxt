@@ -9,6 +9,7 @@ import { hashSnapshot, snapshotBytes } from "./hash";
 import { addRecovery, appendJournal, recordMetrics } from "./state";
 import { kindConsentGranted, SYNC_KIND_REGISTRY, SYNC_KINDS } from "./kinds";
 import { retentionState } from "./consentView";
+import { owedCount } from "./syncPresentation";
 import {
    SyncHttpError, type CloudHistoryDto, type SyncChangeDto, type SyncKind, type SyncMode,
    type SyncMutationDto, type SyncPolicyDto, type SyncRequestDto, type SyncResponseDto, type SyncSnapshot,
@@ -52,7 +53,23 @@ export interface EngineDeps {
     * unsaved edits for is never replaced (see isEditorDirty); it is brought up to date once the editor is clean.
     */
    autoApply?: Partial<Record<SyncKind, boolean>>;
+   /** Overrides ENGINE_GENERATION (tests simulate an older bundle with it). */
+   generation?: number;
 }
+
+/**
+ * The behavior level of this bundle's engine. A tab whose leader reports a lower number (or does not answer at
+ * all, as bundles before this one never do) takes the leadership instead of waiting behind it. Raise it whenever
+ * the leader does something an older leader must not keep doing.
+ */
+export const ENGINE_GENERATION = 2;
+/** A follower asks who leads this long after it starts, and waits this long for the answer. */
+const START_PROBE_MS = 1_000;
+const LEADER_REPLY_MS = 5_000;
+/** A follower that still sees unsynced work this long after the leader answered asks it to sync. */
+const POKE_AFTER_MS = 60_000;
+/** A follower that has not heard a leader yet and sees unsynced work asks sooner. */
+const PROBE_AFTER_OWED_MS = 15_000;
 
 export const DEFAULT_SYNC_POLICY: SyncPolicyDto = {
    protocol: 1, debounceMs: 10_000, maxDelayMs: 45_000, fallbackReconcileMs: 45 * 60_000, staleAfterMs: 30 * 60_000, maxMutations: 20,
@@ -68,7 +85,7 @@ export const OVER_LIMIT_CODES = ["CLOUD_COPY_LIMIT", "OVER_LIMIT"] as const;
 export const isOverLimit = (link: Pick<RecordLink, "state" | "error">): boolean =>
    link.state === "blocked" && (OVER_LIMIT_CODES as readonly string[]).includes(link.error?.code ?? "");
 
-type Reason = "initial" | "local" | "explicit" | "push" | "visible" | "online" | "fallback" | "reconnect" | "retry" | "page-hide";
+type Reason = "initial" | "local" | "explicit" | "push" | "visible" | "online" | "fallback" | "reconnect" | "retry" | "page-hide" | "peer";
 interface ExchangeOptions { wantConsent?: boolean; wantPush?: boolean; explicit?: boolean }
 
 const realClock: EngineClock = {
@@ -90,7 +107,13 @@ export class CloudSyncEngine implements EngineActions {
    private leader = false;
    private dirtySince = 0;
    private batchBytes = MAX_BATCH_BYTES;
-   private timers: Record<"flush" | "retry" | "fallback" | "pull" | "reconnect", unknown> = { flush: null, retry: null, fallback: null, pull: null, reconnect: null };
+   private timers: Record<"flush" | "retry" | "fallback" | "pull" | "reconnect" | "watch" | "probe", unknown> = { flush: null, retry: null, fallback: null, pull: null, reconnect: null, watch: null, probe: null };
+   private readonly generation: number;
+   private leaderTab: NonNullable<EngineView["leaderTab"]> = "unknown";
+   /** Generation the answering leader reported. */
+   private peerGeneration = 0;
+   /** True once the quota of this session came from a response (a saved one may predate per-kind caps). */
+   private quotaFresh = false;
    private listeners = new Set<(view: EngineView) => void>();
    private unsubscribers: Array<() => void> = [];
    private viewCache: EngineView | null = null;
@@ -100,6 +123,7 @@ export class CloudSyncEngine implements EngineActions {
       this.clock = deps.clock ?? realClock;
       this.random = deps.random ?? Math.random;
       this.newId = deps.newId ?? (() => globalThis.crypto.randomUUID());
+      this.generation = deps.generation ?? ENGINE_GENERATION;
    }
 
    // ----------------------------------------------------------------------------------------------
@@ -112,10 +136,9 @@ export class CloudSyncEngine implements EngineActions {
       this.halted = null;
       this.unsubscribers.push(this.deps.store.subscribe(() => this.invalidateView()));
       this.unsubscribers.push(this.deps.coordinator.onLeadership(leader => this.setLeader(leader)));
-      this.unsubscribers.push(this.deps.coordinator.onMessage(message => {
-         if (message.type === "state") this.invalidateView();
-      }));
+      this.unsubscribers.push(this.deps.coordinator.onMessage(message => this.onPeerMessage(message)));
       if (this.deps.coordinator.isLeader) this.setLeader(true);
+      else this.armProbe(START_PROBE_MS);
       this.invalidateView();
    }
 
@@ -141,6 +164,7 @@ export class CloudSyncEngine implements EngineActions {
 
    /** A local record changed (same tab event or another tab's storage write). */
    notifyLocalChange(change: { kind: SyncKind; id: string; origin: "local" | "cloud" }): void {
+      if (this.started && !this.leader && change.origin !== "cloud") this.invalidateView(); // a follower still shows what it holds
       if (!this.started || !this.leader || this.halted || change.origin === "cloud") return;
       const state = this.deps.store.load();
       // A kind that syncs automatically cares about every record, including ones created just now and not yet linked.
@@ -191,6 +215,10 @@ export class CloudSyncEngine implements EngineActions {
       if (this.leader === leader) return;
       this.leader = leader;
       if (leader) {
+         this.leaderTab = "this";
+         this.cancel("probe");
+         this.cancel("watch");
+         this.deps.coordinator.broadcast({ type: "leader-here", generation: this.generation });
          // One exchange per device session: consent, catch-up delta and a push ticket together.
          void this.exchange("initial", { wantConsent: true, wantPush: true });
       } else {
@@ -198,8 +226,83 @@ export class CloudSyncEngine implements EngineActions {
          this.push?.close();
          this.push = null;
          this.setPushStatus("idle");
+         this.leaderTab = "unknown";
+         this.armProbe(START_PROBE_MS);
       }
       this.invalidateView();
+   }
+
+   // ----------------------------------------------------------------------------------------------
+   // Other tabs
+   // ----------------------------------------------------------------------------------------------
+
+   private onPeerMessage(message: { type: string; [key: string]: unknown }): void {
+      if (!this.started) return;
+      switch (message.type) {
+         case "state":
+            this.invalidateView();
+            break;
+         case "who-leads":
+            if (this.leader) this.deps.coordinator.broadcast({ type: "leader-here", generation: this.generation });
+            break;
+         case "leader-here":
+            if (!this.leader) this.onLeaderHere(typeof message.generation === "number" ? message.generation : 1);
+            break;
+         case "sync-request":
+            // A follower sees work that is not moving. Local-only semantics: no request unless something is owed.
+            if (this.leader && !this.halted) void this.exchange("peer");
+            break;
+      }
+   }
+
+   private armProbe(delay: number): void {
+      if (this.leader || !this.started || this.timers.probe !== null || !this.deps.coordinator.takeOver) return;
+      this.timers.probe = this.clock.setTimeout(() => {
+         this.timers.probe = null;
+         if (this.leader || !this.started) return;
+         // Ask who leads; no answer in time means the leader is an older bundle or stopped running.
+         this.deps.coordinator.broadcast({ type: "who-leads" });
+         this.timers.probe = this.clock.setTimeout(() => {
+            this.timers.probe = null;
+            this.takeOverLeadership("silent");
+         }, this.jitter(LEADER_REPLY_MS));
+      }, delay);
+   }
+
+   private onLeaderHere(generation: number): void {
+      this.cancel("probe");
+      this.peerGeneration = generation;
+      if (generation < this.generation) this.takeOverLeadership("outdated");
+      else { this.leaderTab = "other"; this.invalidateView(); }
+   }
+
+   private takeOverLeadership(why: "silent" | "outdated"): void {
+      if (this.leader || !this.started) return;
+      this.leaderTab = why;
+      this.invalidateView();
+      // The lock changes hands; setLeader(true) then runs this tab's first exchange.
+      this.deps.coordinator.takeOver?.();
+   }
+
+   /**
+    * A follower never syncs by itself, so work it still sees unsynced must be someone's job. With no leader heard
+    * yet it asks who leads; with a leader that answered it asks that leader to sync, after giving it the time
+    * edits normally wait. No network request comes from here.
+    */
+   private watchOwed(view: EngineView): void {
+      if (this.leader || !this.started || this.halted === "signed-out" || owedCount(view) === 0) { this.cancel("watch"); return; }
+      if (this.timers.watch !== null || this.timers.probe !== null) return;
+      const answered = this.leaderTab === "other";
+      this.timers.watch = this.clock.setTimeout(() => {
+         this.timers.watch = null;
+         if (this.leader || !this.started) return;
+         if (answered) {
+            this.deps.coordinator.broadcast({ type: "sync-request" });
+            if (this.viewCache) this.watchOwed(this.viewCache);
+         } else {
+            this.armProbe(0);
+         }
+      }, answered ? POKE_AFTER_MS : PROBE_AFTER_OWED_MS);
    }
 
    private wantsPush(): boolean {
@@ -271,6 +374,8 @@ export class CloudSyncEngine implements EngineActions {
       this.invalidateView();
       try {
          await this.deps.coordinator.withNetworkLock(() => this.exchangeLocked(reason, options));
+      } catch (error) {
+         this.recordInternalFailure(error);
       } finally {
          this.running -= 1;
          this.deps.coordinator.broadcast({ type: "state" });
@@ -297,7 +402,7 @@ export class CloudSyncEngine implements EngineActions {
          // Link, upload and download everything an automatic kind owes before deciding what to send.
          if (await this.autoSync(state)) this.autoQueued = true;
          const mutations = await this.collectMutations(state, Boolean(options.explicit));
-         const pullOnly = reason === "local" || reason === "page-hide";
+         const pullOnly = reason === "local" || reason === "page-hide" || reason === "peer";
          if (page === 0 && pullOnly && mutations.length === 0) {
             this.deps.store.save(state);
             return; // nothing changed: zero requests
@@ -366,6 +471,24 @@ export class CloudSyncEngine implements EngineActions {
       if (counters.pushPings || counters.pushMessages || counters.pushConnects) recordMetrics(state, this.clock.now(), { ...counters });
       this.pushCounters = { pushPings: 0, pushMessages: 0, pushConnects: 0 };
       this.pushCountersSavedAt = this.clock.now();
+   }
+
+   /** Something other than the network broke an exchange: say so (the chip turns to "Sync failed") instead of going quiet. */
+   private recordInternalFailure(error: unknown): void {
+      try {
+         const state = this.deps.store.load();
+         const at = new Date(this.clock.now()).toISOString();
+         const detail = error instanceof Error ? error.message : String(error);
+         state.lastError = { code: "SYNC_INTERNAL", message: `Sync stopped on an unexpected problem: ${detail}`, at };
+         state.failures += 1;
+         appendJournal(state, { at, event: "sync-failed", detail: `SYNC_INTERNAL: ${detail}` });
+         const delay = this.jitter(Math.min(MAX_BACKOFF_MS, 5_000 * 2 ** (state.failures - 1)));
+         state.backoffUntil = this.clock.now() + delay;
+         this.deps.store.save(state);
+         if (this.leader) this.scheduleRetry(delay);
+      } catch {
+         // Nothing more can be recorded; the next trigger tries again.
+      }
    }
 
    private scheduleRetry(delay: number): void {
@@ -545,7 +668,7 @@ export class CloudSyncEngine implements EngineActions {
             }
          }
       }
-      if (response.quota) { state.quota = response.quota; state.quotaAt = at; }
+      if (response.quota) { state.quota = response.quota; state.quotaAt = at; this.quotaFresh = true; }
       state.retentionConfigured = response.retentionConfigured;
 
       const inFlight = new Set(sent.map(mutation => recordKey(mutation.kind, mutation.clientItemId)));
@@ -719,6 +842,8 @@ export class CloudSyncEngine implements EngineActions {
 
    /** How many more copies of `kind` fit: the cap minus copies in the cloud and uploads already queued. */
    private roomFor(state: SyncState, kind: SyncKind): number {
+      // A quota saved by a release that shared one total says nothing about this kind's own cap: let the server judge.
+      if (!this.quotaFresh && !state.quota?.kinds) return Number.POSITIVE_INFINITY;
       const creating = Object.values(state.links).filter(link => {
          const remote = state.remote[recordKey(link.kind, link.id)];
          return link.kind === kind && link.state === "pending" && link.baseRevision === 0 && !(remote && !remote.deleted);
@@ -729,7 +854,8 @@ export class CloudSyncEngine implements EngineActions {
    /** `used` is what the server reported when it refused; otherwise it is what this device counts (cloud copies plus queued uploads). */
    private overLimitMessage(state: SyncState, kind: SyncKind, used?: number): string {
       const limit = this.kindLimit(state, kind);
-      const inUse = Math.min(limit, used ?? limit - this.roomFor(state, kind));
+      const room = this.roomFor(state, kind);
+      const inUse = Math.min(limit, used ?? (Number.isFinite(room) ? limit - room : limit));
       return `Not synced: over limit (${inUse} of ${limit} ${SYNC_KIND_REGISTRY[kind].plural} in the cloud). Remove a cloud copy you no longer need to make room.`;
    }
 
@@ -1069,6 +1195,7 @@ export class CloudSyncEngine implements EngineActions {
       this.viewPending = this.computeView().then(view => {
          this.viewCache = view;
          for (const listener of this.listeners) listener(view);
+         this.watchOwed(view);
          return view;
       }).finally(() => {
          this.viewPending = null;
@@ -1131,8 +1258,11 @@ export class CloudSyncEngine implements EngineActions {
             checkpointCount: remote?.checkpointCount, message, ...(state.optOut[key] ? { optedOut: true } : {}),
          });
       }
+      const offline = this.deps.online ? !this.deps.online() : false;
       const status: EngineStatus = !this.started ? "disabled"
-         : this.halted ?? (this.running > 0 ? "syncing" : state.lastError && state.failures > 0 ? "error" : "idle");
+         : this.halted ?? (offline ? "offline" : this.running > 0 ? "syncing" : state.lastError && state.failures > 0 ? "error" : "idle");
+      const scheduled = ["flush", "retry", "pull", "reconnect"].some(name => this.timers[name as keyof typeof this.timers] !== null);
+      const retryAt = state.backoffUntil && state.backoffUntil > this.clock.now() ? new Date(state.backoffUntil).toISOString() : null;
       const automatic = new Set(this.automaticKinds(state));
       const kinds = Object.fromEntries(SYNC_KINDS.map(kind => [kind, {
          mode: state.modes[kind] === "selected" ? "selected" : "auto",
@@ -1140,7 +1270,9 @@ export class CloudSyncEngine implements EngineActions {
          automatic: automatic.has(kind),
       } satisfies KindSyncView])) as Record<SyncKind, KindSyncView>;
       return {
-         status, leader: this.leader, push: this.deps.createPush ? this.pushStatus : "unavailable",
+         status, leader: this.leader, leaderTab: this.leaderTab, retryAt,
+         activity: this.running > 0 ? "running" : scheduled ? "scheduled" : "idle",
+         push: this.deps.createPush ? this.pushStatus : "unavailable",
          lastSyncAt: state.lastSyncAt, lastError: state.lastError, pendingCount, conflictCount,
          quota: state.quota, consent: state.consent, retentionConfigured: state.retentionConfigured,
          records: [...rows.values()], recovery: [...state.recovery], metrics: state.metrics, kinds,

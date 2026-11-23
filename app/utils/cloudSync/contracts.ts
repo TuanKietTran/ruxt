@@ -205,6 +205,11 @@ export interface SyncCoordinator {
    onLeadership(listener: (leader: boolean) => void): () => void;
    /** Run `task` while holding the exclusive per-owner network lock (one sync at a time, all tabs). */
    withNetworkLock<T>(task: () => Promise<T>): Promise<T>;
+   /**
+    * Take the leadership from a tab that holds it but no longer answers (an older bundle, a frozen tab). The tab
+    * that lost it queues again. Absent without a lock manager, where every tab leads.
+    */
+   takeOver?(): void;
    /** Tell other tabs something happened (for example "state" or "flush-request"). */
    broadcast(message: { type: string; [key: string]: unknown }): void;
    onMessage(listener: (message: { type: string; [key: string]: unknown }) => void): () => void;
@@ -265,9 +270,21 @@ export interface KindSyncView {
    automatic: boolean;
 }
 
+/** Which tab syncs for this browser, as this tab knows it. */
+export type LeaderTab = "this" | "other" | "unknown" | "outdated" | "silent";
+
 export interface EngineView {
    status: EngineStatus;
    leader: boolean;
+   /**
+    * "this": this tab syncs. "other": another tab answered. "unknown": not heard yet. "outdated"/"silent": the
+    * leader runs an older bundle or stopped answering, and this tab is taking over. Absent in older fixtures.
+    */
+   leaderTab?: LeaderTab;
+   /** Running: an exchange is in flight. Scheduled: one is queued. Idle: nothing is happening (always for followers). */
+   activity?: "running" | "scheduled" | "idle";
+   /** When a failed sync is retried by itself (ISO), else null. */
+   retryAt?: string | null;
    push: PushStatus;
    lastSyncAt: string | null;
    lastError: { code: string; message: string; at: string } | null;

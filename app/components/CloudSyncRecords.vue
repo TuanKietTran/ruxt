@@ -3,7 +3,9 @@ import { computed, ref, watch } from 'vue';
 import type { EngineView, RecordKey, SyncRecordView } from '~/utils/cloudSync/contracts';
 import { SYNC_KIND_REGISTRY, SYNC_KINDS } from '~/utils/cloudSync/kinds';
 import type { SyncKind } from '~/utils/cloudSync/types';
-import { filterRecords, formatBytes, selectableActions, sortRecords, statusText, uploadPreview, type RecordFilter } from '~/utils/cloudSync/recordsView';
+import { filterRecords, formatBytes, selectableActions, sortRecords, uploadPreview, type RecordFilter } from '~/utils/cloudSync/recordsView';
+import { presentRecord } from '~/utils/cloudSync/syncPresentation';
+import { describeSyncStatus } from '~/utils/cloudSync/statusLabel';
 
 /**
  * Records view of the sync workspace: compare local and cloud records, select
@@ -22,9 +24,10 @@ const emit = defineEmits<{
 
 const statusOptions: Array<{ value: RecordFilter['status']; label: string }> = [
     { value: 'all', label: 'All' },
-    { value: 'local-only', label: 'Local only' },
-    { value: 'cloud-only', label: 'Cloud only' },
-    { value: 'synced', label: 'Synced' },
+    { value: 'device', label: 'On this device only' },
+    { value: 'cloud', label: 'In your cloud' },
+    { value: 'syncing', label: 'Syncing' },
+    { value: 'cloud-only', label: 'Only in your cloud' },
     { value: 'attention', label: 'Needs attention' },
 ];
 
@@ -35,7 +38,9 @@ const showUpload = ref(false);
 const showDownload = ref(false);
 const showRemove = ref(false);
 
-const filtered = computed(() => filterRecords(sortRecords(props.view.records), { kind: kindFilter.value, status: statusFilter.value }));
+const filtered = computed(() => filterRecords(props.view, sortRecords(props.view.records), { kind: kindFilter.value, status: statusFilter.value }));
+// The same sentence the header chip shows, so the tab and the chip always agree.
+const syncState = computed(() => describeSyncStatus(props.view, Date.now()));
 const selectedRecords = computed(() => props.view.records.filter((record) => selected.value.includes(record.key)));
 const actions = computed(() => selectableActions(selectedRecords.value));
 const preview = computed(() => uploadPreview(props.view, actions.value.upload));
@@ -58,8 +63,12 @@ function kindLabel(kind: SyncKind): string {
 function selectLabel(record: SyncRecordView): string {
     return 'Select ' + record.title;
 }
+function present(record: SyncRecordView) {
+    return presentRecord(props.view, record);
+}
 function badgeClass(record: SyncRecordView): string {
-    return 'badge badge-' + record.status;
+    const presentation = present(record);
+    return `badge badge-${presentation.phase} badge-${presentation.tone}`;
 }
 function canResolve(record: SyncRecordView): boolean {
     return record.status === 'conflict';
@@ -139,6 +148,10 @@ function openHistory(record: SyncRecordView): void {
             </div>
         </div>
 
+        <p v-if='syncState' class='sync-state' data-testid='records-sync-state' role='status'>
+            <strong>{{ syncState.label }}</strong><span v-if='syncState.detail'>. {{ syncState.detail }}</span>
+        </p>
+
         <p v-if='view.records.length === 0' class='empty'>No records yet. Records you create here, or sync from another device, will appear here.</p>
         <p v-else-if='cloudCopyCount === 0' class='note'>No cloud copies yet. Records of kinds set to sync automatically upload by themselves; otherwise select a record and upload it.</p>
         <p v-else-if='filtered.length === 0' class='empty'>No records match these filters.</p>
@@ -203,9 +216,9 @@ function openHistory(record: SyncRecordView): void {
             <tbody>
                 <tr v-for='record in filtered' :key='record.key'>
                     <td><input type='checkbox' :checked='selected.includes(record.key)' :aria-label='selectLabel(record)' :disabled='busy' @change='onToggle(record, $event)'></td>
-                    <td>{{ record.title }}<span v-if='record.message' class='record-message'> {{ record.message }}</span></td>
+                    <td>{{ record.title }}<span v-if='present(record).reason' class='record-message'> {{ present(record).reason }}</span></td>
                     <td>{{ kindLabel(record.kind) }}</td>
-                    <td><span :class='badgeClass(record)'>{{ statusText(record.status) }}</span></td>
+                    <td><span :class='badgeClass(record)'>{{ present(record).label }}</span></td>
                     <td>{{ formatTime(record.localUpdatedAt) }}</td>
                     <td>{{ formatTime(record.cloudUpdatedAt) }}</td>
                     <td>{{ formatBytes(record.bytes ?? 0) }}</td>
@@ -223,14 +236,14 @@ function openHistory(record: SyncRecordView): void {
                     <input type='checkbox' :checked='selected.includes(record.key)' :aria-label='selectLabel(record)' :disabled='busy' @change='onToggle(record, $event)'>
                     <span>{{ record.title }}</span>
                 </label>
-                <span :class='badgeClass(record)'>{{ statusText(record.status) }}</span>
+                <span :class='badgeClass(record)'>{{ present(record).label }}</span>
                 <dl class='card-details'>
                     <div><dt>Kind</dt><dd>{{ kindLabel(record.kind) }}</dd></div>
                     <div><dt>Updated on this device</dt><dd>{{ formatTime(record.localUpdatedAt) }}</dd></div>
                     <div><dt>Updated in cloud</dt><dd>{{ formatTime(record.cloudUpdatedAt) }}</dd></div>
                     <div><dt>Size</dt><dd>{{ formatBytes(record.bytes ?? 0) }}</dd></div>
                 </dl>
-                <p v-if='record.message' class='record-message'>{{ record.message }}</p>
+                <p v-if='present(record).reason' class='record-message'>{{ present(record).reason }}</p>
                 <div class='card-actions'>
                     <button v-if='canResolve(record)' type='button' :disabled='busy' @click='openConflict(record)'>Resolve</button>
                     <button v-if='hasCloudCopy(record)' type='button' :disabled='busy' @click='openHistory(record)'>History</button>
@@ -256,8 +269,11 @@ function openHistory(record: SyncRecordView): void {
 .empty, .note { color: var(--fg-subtext0); }
 .record-message { display: block; color: var(--fg-subtext0); font-size: 12px; }
 .badge { display: inline-block; padding: 2px 8px; border: 1px solid var(--border, rgba(128, 128, 128, 0.4)); border-radius: 999px; white-space: nowrap; }
-.badge-conflict, .badge-error, .badge-blocked, .badge-over-limit { color: var(--danger, #b91c1c); border-color: var(--danger, #b91c1c); font-weight: 600; }
-.badge-synced { color: var(--success, #15803d); border-color: var(--success, #15803d); }
+.badge-danger { color: var(--danger, #b91c1c); border-color: var(--danger, #b91c1c); font-weight: 600; }
+.badge-warning { color: var(--warning, #b45309); border-color: var(--warning, #b45309); }
+.badge-busy { color: var(--accent, #2563eb); border-color: var(--accent, #2563eb); }
+.badge-ok { color: var(--success, #15803d); border-color: var(--success, #15803d); }
+.sync-state { margin: 0; color: var(--fg-subtext1); }
 .records-table { width: 100%; border-collapse: collapse; }
 .records-table th, .records-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border, rgba(128, 128, 128, 0.25)); vertical-align: top; }
 .records-cards { display: none; list-style: none; margin: 0; padding: 0; }

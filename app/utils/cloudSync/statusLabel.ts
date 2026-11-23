@@ -1,5 +1,6 @@
 import type { EngineView } from './contracts';
 import { chipSummary, items } from './syncSummary';
+import { LABEL, leaderTabOf } from './syncPresentation';
 
 export type StatusTone = 'neutral' | 'busy' | 'ok' | 'warning' | 'danger';
 
@@ -30,20 +31,27 @@ const plural = (count: number, one: string, many: string): string => count === 1
 /**
  * Header status for an engine view. First match wins; null means the header renders nothing
  * (sync disabled, or the user is signed out). No engine code is imported here, only the view.
+ *
+ * The resting words are "In your cloud" (everything sync is responsible for is on this device and in the cloud,
+ * and they agree) and "Cloud sync" (nothing to sync yet). Everything between is "Syncing" or "Waiting for sync"
+ * with the reason; "Only on this device" never appears here because for a record sync owns it is a passing state.
  */
 export function describeSyncStatus(view: EngineView | null, now: number): SyncStatusLabel | null {
    if (!view || view.status === 'disabled' || view.status === 'signed-out') return null;
    const anyLinked = view.records.some((record) => record.linked);
+   const inCloud = anyLinked || view.records.some((record) => record.status === 'synced');
    const chip = chipSummary(view);
+   const elsewhere = leaderTabOf(view) !== 'this';
    let label: SyncStatusLabel;
    if (view.status === 'unavailable') {
       label = { tone: 'neutral', icon: 'lucide:cloud-off', label: 'Cloud sync unavailable', detail: '' };
    } else if (view.status === 'offline') {
+      const waiting = Math.max(view.pendingCount, chip.outgoing);
       label = {
          tone: 'warning',
          icon: 'lucide:wifi-off',
          label: 'Offline',
-         detail: view.pendingCount > 0 ? `${view.pendingCount} ${plural(view.pendingCount, 'change', 'changes')} waiting` : '',
+         detail: waiting > 0 ? `${waiting} ${plural(waiting, 'change', 'changes')} waiting` : '',
       };
    } else if (view.conflictCount > 0) {
       label = {
@@ -68,25 +76,19 @@ export function describeSyncStatus(view: EngineView | null, now: number): SyncSt
          tone: 'warning', icon: 'lucide:triangle-alert', label: `${items(chip.failed)} could not sync`,
          detail: chip.firstReason ?? 'Open Cloud sync to see why',
       };
-   } else if (chip.incoming > 0) {
-      label = {
-         tone: 'neutral', icon: 'lucide:cloud-download', label: `${items(chip.incoming)} waiting in your cloud`,
-         detail: 'Sync now to bring them to this device',
-      };
-   } else if (view.pendingCount > 0) {
-      label = {
-         tone: 'busy',
-         icon: 'lucide:cloud-upload',
-         label: view.pendingCount === 1 ? '1 pending' : `${view.pendingCount} pending`,
-         detail: '',
-      };
-   } else if (anyLinked) {
-      label = { tone: 'ok', icon: 'lucide:cloud', label: 'Synced', detail: `Last synced ${relativeTime(view.lastSyncAt, now)}` };
+   } else if (chip.waiting > 0) {
+      label = { tone: 'warning', icon: 'lucide:triangle-alert', label: LABEL.waiting, detail: chip.waitingReason ?? 'Open Cloud sync to see why' };
+   } else if (chip.syncing > 0 && elsewhere) {
+      label = { tone: 'busy', icon: 'lucide:loader-circle', label: LABEL.syncingElsewhere, detail: `${items(chip.syncing)} syncing. Another tab of this browser does the syncing` };
+   } else if (chip.syncing > 0) {
+      label = { tone: 'busy', icon: 'lucide:cloud-upload', label: LABEL.syncing, detail: `${items(chip.syncing)} queued` };
+   } else if (inCloud) {
+      label = { tone: 'ok', icon: 'lucide:cloud', label: LABEL.cloud, detail: `Last synced ${relativeTime(view.lastSyncAt, now)}` };
    } else {
       label = { tone: 'neutral', icon: 'lucide:cloud', label: 'Cloud sync', detail: Object.values(view.kinds).some((kind) => kind.automatic) ? 'Nothing to sync yet' : 'Nothing selected for sync' };
    }
    // The push channel can be down while sync itself is fine; say so when anything is linked.
-   if ((view.push === 'down' || view.push === 'unavailable') && anyLinked) {
+   if (!elsewhere && (view.push === 'down' || view.push === 'unavailable') && anyLinked) {
       label = { ...label, detail: label.detail ? `${label.detail}. Live updates paused` : 'Live updates paused' };
    }
    return label;
