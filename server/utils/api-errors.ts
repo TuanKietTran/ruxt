@@ -23,6 +23,8 @@ export async function sendApiRequest<T>(mediator: MediatorLike, request: unknown
 
         const message = error instanceof Error ? error.message : "Unexpected application error";
         const statusCode = statusForMessage(message);
+        // The response hides the cause of a 500; log it so the failure is diagnosable from the Worker logs.
+        if (statusCode === 500) console.error("[api] request failed", message);
         throw createError({
             statusCode,
             statusMessage: statusCode === 500 ? "Internal server error" : message,

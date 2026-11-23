@@ -50,6 +50,8 @@ export default defineEventHandler(async (event) => {
    if (!result.success) {
       const message = result.error;
       const statusCode = /must|invalid|required|cursor/i.test(message) ? 400 : 500;
+      // The client only sees a generic 500; keep the real cause (e.g. a missing D1 table) in the Worker logs.
+      if (statusCode === 500) console.error("[cloud-sync] sync failed", message);
       throw createError({ statusCode, statusMessage: statusCode === 500 ? "Internal server error" : message, data: { code: statusCode === 400 ? "BAD_REQUEST" : "INTERNAL_ERROR" } });
    }
    const data = result.data;
