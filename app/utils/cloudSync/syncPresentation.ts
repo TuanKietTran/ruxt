@@ -13,7 +13,6 @@
  */
 import type { EngineView, RecordStatus, SyncRecordView } from "./contracts";
 import { SYNC_KIND_REGISTRY } from "./kinds";
-import type { SyncKind } from "./types";
 
 export type RecordPhase = "device" | "cloud" | "cloud-only" | "syncing" | "waiting" | "attention";
 export type PresentationTone = "neutral" | "ok" | "busy" | "warning" | "danger";
@@ -127,22 +126,6 @@ export function owedRecords(view: EngineView, kinds?: readonly string[]): Array<
 
 export function owedCount(view: EngineView): number {
    return owedRecords(view).length;
-}
-
-export interface RowSyncLabel { label: string; tone: PresentationTone; title: string }
-
-/**
- * The small sync label on a list row (the editor's sessions and templates). Null while the sync state is not known
- * yet, so a row never claims "local" for a record that may already be in the cloud. Without an account or with
- * sync off there is no sync state to show and the caller says where the record lives instead.
- */
-export function rowSyncLabel(view: EngineView | null, kind: SyncKind, id: string): RowSyncLabel | null {
-   if (!view || view.status === "disabled" || view.status === "signed-out") return null;
-   const record = view.records.find(entry => entry.kind === kind && entry.id === id);
-   // Not in the list yet (just created, or the first scan has not seen it): it is about to be picked up.
-   if (!record) return { label: LABEL.syncing, tone: "busy", title: "Cloud sync will pick this up." };
-   const presentation = presentRecord(view, record);
-   return { label: presentation.label, tone: presentation.tone, title: presentation.reason ?? presentation.label };
 }
 
 /** The record filters of the Records tab. */
