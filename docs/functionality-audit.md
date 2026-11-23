@@ -74,12 +74,16 @@ The core `SaveCvTemplate` handler and `toCvTemplateSkeleton` existed; nothing us
 | Sync simulation depended on CPU load (about 1 full-suite run in 6 failed: a conflict reported as "modified", a 24-hour scenario timing out) | BROKEN (tests) | waits for in-flight hashing; 12 of 12 runs pass under eight busy CPU loops |
 | README and cloud-data spec still said synchronization was planned; auth spec listed fixed gaps | stale docs | rewritten to match the code |
 
+### F9. Cloud sync needed clicks and shared one quota (P1, PARTIAL) — fixed
+
+A second browser with empty storage and the same account showed "Only in the cloud" rows but an empty Editor and Profiles until each record was ticked and downloaded, and an upload of 19 mixed records was refused against one ten-copy cap shared by all kinds. Now, once a kind's consent is granted and the retention notice acknowledged, sync is automatic in both directions: cloud-only copies download on catch-up, local records upload while they fit, and the rest show "Not synced: over limit" with a reason. Differing local data becomes a conflict, local data is never deleted (a copy removed in the cloud marks the link "cloud-removed"), and the per-kind mode "Only records I select" remains. The header chip, Editor and Profiles state what sync is doing and a one-line banner offers Download when anything is cloud-only. Quota is per kind (20/20/20, 1 for job preferences), configurable with `NUXT_CLOUD_COPY_LIMITS_<KIND>`, and reported as an additive `quota.kinds` next to the unchanged `byKind`. Profiles without an id get a stable one on read. Job preferences are a new synced kind with their own default-off consent. The request budget is unchanged (idle device: 0 requests). Known limitation: the mode is stored per device, not per account.
+
 ## Open findings (not fixed here)
 
 | ID | Area | Status | Priority | Evidence and recommendation |
 | --- | --- | --- | --- | --- |
 | O1 | Production identity | BLOCKED | P1 | Production answers with `x-clerk-auth-reason: dev-browser-missing`, which only a Clerk *development* instance sends, and `wrangler.json` sets `RUXT_DEPLOYMENT_ENV: development`. Production runs on development keys (strict limits, dev-browser handshake). Needs a live Clerk instance and keys set as Worker secrets. |
-| O2 | Cloud sync on production | BLOCKED | P1 | Cloud saving is fail-closed until six `NUXT_CLOUD_RETENTION_*` values exist; the deploy workflow syncs job-automation secrets but not these, and production state could not be read. Confirm they are set (now documented in `.env.example`). |
+| O2 | Cloud sync on production | BLOCKED | P1 | Cloud saving is fail-closed until six `NUXT_CLOUD_RETENTION_*` values exist; the deploy workflow syncs job-automation secrets but not these, and production state could not be read. Confirm they are set in production (documented in `.env.example`); without them consent cannot be granted, so nothing syncs in either direction. The optional per-kind caps `NUXT_CLOUD_COPY_LIMITS_*` default sensibly and need no action. |
 | O3 | ruxt-admin ↔ Ruxt data | BLOCKED | P2 | Ruxt writes hourly metrics and import jobs to Cloudflare KV; ruxt-admin reads Deno KV. The Cloudflare migration (`docs/ruxt-admin-migration-plan.md`) is planned, not done, so admin dashboards cannot show Ruxt data. Needs provider access. |
 | O4 | Admin capabilities | MISSING | P2 | ruxt-admin has analytics, import jobs, template versioning and read-only platform views. No user management, subscription management, audit log of admin actions, or feature management (flags are deployment variables). |
 | O5 | Mobile and native clients | PARTIAL / DEPRECATED path | P2 | Android, iOS, Flutter and GPUI clients authenticate with the legacy cookie API only (register/login/logout). They have no Clerk sign-in and no cloud sync; Flutter screens are placeholders with an unwired data layer; the desktop export is an explicit stub. The server already accepts Clerk session tokens as `Authorization: Bearer` (verified), so the path forward is Clerk's native SDKs. |
@@ -119,7 +123,7 @@ The core `SaveCvTemplate` handler and `toCvTemplateSkeleton` existed; nothing us
 | | Save as template, rename, export, import, delete | COMPLETE | F6 |
 | | Edit content, apply to an existing CV | MISSING | O7 |
 | | Public catalog publication | COMPLETE in ruxt-admin; storage BLOCKED | O3 |
-| Cloud sync | Consent, notice, batched upload/download, delta, hashing, push, adaptive fallback, quota | COMPLETE | measured below |
+| Cloud sync | Consent, notice, automatic two-way sync of consented kinds (per-kind mode), batched upload/download, delta, hashing, push, adaptive fallback, per-kind quota, header chip and banners | COMPLETE | measured below; F9 |
 | | Conflict preservation and piece-by-piece merge | COMPLETE | F5 |
 | | History, restore as copy, make current, recovery | COMPLETE | verified in the browser |
 | | Production configuration | BLOCKED | O1, O2 |
@@ -135,23 +139,23 @@ The core `SaveCvTemplate` handler and `toCvTemplateSkeleton` existed; nothing us
 
 ## Request budget (measured)
 
-See the table in [cloud data](../specs/authenticated-cloud-data.md). Healthy push: 0 HTTP requests for an idle account for an hour (about 50 WebSocket pings); without push, 1 per device per hour; twenty rapid edits, 1 request; five tabs, 1; 24 hours offline, 0 until reconnect, then 1. An anonymous tab makes 0 Worker requests while idle, hidden or typing. WebSocket messages to the Durable Object are billed at a fraction of a request; the exact bill depends on the account's plan and was not measured.
+See the table in [cloud data](../specs/authenticated-cloud-data.md). Healthy push: 0 HTTP requests for an idle account for an hour (about 50 WebSocket pings); without push, 1 per device per hour (3 across three devices in the real-server suite), and none for a device with nothing to do; twenty rapid edits, 1 request; five tabs, 1; 24 hours offline, 0 until reconnect, then 1. An anonymous tab makes 0 Worker requests while idle, hidden or typing. WebSocket messages to the Durable Object are billed at a fraction of a request; the exact bill depends on the account's plan and was not measured.
 
 ## Verification
 
-All run on branch `fix/auth-logout-audit` on 2026-11-22.
+Run on 2026-11-23 on the branch that added automatic sync (F9).
 
 | Command | Result |
 | --- | --- |
 | `pnpm lint` | passes |
-| `pnpm test` | 916 passed, 101 skipped (skips are the opt-in browser/server suites below); 12 of 12 repeated runs pass under CPU load |
+| `pnpm test` | 979 passed, 104 skipped (skips are the opt-in browser/server suites below) |
 | `pnpm test:workerd` | 29 passed, 1 skipped (O17) |
 | `pnpm cf:build` and `wrangler dev --local` smoke from a clean checkout | builds; protected routes answer 401; registration answers 403 |
 | `pnpm check:request-budget` | passes |
 | `pnpm measure:requests` | runs; idle, hidden and typing tabs: 0 Worker requests |
-| Live Clerk browser and API suites (`logout`, `commercial-access`, `owner-guard`, `cloud-sync-ui`, `templates`) | 22 passed |
+| Live Clerk browser and API suites (`logout`, `commercial-access`, `owner-guard`, `cloud-sync-ui`, `templates`) | 25 passed, including the two-device `cloud-sync-ui` suite (empty second device, conflict-safe download, per-kind quota, profile id upgrade) |
 | `tests/e2e` (real server, cloud-data API and request budget) | 13 passed, 1 skipped (unconfigured-server case), budget scenarios measured |
-| ruxt-core: tests, lint, typecheck | 234 passed; clean |
+| ruxt-core: tests, lint, typecheck | 244 passed; clean |
 | ruxt-admin: tests | 31 passed |
 
 How to run the opt-in suites: [testing and operations](../specs/testing-devops.md).
