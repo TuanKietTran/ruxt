@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import { sql } from "drizzle-orm";
 import * as schema from "./schema";
 import { CLOUD_COPY_SCHEMA } from "@infra/deploy/cloud-copy-sql";
+import { CLOUD_DATA_CATEGORIES } from "@ruxt/core/domain/cloud-data/consent";
 
 let _db: ReturnType<typeof drizzle<typeof schema>> | undefined;
 
@@ -11,13 +12,20 @@ export function getSqliteClient() {
    return getSqliteDb().$client;
 }
 
-const CONSENT_CATEGORIES_CHECK = "CHECK (category IN ('cloudSessions', 'cloudTemplates', 'cloudProfiles'))";
-const LEGACY_CONSENT_CHECK = "CHECK (category IN ('cloudSessions', 'cloudTemplates'))";
+/** Every consent category core defines (one per cloud-copy kind), so a new kind needs no edit here. */
+const CONSENT_CATEGORIES_CHECK = `CHECK (category IN (${CLOUD_DATA_CATEGORIES.map(category => `'${category}'`).join(", ")}))`;
+const CONSENT_CHECK_PATTERN = /CHECK \(category IN \([^)]*\)\)/;
 
-/** Tables created before cloud profiles carried a two-category CHECK; rebuild them once, keeping rows. */
+/**
+ * Tables created before a category existed carry a shorter CHECK; rebuild them once, keeping rows. A table
+ * whose CHECK is already the current list (or has none) is left alone, so this is idempotent.
+ */
 function widenConsentCategories(sqlite: Database.Database): void {
    const definition = sqlite.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?");
-   const legacy = (table: string) => String((definition.get(table) as { sql?: string } | undefined)?.sql ?? "").includes(LEGACY_CONSENT_CHECK);
+   const legacy = (table: string) => {
+      const sqlText = String((definition.get(table) as { sql?: string } | undefined)?.sql ?? "");
+      return CONSENT_CHECK_PATTERN.test(sqlText) && !sqlText.includes(CONSENT_CATEGORIES_CHECK);
+   };
    if (!legacy("cloud_consent_states") && !legacy("cloud_consent_events")) return;
    sqlite.transaction(() => {
       if (legacy("cloud_consent_states")) {
@@ -104,28 +112,8 @@ export function getSqliteDb() {
       CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users (email)
    `);
 
-   _db.run(sql`
-      CREATE TABLE IF NOT EXISTS cloud_consent_states (
-         owner_id       TEXT NOT NULL,
-         category       TEXT NOT NULL CHECK (category IN ('cloudSessions', 'cloudTemplates', 'cloudProfiles')),
-         granted        INTEGER NOT NULL,
-         policy_version TEXT NOT NULL,
-         changed_at     TEXT NOT NULL,
-         PRIMARY KEY (owner_id, category)
-      )
-   `);
-
-   _db.run(sql`
-      CREATE TABLE IF NOT EXISTS cloud_consent_events (
-         id             TEXT PRIMARY KEY,
-         owner_id       TEXT NOT NULL,
-         actor_user_id  TEXT NOT NULL,
-         category       TEXT NOT NULL CHECK (category IN ('cloudSessions', 'cloudTemplates', 'cloudProfiles')),
-         granted        INTEGER NOT NULL,
-         policy_version TEXT NOT NULL,
-         changed_at     TEXT NOT NULL
-      )
-   `);
+   sqlite.exec(`CREATE TABLE IF NOT EXISTS cloud_consent_states (owner_id TEXT NOT NULL, category TEXT NOT NULL ${CONSENT_CATEGORIES_CHECK}, granted INTEGER NOT NULL, policy_version TEXT NOT NULL, changed_at TEXT NOT NULL, PRIMARY KEY (owner_id, category))`);
+   sqlite.exec(`CREATE TABLE IF NOT EXISTS cloud_consent_events (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, actor_user_id TEXT NOT NULL, category TEXT NOT NULL ${CONSENT_CATEGORIES_CHECK}, granted INTEGER NOT NULL, policy_version TEXT NOT NULL, changed_at TEXT NOT NULL)`);
 
    _db.run(sql`
       CREATE INDEX IF NOT EXISTS idx_cloud_consent_events_owner_changed

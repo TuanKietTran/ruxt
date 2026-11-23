@@ -1,5 +1,5 @@
 import type {
-   ConflictChoice, EngineActions, EngineStatus, EngineView, LocalRecord, PendingMutation, PushChannel, PushChannelEvents,
+   ConflictChoice, EngineActions, EngineStatus, EngineView, KindSyncView, LocalRecord, PendingMutation, PushChannel, PushChannelEvents,
    PushStatus, RecordAdapter, RecordKey, RecordLink, RecordStatus, RecoveryEntry, RemoteEntry, SyncCoordinator,
    SyncRecordView, SyncState, SyncStateStore,
 } from "./contracts";
@@ -7,8 +7,10 @@ import { parseRecordKey, recordKey } from "./contracts";
 import type { SyncBlobStore } from "./blobs";
 import { hashSnapshot, snapshotBytes } from "./hash";
 import { addRecovery, appendJournal, recordMetrics } from "./state";
+import { kindConsentGranted, SYNC_KIND_REGISTRY, SYNC_KINDS } from "./kinds";
+import { retentionState } from "./consentView";
 import {
-   CONSENT_CATEGORY, SyncHttpError, SYNC_KINDS, type CloudHistoryDto, type SyncChangeDto, type SyncKind,
+   SyncHttpError, type CloudHistoryDto, type SyncChangeDto, type SyncKind, type SyncMode,
    type SyncMutationDto, type SyncPolicyDto, type SyncRequestDto, type SyncResponseDto, type SyncSnapshot,
 } from "./types";
 
@@ -45,7 +47,10 @@ export interface EngineDeps {
    online?: () => boolean;
    isEditorDirty?: (kind: SyncKind, id: string) => boolean;
    newId?: () => string;
-   /** Kinds whose clean local copies take cloud updates automatically (default: sessions only). */
+   /**
+    * Kinds whose clean local copies take cloud updates automatically (default: all). A record an editor holds
+    * unsaved edits for is never replaced (see isEditorDirty); it is brought up to date once the editor is clean.
+    */
    autoApply?: Partial<Record<SyncKind, boolean>>;
 }
 
@@ -58,6 +63,10 @@ const PUSH_PULL_DELAY_MS = 1_500;
 const MAX_BACKOFF_MS = 30 * 60_000;
 const UNAVAILABLE_BACKOFF_MS = 60 * 60_000;
 const BLOCKING_CODES = new Set(["CLOUD_COPY_CONSENT_REQUIRED", "CLOUD_COPY_RETENTION_UNCONFIGURED", "CLOUD_COPY_LIMIT", "CLOUD_COPY_TOO_LARGE", "CLOUD_COPY_INVALID"]);
+/** The server refused a new copy for lack of room / this device found no room before asking. Shown as "over limit". */
+export const OVER_LIMIT_CODES = ["CLOUD_COPY_LIMIT", "OVER_LIMIT"] as const;
+export const isOverLimit = (link: Pick<RecordLink, "state" | "error">): boolean =>
+   link.state === "blocked" && (OVER_LIMIT_CODES as readonly string[]).includes(link.error?.code ?? "");
 
 type Reason = "initial" | "local" | "explicit" | "push" | "visible" | "online" | "fallback" | "reconnect" | "retry" | "page-hide";
 interface ExchangeOptions { wantConsent?: boolean; wantPush?: boolean; explicit?: boolean }
@@ -134,7 +143,9 @@ export class CloudSyncEngine implements EngineActions {
    notifyLocalChange(change: { kind: SyncKind; id: string; origin: "local" | "cloud" }): void {
       if (!this.started || !this.leader || this.halted || change.origin === "cloud") return;
       const state = this.deps.store.load();
-      const relevant = Object.values(state.links).some(link => link.kind === change.kind && (change.id === "*" || link.id === change.id));
+      // A kind that syncs automatically cares about every record, including ones created just now and not yet linked.
+      const relevant = this.automaticKinds(state).includes(change.kind)
+         || Object.values(state.links).some(link => link.kind === change.kind && (change.id === "*" || link.id === change.id));
       if (!relevant) return;
       const now = this.clock.now();
       this.dirtySince ||= now;
@@ -283,6 +294,8 @@ export class CloudSyncEngine implements EngineActions {
 
       for (let page = 0; page < MAX_PAGES_PER_EXCHANGE; page += 1) {
          await this.catchUp(state);
+         // Link, upload and download everything an automatic kind owes before deciding what to send.
+         if (await this.autoSync(state)) this.autoQueued = true;
          const mutations = await this.collectMutations(state, Boolean(options.explicit));
          const pullOnly = reason === "local" || reason === "page-hide";
          if (page === 0 && pullOnly && mutations.length === 0) {
@@ -330,16 +343,21 @@ export class CloudSyncEngine implements EngineActions {
          this.flushPushCounters(state);
          this.deps.store.save(state);
          this.morePages = response.hasMore;
-         if (!response.hasMore && !(await this.hasUnsentWork(state))) break;
-         if (!response.hasMore) {
+         if (!response.hasMore && !this.autoQueued && !(await this.hasUnsentWork(state))) break;
+         if (!response.hasMore && !this.autoQueued) {
             // Content changed again while the request was in flight: send it on the normal schedule.
             this.notifyLocalChange({ kind: mutations[0]?.kind ?? "session", id: "*", origin: "local" });
             break;
          }
+         // More pages, or automatic sync just queued uploads: continue in this exchange, no waiting for a click.
+         this.autoQueued = false;
       }
+      this.autoQueued = false;
    }
 
    private morePages = false;
+   /** Automatic sync linked records for upload since the last request; the exchange loop sends them at once. */
+   private autoQueued = false;
    private pushCounters = { pushPings: 0, pushMessages: 0, pushConnects: 0 };
    private pushCountersSavedAt = 0;
 
@@ -392,7 +410,7 @@ export class CloudSyncEngine implements EngineActions {
    // ----------------------------------------------------------------------------------------------
 
    private consentGranted(state: SyncState, kind: SyncKind): boolean | null {
-      return state.consent ? state.consent[CONSENT_CATEGORY[kind]].granted : null;
+      return state.consent ? kindConsentGranted(state.consent, kind) : null;
    }
 
    private async collectMutations(state: SyncState, explicit = false): Promise<SyncMutationDto[]> {
@@ -527,7 +545,7 @@ export class CloudSyncEngine implements EngineActions {
             }
          }
       }
-      if (response.quota) state.quota = response.quota;
+      if (response.quota) { state.quota = response.quota; state.quotaAt = at; }
       state.retentionConfigured = response.retentionConfigured;
 
       const inFlight = new Set(sent.map(mutation => recordKey(mutation.kind, mutation.clientItemId)));
@@ -554,6 +572,8 @@ export class CloudSyncEngine implements EngineActions {
       } else {
          state.cursor = response.cursor;
       }
+      // Cloud-only copies of automatic kinds come down now, as part of this catch-up; new local records get linked.
+      if (await this.autoSync(state)) this.autoQueued = true;
       if (response.push && this.leader) this.ensurePush()?.connect(response.push.url, response.push.ticket);
       state.lastSyncAt = at;
       state.lastError = null;
@@ -611,7 +631,7 @@ export class CloudSyncEngine implements EngineActions {
          if (link.baseRevision > 0 || link.state !== "pending") this.markConflict(state, link, "both-changed");
          return;
       }
-      const autoApply = this.deps.autoApply?.[link.kind] ?? link.kind === "session";
+      const autoApply = this.deps.autoApply?.[link.kind] ?? true;
       if (!autoApply || this.deps.isEditorDirty?.(link.kind, link.id)) return; // shown as "behind" until applied
       if (this.deps.adapters[link.kind].write(link.id, snapshot)) {
          this.agree(state, link, remote, snapshot);
@@ -668,7 +688,148 @@ export class CloudSyncEngine implements EngineActions {
       if (ack.code === "CLOUD_COPY_NOT_FOUND" && ack.operation === "remove") return;
       if (ack.code === "CLOUD_COPY_IDEMPOTENCY_CONFLICT") return; // rebuilt with a new id next time
       link.state = BLOCKING_CODES.has(ack.code) ? "blocked" : "error";
-      link.error = { code: ack.code, message: ack.message, at };
+      link.error = { code: ack.code, message: ack.code === "CLOUD_COPY_LIMIT" ? this.overLimitMessage(state, ack.kind, state.quota?.kinds?.[ack.kind]?.used) : ack.message, at };
+   }
+
+   // ----------------------------------------------------------------------------------------------
+   // Automatic sync
+   // ----------------------------------------------------------------------------------------------
+
+   /**
+    * Kinds that sync with no clicks on this device: the account granted consent, the retention notice is
+    * acknowledged, and the mode is automatic (the default). Revoking consent drops a kind out of this list at
+    * once; nothing local is touched.
+    */
+   private automaticKinds(state: SyncState): SyncKind[] {
+      const consent = state.consent;
+      if (!consent || retentionState(consent) !== "acknowledged") return [];
+      return SYNC_KINDS.filter(kind => kindConsentGranted(consent, kind) && state.modes[kind] !== "selected");
+   }
+
+   private kindLimit(state: SyncState, kind: SyncKind): number {
+      const entry = state.quota?.kinds?.[kind];
+      if (entry) return entry.limit;
+      // A server that predates per-kind caps shares one total; before any quota is known assume core's default.
+      return state.quota && state.quota.limit > 0 ? state.quota.limit : SYNC_KIND_REGISTRY[kind].fallbackLimit;
+   }
+
+   private liveCloudCount(state: SyncState, kind: SyncKind): number {
+      return Object.values(state.remote).filter(remote => remote.kind === kind && !remote.deleted).length;
+   }
+
+   /** How many more copies of `kind` fit: the cap minus copies in the cloud and uploads already queued. */
+   private roomFor(state: SyncState, kind: SyncKind): number {
+      const creating = Object.values(state.links).filter(link => {
+         const remote = state.remote[recordKey(link.kind, link.id)];
+         return link.kind === kind && link.state === "pending" && link.baseRevision === 0 && !(remote && !remote.deleted);
+      }).length;
+      return Math.max(0, this.kindLimit(state, kind) - this.liveCloudCount(state, kind) - creating);
+   }
+
+   /** `used` is what the server reported when it refused; otherwise it is what this device counts (cloud copies plus queued uploads). */
+   private overLimitMessage(state: SyncState, kind: SyncKind, used?: number): string {
+      const limit = this.kindLimit(state, kind);
+      const inUse = Math.min(limit, used ?? limit - this.roomFor(state, kind));
+      return `Not synced: over limit (${inUse} of ${limit} ${SYNC_KIND_REGISTRY[kind].plural} in the cloud). Remove a cloud copy you no longer need to make room.`;
+   }
+
+   /**
+    * Everything automatic kinds owe, decided from local knowledge only (no request, except one history read
+    * for a cloud copy whose content was not kept): download cloud-only copies, link local records for upload
+    * while they fit the quota, and mark the rest "over limit". Returns true when uploads were queued.
+    * Records the user explicitly stopped syncing are left alone; local data is never overwritten or deleted.
+    */
+   private async autoSync(state: SyncState): Promise<boolean> {
+      const kinds = this.automaticKinds(state);
+      if (!kinds.length) return false;
+      for (const remote of Object.values(state.remote)) {
+         if (remote.deleted || !kinds.includes(remote.kind)) continue;
+         const key = recordKey(remote.kind, remote.id);
+         if (state.links[key] || state.optOut[key]) continue;
+         await this.adoptCloudCopy(state, key, "auto-downloaded");
+      }
+      // While a full listing is still arriving the cloud's contents are not fully known, so room cannot be judged.
+      if (state.listing) return false;
+      let queued = false;
+      for (const kind of kinds) if (this.autoLink(state, kind)) queued = true;
+      return queued;
+   }
+
+   /** Link local records that are not in the cloud yet; the ones beyond the cap become "over limit". */
+   private autoLink(state: SyncState, kind: SyncKind): boolean {
+      const at = new Date(this.clock.now()).toISOString();
+      const wanting: Array<{ key: RecordKey; local: LocalRecord; link?: RecordLink }> = [];
+      for (const local of this.deps.adapters[kind].list()) {
+         const key = recordKey(kind, local.id);
+         if (state.optOut[key]) continue;
+         const link = state.links[key];
+         const live = state.remote[key] && !state.remote[key]!.deleted;
+         if (!link) { if (!live) wanting.push({ key, local }); continue; }
+         if (link.baseRevision !== 0 || !isOverLimit(link)) continue;
+         // A refusal from this device's own count can be retried as soon as room appears; a refusal from the
+         // server only once a newer quota arrived, so a full cloud is never asked again and again.
+         const quotaNewer = state.quotaAt !== null && Date.parse(state.quotaAt) > Date.parse(link.error?.at ?? "");
+         if (link.error?.code === "OVER_LIMIT" || quotaNewer) wanting.push({ key, local, link });
+      }
+      if (!wanting.length) return false;
+      wanting.sort((a, b) => Date.parse(b.local.updatedAt) - Date.parse(a.local.updatedAt) || a.key.localeCompare(b.key));
+      let room = this.roomFor(state, kind);
+      let queued = false;
+      for (const item of wanting) {
+         if (room > 0) {
+            room -= 1;
+            const link = item.link ?? { kind, id: item.local.id, baseRevision: 0, baseHash: "", state: "pending" as const };
+            link.state = "pending";
+            delete link.error;
+            state.links[item.key] = link;
+            queued = true;
+            if (!item.link) appendJournal(state, { at, event: "auto-selected-for-upload", key: item.key });
+         } else if (!item.link) {
+            state.links[item.key] = {
+               kind, id: item.local.id, baseRevision: 0, baseHash: "", state: "blocked",
+               error: { code: "OVER_LIMIT", message: this.overLimitMessage(state, kind), at },
+            };
+            appendJournal(state, { at, event: "over-limit", key: item.key });
+         }
+      }
+      return queued;
+   }
+
+   /**
+    * Bring one cloud copy to this device and link it. Existing local data is never overwritten: a record with
+    * the same id and the same content is just linked, a different one becomes a conflict that keeps both
+    * versions for the Conflicts tab. A browser that refuses the write leaves an error on the record instead of
+    * trying again on every exchange.
+    */
+   private async adoptCloudCopy(state: SyncState, key: RecordKey, event: string): Promise<void> {
+      const parsed = parseRecordKey(key);
+      if (!parsed) return;
+      const snapshot = await this.remoteSnapshot(state, key);
+      const remote = state.remote[key];
+      if (!snapshot || !remote || remote.deleted) return;
+      const adapter = this.deps.adapters[parsed.kind];
+      const link: RecordLink = state.links[key] ?? { kind: parsed.kind, id: parsed.id, baseRevision: 0, baseHash: "", state: "synced" };
+      const local = adapter.get(parsed.id);
+      const at = new Date(this.clock.now()).toISOString();
+      if (!local) {
+         if (adapter.write(parsed.id, snapshot)) {
+            state.links[key] = link;
+            this.agree(state, link, remote, snapshot);
+         } else {
+            link.state = "error";
+            link.error = { code: "LOCAL_WRITE_REFUSED", message: "This browser could not save the downloaded record. Free some storage, then sync again.", at };
+            state.links[key] = link;
+            appendJournal(state, { at, event: "download-refused", key });
+            return;
+         }
+      } else if ((await hashSnapshot(local.snapshot)) === remote.hash) {
+         state.links[key] = link;
+         this.agree(state, link, remote, snapshot);
+      } else {
+         state.links[key] = link;
+         this.markConflict(state, link, "both-changed"); // existing local data is never overwritten
+      }
+      appendJournal(state, { at, event, key });
    }
 
    // ----------------------------------------------------------------------------------------------
@@ -730,6 +891,7 @@ export class CloudSyncEngine implements EngineActions {
             if (!local) continue;
             const existing = state.links[key];
             const remote = state.remote[key];
+            delete state.optOut[key]; // choosing a record again ends an earlier "stop syncing"
             const link: RecordLink = existing && existing.state !== "cloud-removed"
                ? existing
                : { kind: parsed.kind, id: parsed.id, baseRevision: 0, baseHash: "", state: "pending" };
@@ -749,23 +911,9 @@ export class CloudSyncEngine implements EngineActions {
    async download(keys: RecordKey[]): Promise<void> {
       await this.mutate(async state => {
          for (const key of keys) {
-            const parsed = parseRecordKey(key);
-            if (!parsed) continue;
-            const snapshot = await this.remoteSnapshot(state, key);
-            const remote = state.remote[key];
-            if (!snapshot || !remote || remote.deleted) continue;
-            const adapter = this.deps.adapters[parsed.kind];
-            const link: RecordLink = state.links[key] ?? { kind: parsed.kind, id: parsed.id, baseRevision: 0, baseHash: "", state: "synced" };
-            state.links[key] = link;
-            const local = adapter.get(parsed.id);
-            if (!local) {
-               if (adapter.write(parsed.id, snapshot)) this.agree(state, link, remote, snapshot);
-            } else if ((await hashSnapshot(local.snapshot)) === remote.hash) {
-               this.agree(state, link, remote, snapshot);
-            } else {
-               this.markConflict(state, link, "both-changed"); // existing local data is never overwritten
-            }
-            appendJournal(state, { at: new Date(this.clock.now()).toISOString(), event: "downloaded", key });
+            delete state.optOut[key]; // asking for a record again ends an earlier "stop syncing"
+            if (state.links[key]?.state === "error" && !this.deps.adapters[state.links[key]!.kind].get(state.links[key]!.id)) delete state.links[key];
+            await this.adoptCloudCopy(state, key, "downloaded");
          }
       });
    }
@@ -776,6 +924,7 @@ export class CloudSyncEngine implements EngineActions {
             const link = state.links[key];
             if (!link) continue;
             delete state.links[key];
+            state.optOut[key] = new Date(this.clock.now()).toISOString(); // automatic sync must not bring it back
             if (state.outbox[key] && !state.outbox[key]!.sentAt) delete state.outbox[key];
             this.deps.adapters[link.kind].clearConflict(link.id);
             await this.deps.blobs.delete(this.blobKey("base", link.kind, link.id));
@@ -795,10 +944,21 @@ export class CloudSyncEngine implements EngineActions {
                queuedAt: new Date(this.clock.now()).toISOString(), attempts: 0,
             };
             delete state.links[key];
+            // The local record stays, but automatic sync must not upload it again behind the user's back.
+            state.optOut[key] = new Date(this.clock.now()).toISOString();
             await this.deps.blobs.delete(this.blobKey("base", remote.kind, remote.id));
          }
       });
       await this.exchange("explicit", { explicit: true });
+   }
+
+   async setMode(kind: SyncKind, mode: SyncMode): Promise<void> {
+      await this.mutate(async state => {
+         if (mode === "auto") delete state.modes[kind]; else state.modes[kind] = mode;
+         appendJournal(state, { at: new Date(this.clock.now()).toISOString(), event: "sync-mode", detail: `${kind}:${mode}` });
+      });
+      // Back to automatic: start syncing now rather than at the next trigger.
+      if (mode === "auto") await this.exchange("explicit", { explicit: true, wantConsent: true });
    }
 
    async resolve(key: RecordKey, choice: ConflictChoice): Promise<void> {
@@ -822,7 +982,8 @@ export class CloudSyncEngine implements EngineActions {
             return true;
          }
          if (choice === "both" && local) {
-            adapter.createCopy(local.snapshot, `${local.title} (this device)`);
+            // A browser that refuses the copy (or a one-record kind) must not lose this device's version.
+            if (!adapter.createCopy(local.snapshot, `${local.title} (this device)`)) await this.saveRecovery(state, local, "keep-cloud");
          } else if (local) {
             await this.saveRecovery(state, local, "keep-cloud");
          }
@@ -943,6 +1104,7 @@ export class CloudSyncEngine implements EngineActions {
          let message: string | undefined;
          if (link) {
             if (link.state === "conflict") status = "conflict";
+            else if (isOverLimit(link)) { status = "over-limit"; message = link.error?.message; }
             else if (link.state === "blocked") { status = "blocked"; message = link.error?.message; }
             else if (link.state === "error") { status = "error"; message = link.error?.message; }
             else if (link.state === "cloud-removed") status = "cloud-removed";
@@ -956,6 +1118,7 @@ export class CloudSyncEngine implements EngineActions {
             if (status === "conflict") message = "This device and the cloud hold different versions";
          } else if (local) {
             status = "local-only";
+            if (state.optOut[key]) message = "Syncing was stopped for this record on this device";
          } else {
             status = "cloud-only";
          }
@@ -965,16 +1128,22 @@ export class CloudSyncEngine implements EngineActions {
             key, kind: parsed.kind, id: parsed.id, title: local?.title ?? remote?.title ?? parsed.id, status, linked: Boolean(link),
             localUpdatedAt: local?.updatedAt, cloudUpdatedAt: remote?.updatedAt, cloudRevision: remote?.revision,
             baseRevision: link?.baseRevision, bytes: local ? snapshotBytes(local.snapshot) : remote?.bytes,
-            checkpointCount: remote?.checkpointCount, message,
+            checkpointCount: remote?.checkpointCount, message, ...(state.optOut[key] ? { optedOut: true } : {}),
          });
       }
       const status: EngineStatus = !this.started ? "disabled"
          : this.halted ?? (this.running > 0 ? "syncing" : state.lastError && state.failures > 0 ? "error" : "idle");
+      const automatic = new Set(this.automaticKinds(state));
+      const kinds = Object.fromEntries(SYNC_KINDS.map(kind => [kind, {
+         mode: state.modes[kind] === "selected" ? "selected" : "auto",
+         consented: kindConsentGranted(state.consent, kind),
+         automatic: automatic.has(kind),
+      } satisfies KindSyncView])) as Record<SyncKind, KindSyncView>;
       return {
          status, leader: this.leader, push: this.deps.createPush ? this.pushStatus : "unavailable",
          lastSyncAt: state.lastSyncAt, lastError: state.lastError, pendingCount, conflictCount,
          quota: state.quota, consent: state.consent, retentionConfigured: state.retentionConfigured,
-         records: [...rows.values()], recovery: [...state.recovery], metrics: state.metrics,
+         records: [...rows.values()], recovery: [...state.recovery], metrics: state.metrics, kinds,
       };
    }
 }

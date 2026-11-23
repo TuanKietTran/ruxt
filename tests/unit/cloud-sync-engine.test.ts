@@ -39,8 +39,9 @@ describe("cloud sync engine", () => {
       expect((a!.readSession("s1") as { markdown: string }).markdown).toBe("edited while the account had changed");
    });
 
-   it("does one exchange on start and never uploads unselected local data", async () => {
+   it("in 'only records I select' mode, does one exchange on start and never uploads unselected local data", async () => {
       const { server, clock, devices: [a] } = await world();
+      await a!.leader!.setMode("session", "selected");
       a!.editSession("s1", "# Local only");
       await clock.advance(120_000);
       expect(server.requests).toHaveLength(1);
@@ -80,8 +81,8 @@ describe("cloud sync engine", () => {
       a!.editSession("s1", "from A");
       await a!.leader!.upload([key("s1")]);
       await clock.advance(3_000);
-      expect(await status(b!, "s1")).toBe("cloud-only");
-      await b!.leader!.download([key("s1")]);
+      // No click: the device with consent downloads it as soon as the cloud tells it about the copy.
+      expect(await status(b!, "s1")).toBe("synced");
       expect(b!.readSession("s1")!.markdown).toContain("from A");
       a!.editSession("s1", "A again");
       await clock.advance(12_000);

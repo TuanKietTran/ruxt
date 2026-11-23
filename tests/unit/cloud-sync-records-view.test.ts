@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { EngineView, SyncRecordView } from '../../app/utils/cloudSync/contracts';
 import type { ConsentViewDto, QuotaDto } from '../../app/utils/cloudSync/types';
-import { filterRecords, formatBytes, selectableActions, sortRecords, statusText, uploadPreview } from '../../app/utils/cloudSync/recordsView';
+import { filterRecords, formatBytes, quotaByKind, selectableActions, sortRecords, statusText, uploadPreview } from '../../app/utils/cloudSync/recordsView';
+import { SYNC_KINDS } from '../../app/utils/cloudSync/kinds';
 
 function record(overrides: Partial<SyncRecordView>): SyncRecordView {
     return {
@@ -51,7 +52,23 @@ function makeView(records: SyncRecordView[], quota: QuotaDto | null, consent: Co
         records,
         recovery: [],
         metrics: {},
+        kinds: Object.fromEntries(SYNC_KINDS.map((kind) => [kind, { mode: 'auto', consented: true, automatic: false }])) as EngineView['kinds'],
     };
+}
+
+/** A quota from a server with per-kind caps: each kind has its own limit and used count. */
+function makeKindQuota(used: Partial<Record<'session' | 'template' | 'profile', number>>, limits: Partial<Record<'session' | 'template' | 'profile', number>> = {}): QuotaDto {
+    const kinds: NonNullable<QuotaDto['kinds']> = {};
+    let limit = 0;
+    let total = 0;
+    for (const kind of ['session', 'template', 'profile'] as const) {
+        const cap = limits[kind] ?? 20;
+        const count = used[kind] ?? 0;
+        kinds[kind] = { limit: cap, used: count, remaining: Math.max(0, cap - count) };
+        limit += cap;
+        total += count;
+    }
+    return { limit, used: total, remaining: limit - total, byKind: { session: used.session ?? 0, template: used.template ?? 0, profile: used.profile ?? 0 }, kinds };
 }
 
 describe('filterRecords', () => {
@@ -128,7 +145,8 @@ describe('selectableActions', () => {
             record({ key: 'session:local', id: 'local', status: 'local-only', linked: false, cloudRevision: undefined }),
         ];
         const actions = selectableActions(records);
-        expect(actions.download).toEqual(['session:cloud']);
+        // A record deleted on this device but still in the cloud can be brought back the same way.
+        expect(actions.download).toEqual(['session:cloud', 'session:missing']);
         expect(actions.unlink).toEqual(['session:synced', 'session:missing', 'session:removed']);
         expect(actions.remove).toEqual(['session:cloud', 'session:synced']);
     });
@@ -141,7 +159,36 @@ describe('uploadPreview', () => {
             record({ key: 'template:synced', kind: 'template', id: 'synced', status: 'synced', linked: true, cloudRevision: 5, bytes: 512 }),
         ];
         const preview = uploadPreview(makeView(records, makeQuota(8, 10), makeConsent(true, true, true)), ['session:local', 'template:synced']);
-        expect(preview).toEqual({ count: 2, newCopies: 1, bytes: 2560, quotaUsedAfter: 9, quotaLimit: 10, overQuota: false, blockedKinds: [] });
+        expect(preview).toEqual({ count: 2, newCopies: 1, bytes: 2560, quotaUsedAfter: 9, quotaLimit: 10, overQuota: false, blockedKinds: [], kinds: [], overKinds: [] });
+    });
+
+    it('judges each kind against its own cap, so a full kind does not block another', () => {
+        const local = (kind: 'session' | 'template' | 'profile', id: string) =>
+            record({ key: `${kind}:${id}`, kind, id, status: 'local-only', linked: false, cloudRevision: undefined });
+        const records = [local('session', 's1'), local('session', 's2'), local('profile', 'p1')];
+        const view = makeView(records, makeKindQuota({ session: 19, profile: 1 }, { profile: 20 }), makeConsent(true, true, true));
+        const preview = uploadPreview(view, records.map((entry) => entry.key));
+        expect(preview.overQuota).toBe(true);
+        expect(preview.overKinds.map((entry) => [entry.kind, entry.usedAfter, entry.limit])).toEqual([['session', 21, 20]]);
+        expect(preview.kinds.find((entry) => entry.kind === 'profile')).toMatchObject({ newCopies: 1, usedAfter: 2, over: false });
+        // Profiles alone fit, even though the account total (19 + 1 + 1) is far from any single shared pool of ten.
+        expect(uploadPreview(view, ['profile:p1']).overQuota).toBe(false);
+    });
+
+    it('lets a mixed set of nineteen records upload under the default caps', () => {
+        const records = [
+            ...Array.from({ length: 7 }, (_, index) => record({ key: `session:s${index}`, id: `s${index}`, status: 'local-only', linked: false, cloudRevision: undefined })),
+            ...Array.from({ length: 6 }, (_, index) => record({ key: `template:t${index}`, kind: 'template', id: `t${index}`, status: 'local-only', linked: false, cloudRevision: undefined })),
+            ...Array.from({ length: 6 }, (_, index) => record({ key: `profile:p${index}`, kind: 'profile', id: `p${index}`, status: 'local-only', linked: false, cloudRevision: undefined })),
+        ];
+        const preview = uploadPreview(makeView(records, makeKindQuota({}), makeConsent(true, true, true)), records.map((entry) => entry.key));
+        expect(preview).toMatchObject({ count: 19, newCopies: 19, overQuota: false, overKinds: [] });
+    });
+
+    it('lists per-kind copies in use and caps in registry order, and nothing from a server without per-kind caps', () => {
+        const view = makeView([], makeKindQuota({ session: 3, template: 1 }, { template: 5 }), null);
+        expect(quotaByKind(view).map((entry) => [entry.kind, entry.used, entry.limit, entry.remaining])).toEqual([['session', 3, 20, 17], ['template', 1, 5, 4], ['profile', 0, 20, 20]]);
+        expect(quotaByKind(makeView([], makeQuota(3, 10), null))).toEqual([]);
     });
 
     it('flags over-quota uploads', () => {
@@ -175,6 +222,7 @@ describe('statusText', () => {
             ['conflict', 'Conflict'],
             ['error', 'Error'],
             ['blocked', 'Blocked'],
+            ['over-limit', 'Not synced: over limit'],
             ['cloud-removed', 'Removed from cloud'],
             ['local-missing', 'Deleted on this device'],
         ] as const;

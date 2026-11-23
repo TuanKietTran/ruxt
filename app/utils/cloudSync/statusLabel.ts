@@ -1,4 +1,5 @@
 import type { EngineView } from './contracts';
+import { chipSummary, items } from './syncSummary';
 
 export type StatusTone = 'neutral' | 'busy' | 'ok' | 'warning' | 'danger';
 
@@ -33,6 +34,7 @@ const plural = (count: number, one: string, many: string): string => count === 1
 export function describeSyncStatus(view: EngineView | null, now: number): SyncStatusLabel | null {
    if (!view || view.status === 'disabled' || view.status === 'signed-out') return null;
    const anyLinked = view.records.some((record) => record.linked);
+   const chip = chipSummary(view);
    let label: SyncStatusLabel;
    if (view.status === 'unavailable') {
       label = { tone: 'neutral', icon: 'lucide:cloud-off', label: 'Cloud sync unavailable', detail: '' };
@@ -52,8 +54,25 @@ export function describeSyncStatus(view: EngineView | null, now: number): SyncSt
       };
    } else if (view.status === 'error') {
       label = { tone: 'danger', icon: 'lucide:circle-alert', label: 'Sync failed', detail: view.lastError?.message ?? 'Unknown error' };
+   } else if (view.status === 'syncing' && chip.incoming > 0) {
+      label = { tone: 'busy', icon: 'lucide:cloud-download', label: `Downloading ${items(chip.incoming)} from your cloud`, detail: '' };
    } else if (view.status === 'syncing') {
       label = { tone: 'busy', icon: 'lucide:loader-circle', label: 'Syncing', detail: '' };
+   } else if (chip.overLimit > 0) {
+      label = {
+         tone: 'warning', icon: 'lucide:triangle-alert', label: `${items(chip.overLimit)} could not sync (over limit)`,
+         detail: 'Remove a cloud copy you no longer need to make room',
+      };
+   } else if (chip.failed > 0) {
+      label = {
+         tone: 'warning', icon: 'lucide:triangle-alert', label: `${items(chip.failed)} could not sync`,
+         detail: chip.firstReason ?? 'Open Cloud sync to see why',
+      };
+   } else if (chip.incoming > 0) {
+      label = {
+         tone: 'neutral', icon: 'lucide:cloud-download', label: `${items(chip.incoming)} waiting in your cloud`,
+         detail: 'Sync now to bring them to this device',
+      };
    } else if (view.pendingCount > 0) {
       label = {
          tone: 'busy',
@@ -64,7 +83,7 @@ export function describeSyncStatus(view: EngineView | null, now: number): SyncSt
    } else if (anyLinked) {
       label = { tone: 'ok', icon: 'lucide:cloud', label: 'Synced', detail: `Last synced ${relativeTime(view.lastSyncAt, now)}` };
    } else {
-      label = { tone: 'neutral', icon: 'lucide:cloud', label: 'Cloud sync', detail: 'Nothing selected for sync' };
+      label = { tone: 'neutral', icon: 'lucide:cloud', label: 'Cloud sync', detail: Object.values(view.kinds).some((kind) => kind.automatic) ? 'Nothing to sync yet' : 'Nothing selected for sync' };
    }
    // The push channel can be down while sync itself is fine; say so when anything is linked.
    if ((view.push === 'down' || view.push === 'unavailable') && anyLinked) {

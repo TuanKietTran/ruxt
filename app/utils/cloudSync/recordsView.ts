@@ -4,7 +4,8 @@
  * and renders what these helpers return, so every rule here is unit-testable.
  */
 import type { EngineView, RecordKey, RecordStatus, SyncRecordView } from './contracts';
-import { CONSENT_CATEGORY, SYNC_KINDS, type SyncKind } from './types';
+import { kindConsentGranted, SYNC_KIND_REGISTRY, SYNC_KINDS } from './kinds';
+import type { SyncKind } from './types';
 
 export type RecordFilter = { kind: SyncKind | 'all'; status: 'all' | 'local-only' | 'cloud-only' | 'synced' | 'attention' };
 
@@ -61,7 +62,8 @@ export function selectableActions(records: SyncRecordView[]): { upload: RecordKe
         // Upload only creates a cloud copy for unlinked records that are local-only
         // or changed locally without a conflict; a conflict must be resolved first.
         if (!record.linked && (record.status === 'local-only' || record.status === 'modified')) upload.push(record.key);
-        if (record.status === 'cloud-only') download.push(record.key);
+        // A record deleted on this device but still in the cloud can be brought back the same way.
+        if (record.status === 'cloud-only' || (record.status === 'local-missing' && record.cloudRevision !== undefined)) download.push(record.key);
         if (record.linked) unlink.push(record.key);
         // A cloud copy exists when a revision is known; a record already deleted on
         // this device or already removed from the cloud has nothing left to remove.
@@ -70,7 +72,26 @@ export function selectableActions(records: SyncRecordView[]): { upload: RecordKe
     return { upload, download, unlink, remove };
 }
 
-export interface UploadPreview { count: number; newCopies: number; bytes: number; quotaUsedAfter: number; quotaLimit: number; overQuota: boolean; blockedKinds: SyncKind[]; }
+/** One kind's room in the cloud: copies in use, the cap, and how many new copies a selection would add. */
+export interface KindQuotaView { kind: SyncKind; label: string; used: number; limit: number; remaining: number }
+export interface KindQuotaPreview extends KindQuotaView { newCopies: number; usedAfter: number; over: boolean }
+
+/** Per-kind cloud copies in use and their caps, in registry order. Empty until the server has reported a quota. */
+export function quotaByKind(view: EngineView): KindQuotaView[] {
+    const quota = view.quota;
+    if (!quota?.kinds) return [];
+    return SYNC_KINDS.flatMap((kind) => {
+        const entry = quota.kinds![kind];
+        return entry ? [{ kind, label: SYNC_KIND_REGISTRY[kind].plural, used: entry.used, limit: entry.limit, remaining: entry.remaining }] : [];
+    });
+}
+
+export interface UploadPreview {
+    count: number; newCopies: number; bytes: number; quotaUsedAfter: number; quotaLimit: number; overQuota: boolean; blockedKinds: SyncKind[];
+    /** Per-kind view of the same selection (empty for servers that report one shared total). */
+    kinds: KindQuotaPreview[];
+    overKinds: KindQuotaPreview[];
+}
 
 export function uploadPreview(view: EngineView, keys: RecordKey[]): UploadPreview {
     const selected = view.records.filter((record) => keys.includes(record.key));
@@ -78,16 +99,21 @@ export function uploadPreview(view: EngineView, keys: RecordKey[]): UploadPrevie
     const bytes = selected.reduce((total, record) => total + (record.bytes ?? 0), 0);
     const quotaLimit = view.quota?.limit ?? 0;
     const quotaUsedAfter = (view.quota?.used ?? 0) + newCopies;
-    const overQuota = quotaLimit > 0 && quotaUsedAfter > quotaLimit;
+    // Each kind has its own cap, so a selection is only over quota where one of its kinds runs out of room.
+    const kinds: KindQuotaPreview[] = quotaByKind(view).map((entry) => {
+        const added = selected.filter((record) => record.kind === entry.kind && record.cloudRevision === undefined).length;
+        return { ...entry, newCopies: added, usedAfter: entry.used + added, over: entry.used + added > entry.limit };
+    }).filter((entry) => entry.newCopies > 0);
+    const overKinds = kinds.filter((entry) => entry.over);
+    const overQuota = view.quota?.kinds ? overKinds.length > 0 : quotaLimit > 0 && quotaUsedAfter > quotaLimit;
     // A kind is blocked when its consent category is not granted; no consent view
     // at all means nothing is granted yet, so every selected kind is blocked.
     const blocked = new Set<SyncKind>();
     for (const record of selected) {
-        const category = CONSENT_CATEGORY[record.kind];
-        if (!view.consent || !view.consent[category].granted) blocked.add(record.kind);
+        if (!kindConsentGranted(view.consent, record.kind)) blocked.add(record.kind);
     }
     const blockedKinds = SYNC_KINDS.filter((kind) => blocked.has(kind));
-    return { count: selected.length, newCopies, bytes, quotaUsedAfter, quotaLimit, overQuota, blockedKinds };
+    return { count: selected.length, newCopies, bytes, quotaUsedAfter, quotaLimit, overQuota, blockedKinds, kinds, overKinds };
 }
 
 const STATUS_TEXT: Record<RecordStatus, string> = {
@@ -100,6 +126,7 @@ const STATUS_TEXT: Record<RecordStatus, string> = {
     conflict: 'Conflict',
     error: 'Error',
     blocked: 'Blocked',
+    'over-limit': 'Not synced: over limit',
     'cloud-removed': 'Removed from cloud',
     'local-missing': 'Deleted on this device',
 };

@@ -4,19 +4,20 @@ import {
    missingCloudRetentionConfiguration, selectRetainedCloudCheckpoints, type CloudRetentionConfiguration,
 } from "@ruxt/core/domain/cloud-data/retention";
 import type { CloudDataConsentView } from "@ruxt/core/domain/cloud-data/consent";
-import type { CloudCopyCheckpoint, CloudCopyKind } from "@ruxt/core/domain/cloud-copy";
+import {
+   CLOUD_COPY_KIND_REGISTRY, CLOUD_COPY_KINDS, resolveCloudCopyLimits,
+   type CloudCopyCheckpoint, type CloudCopyKind, type CloudCopyLimits,
+} from "@ruxt/core/domain/cloud-copy";
 import type { CloudCopySyncRepository } from "@ruxt/core/repos/cloud-copy.repo";
 import { getCloudDataConsentQuery } from "@ruxt/core/handlers/get-cloud-data-consent";
 import { cloudCopyRepository } from "@infra/registry";
 import { cloudSyncOwnerKey, mintSyncTicket, SYNC_TICKET_TTL_SECONDS } from "@infra/crypto/cloud-sync-ticket";
 import { notifySyncHub, type SyncHubEnv } from "@infra/deploy/cloudflare/sync-events";
 
-/** Consent category guarding each cloud-copy kind. */
-export const CLOUD_KIND_CATEGORY = {
-   session: "cloudSessions",
-   template: "cloudTemplates",
-   profile: "cloudProfiles",
-} as const satisfies Record<CloudCopyKind, keyof CloudDataConsentView>;
+/** Consent category guarding each cloud-copy kind (read from core's kind registry). */
+export const CLOUD_KIND_CATEGORY = Object.fromEntries(
+   CLOUD_COPY_KINDS.map(kind => [kind, CLOUD_COPY_KIND_REGISTRY[kind].consentCategory]),
+) as { [K in CloudCopyKind]: (typeof CLOUD_COPY_KIND_REGISTRY)[K]["consentCategory"] };
 
 /** Client batching policy, served with every sync response so deployments can tune it centrally. */
 export const CLOUD_SYNC_POLICY = Object.freeze({
@@ -60,6 +61,37 @@ export function cloudRetentionConfiguration(event?: H3Event): CloudRetentionConf
       retentionExtensionDays: Number(pick("retentionExtensionDays")),
    };
    return missingCloudRetentionConfiguration(configuration).length ? null : configuration;
+}
+
+const LIMIT_ENV: Record<CloudCopyKind, string> = {
+   session: "NUXT_CLOUD_COPY_LIMITS_SESSION",
+   template: "NUXT_CLOUD_COPY_LIMITS_TEMPLATE",
+   profile: "NUXT_CLOUD_COPY_LIMITS_PROFILE",
+   jobPreferences: "NUXT_CLOUD_COPY_LIMITS_JOB_PREFERENCES",
+};
+
+/** A configured cap as a number, or undefined for unset, empty or non-numeric text (core then uses the default). */
+function parseLimit(value: unknown): number | undefined {
+   if (typeof value === "number") return value;
+   if (typeof value !== "string" || !/^\s*\d+\s*$/.test(value)) return undefined;
+   return Number(value);
+}
+
+/**
+ * The deployment's per-kind caps: Worker bindings first (they are only attached per request), then the Nuxt
+ * runtime config. Unset, zero or invalid values fall back to core's defaults, which let a user with about
+ * twenty records of any mix sync everything, so an unconfigured deployment works.
+ */
+export function cloudCopyLimits(event?: H3Event): CloudCopyLimits {
+   const runtime = ((event ? useRuntimeConfig(event) : useRuntimeConfig()) as { cloudCopyLimits?: Partial<Record<CloudCopyKind, unknown>> }).cloudCopyLimits ?? {};
+   const env = workerEnv() ?? {};
+   const overrides: Partial<Record<CloudCopyKind, number>> = {};
+   for (const kind of CLOUD_COPY_KINDS) {
+      const bound = env[LIMIT_ENV[kind]];
+      const parsed = parseLimit(bound !== undefined && bound !== "" ? bound : runtime[kind]);
+      if (parsed !== undefined) overrides[kind] = parsed;
+   }
+   return resolveCloudCopyLimits(overrides);
 }
 
 /** The selected adapter, or a 503: never report a durable cloud save where none exists. */

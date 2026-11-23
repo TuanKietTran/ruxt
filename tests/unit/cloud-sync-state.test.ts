@@ -158,7 +158,7 @@ describe('corrupt JSON', () => {
 
 describe('quota fallback', () => {
    it('drops the journal and keeps only the newest 6 metric buckets, then retries once', () => {
-      const storage = new QuotaStorage(2500);
+      const storage = new QuotaStorage(2600);
       const store = createSyncStateStore(owner, { storage });
       const state = makeState();
       for (let n = 0; n < 40; n += 1) state.journal.push({ ...journalEntry(n), detail: 'x'.repeat(50) });

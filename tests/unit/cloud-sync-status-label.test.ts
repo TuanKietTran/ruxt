@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { EngineView } from '../../app/utils/cloudSync/contracts';
 import { describeSyncStatus, relativeTime } from '../../app/utils/cloudSync/statusLabel';
+import { SYNC_KINDS } from '../../app/utils/cloudSync/kinds';
 
 const NOW = Date.parse('2026-11-20T12:00:00.000Z');
 const minutesAgo = (min: number) => new Date(NOW - min * 60_000).toISOString();
@@ -19,6 +20,7 @@ const baseView = (overrides: Partial<EngineView> = {}): EngineView => ({
    records: [],
    recovery: [],
    metrics: {},
+   kinds: Object.fromEntries(SYNC_KINDS.map(kind => [kind, { mode: 'auto', consented: false, automatic: false }])) as EngineView['kinds'],
    ...overrides,
 });
 

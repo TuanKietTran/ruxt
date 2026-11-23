@@ -64,8 +64,8 @@ export class D1CloudCopyRepo implements CloudCopySyncRepository {
       return (await this.read(ownerId)).state.copies;
    }
 
-   async quota(ownerId: string) {
+   async quota(ownerId: string, limits?: Partial<Record<CloudCopyKind, unknown>> | null) {
       const rows = (await this.database().prepare(QUOTA_SQL).bind(ownerId).all<{ kind: CloudCopyKind }>()).results ?? [];
-      return cloudCopyQuota(rows);
+      return cloudCopyQuota(rows, limits);
    }
 }

@@ -91,6 +91,9 @@ export default defineNuxtConfig({
          checkpointRetentionDays: 0,
          retentionExtensionDays: 0,
       },
+      // Per-kind caps of cloud copies per account (NUXT_CLOUD_COPY_LIMITS_<KIND>). 0 or empty uses the default
+      // (20 per kind, 1 job preferences record); a value above 1000 is ignored.
+      cloudCopyLimits: { session: 0, template: 0, profile: 0, jobPreferences: 0 },
       // Push tickets are signed with NUXT_CLOUD_SYNC_TICKET_SECRET, else the session secret.
       cloudSync: { ticketSecret: "" },
       public: {

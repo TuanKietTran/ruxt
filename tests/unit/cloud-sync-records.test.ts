@@ -1,7 +1,9 @@
 // Canonical cloud-sync record adapters: sessions, templates and profiles.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { normalizeCvProfile } from '@ruxt/shared/cv';
-import { createProfileAdapter, createRecordAdapters, createSessionAdapter, createTemplateAdapter, sessionSnapshot } from '../../app/utils/cloudSync/records';
+import { createJobPreferencesAdapter, createProfileAdapter, createSessionAdapter, createTemplateAdapter, JOB_PREFERENCES_RECORD_ID, jobPreferencesSnapshot, sessionSnapshot, upgradeStoredProfileIds } from '../../app/utils/cloudSync/records';
+import { createRecordAdapters, SYNC_KINDS, SYNC_KIND_REGISTRY } from '../../app/utils/cloudSync/kinds';
+import { JOB_PREFERENCES_KEY } from '../../app/utils/jobSnapshot';
 import { CV_SESSION_BACKUP_PREFIX } from '../../app/utils/cvSessionBackup';
 import { LOCAL_CV_TEMPLATES_KEY } from '../../app/utils/localCvTemplates';
 import { LOCAL_PROFILES_KEY } from '../../app/utils/localProfiles';
@@ -276,17 +278,51 @@ const storedProfiles = (storage: MemoryStorage) => JSON.parse(storage.getItem(LO
 const profileSnapshot = (profile: unknown, title?: string) => ({ title: title ?? 'My Label', content: JSON.stringify({ schema: 'ruxt.profile/1', profile: normalizeCvProfile(profile) }) });
 
 describe('profile adapter', () => {
-  it('lists eligible profiles, uses stored labels, and skips legacy records without an id', () => {
+  it('lists eligible profiles with stored labels, and gives a legacy profile without an id a stable one', () => {
     const storage = new MemoryStorage();
     const labelled = profileEntry();
     const unlabelled = profileEntry({ id: 'p2', label: '', identity: { fullName: 'Grace Hopper', headline: '', summary: '', location: '' } });
     seedProfiles(storage, [labelled, { ...baseProfile() }, unlabelled, 'oops']);
     const records = profileAdapter(storage).list();
-    expect(records.map((record) => record.id)).toEqual(['p1', 'p2']);
-    expect(records[0]?.title).toBe('My Label');
-    expect(records[1]?.title).toBe('Grace Hopper');
-    expect(records[0]?.updatedAt).toBe(new Date(1700000001000).toISOString());
-    expect(records[0]?.snapshot.content).toBe(profileSnapshot(baseProfile()).content);
+    expect(records).toHaveLength(3);
+    const byId = new Map(records.map((record) => [record.id, record]));
+    expect(byId.get('p1')?.title).toBe('My Label');
+    expect(byId.get('p2')?.title).toBe('Grace Hopper');
+    expect(byId.get('p1')?.updatedAt).toBe(new Date(1700000001000).toISOString());
+    expect(byId.get('p1')?.snapshot.content).toBe(profileSnapshot(baseProfile()).content);
+    expect([...byId.keys()].filter((id) => id.startsWith('profile-'))).toHaveLength(1);
+  });
+  it('upgrades profiles without an id once: existing ids and every other field are kept, and the ids stay the same on every read', () => {
+    const storage = new MemoryStorage();
+    const legacy = { ...baseProfile(), custom: { keep: 'me' } };
+    seedProfiles(storage, [profileEntry(), legacy, 'oops', { ...baseProfile(), identity: { ...baseProfile().identity, fullName: 'Second Legacy' } }]);
+    const adapter = profileAdapter(storage);
+    const first = adapter.list();
+    expect(first.map((record) => record.id).filter((id) => id !== 'p1')).toHaveLength(2);
+    const stored = JSON.parse(storage.getItem(LOCAL_PROFILES_KEY) as string);
+    expect(stored[0]).toEqual(profileEntry()); // an entry that already had an id is untouched
+    expect(stored[1]).toMatchObject({ custom: { keep: 'me' }, id: expect.stringMatching(/^profile-/) }); // nothing is dropped
+    expect(stored[2]).toBe('oops'); // junk is kept, not discarded
+    const second = profileAdapter(storage).list();
+    expect(second.map((record) => record.id).sort()).toEqual(first.map((record) => record.id).sort());
+    expect(profileAdapter(storage).get(first.find((record) => record.id !== 'p1')!.id)).not.toBeNull();
+  });
+  it('does not invent ids it could not save: such profiles stay ineligible and the stored data is unchanged', () => {
+    const storage = new MemoryStorage();
+    seedProfiles(storage, [{ ...baseProfile() }]);
+    const before = storage.getItem(LOCAL_PROFILES_KEY);
+    storage.blocked = true;
+    expect(profileAdapter(storage).list()).toEqual([]);
+    expect(storage.getItem(LOCAL_PROFILES_KEY)).toBe(before);
+    storage.blocked = false;
+    expect(profileAdapter(storage).list()).toHaveLength(1);
+  });
+  it('upgradeStoredProfileIds touches only entries without a usable id', () => {
+    let serial = 0;
+    const { entries, upgraded } = upgradeStoredProfileIds([{ id: 'keep' }, { id: '' }, { name: 'x' }, null, 4], () => `new-${++serial}`);
+    expect(upgraded).toBe(true);
+    expect(entries).toEqual([{ id: 'keep' }, { id: 'new-1' }, { name: 'x', id: 'new-2' }, null, 4]);
+    expect(upgradeStoredProfileIds([{ id: 'a' }]).upgraded).toBe(false);
   });
   it('get returns null for missing profiles or unreadable storage', () => {
     const storage = new MemoryStorage();
@@ -389,11 +425,14 @@ describe('profile adapter', () => {
     expect(adapter.ownsStorageKey(LOCAL_CV_TEMPLATES_KEY)).toBe(false);
     expect(adapter.ownsStorageKey('other')).toBe(false);
   });
-  it('createRecordAdapters exposes session, template and profile adapters', () => {
+  it('createRecordAdapters builds one adapter per registered kind', () => {
     const storage = new MemoryStorage();
     seedProfiles(storage, [profileEntry()]);
     const adapters = createRecordAdapters(() => storage);
-    expect(Object.keys(adapters).sort()).toEqual(['profile', 'session', 'template']);
+    expect(Object.keys(adapters).sort()).toEqual([...SYNC_KINDS].sort());
+    expect(Object.keys(adapters).sort()).toEqual(['jobPreferences', 'profile', 'session', 'template']);
+    for (const kind of SYNC_KINDS) expect(adapters[kind].kind).toBe(kind);
+    expect(SYNC_KIND_REGISTRY.jobPreferences.singleton).toBe(true);
     expect(adapters.profile.kind).toBe('profile');
     expect(adapters.profile.get('p1')?.title).toBe('My Label');
     expect(adapters.session.kind).toBe('session');
@@ -401,3 +440,56 @@ describe('profile adapter', () => {
   });
 });
 
+
+const jobKey = JOB_PREFERENCES_KEY;
+describe('job preferences adapter', () => {
+  it('has no record until preferences were saved, then exactly one under a fixed id', () => {
+    const storage = new MemoryStorage();
+    const adapter = createJobPreferencesAdapter(() => storage);
+    expect(adapter.list()).toEqual([]);
+    expect(adapter.get(JOB_PREFERENCES_RECORD_ID)).toBeNull();
+    storage.setItem(jobKey, JSON.stringify({ target_roles: ['Staff Engineer'], locations: ['Hanoi'], savedAt: 1700000000000, work_modes: ['remote'], answers: { notice_period: '2 weeks' } }));
+    const [record, ...rest] = adapter.list();
+    expect(rest).toEqual([]);
+    expect(record).toMatchObject({ kind: 'jobPreferences', id: JOB_PREFERENCES_RECORD_ID, title: 'Job preferences', updatedAt: new Date(1700000000000).toISOString() });
+    expect(JSON.parse(record!.snapshot.content)).toMatchObject({ schema: 'ruxt.job-preferences/1', preferences: { target_roles: ['Staff Engineer'], work_modes: ['remote'] } });
+    expect(adapter.get('some-other-id')).toBeNull();
+  });
+  it('hashes equal data equally whatever order the standing answers were typed in, and ignores the savedAt stamp', () => {
+    const a = jobPreferencesSnapshot({ answers: { b: '2', a: '1' }, savedAt: 1 });
+    const b = jobPreferencesSnapshot({ answers: { a: '1', b: '2' }, savedAt: 99 });
+    expect(a.content).toBe(b.content);
+    expect(JSON.parse(a.content).preferences).not.toHaveProperty('savedAt');
+  });
+  it('writes cloud content in the format the Jobs page reads, emits a cloud change, and refuses anything else', () => {
+    const storage = new MemoryStorage();
+    const adapter = createJobPreferencesAdapter(() => storage);
+    const snapshot = jobPreferencesSnapshot({ target_roles: ['Designer'], salary_min: 90000, salary_currency: 'usd' });
+    expect(adapter.write(JOB_PREFERENCES_RECORD_ID, snapshot)).toBe(true);
+    const stored = JSON.parse(storage.getItem(jobKey) as string);
+    expect(stored).toMatchObject({ target_roles: ['Designer'], salary_min: 90000, salary_currency: 'USD', savedAt: expect.any(Number) });
+    expect(events).toContainEqual({ kind: 'jobPreferences', id: JOB_PREFERENCES_RECORD_ID, origin: 'cloud' });
+    expect(adapter.write('other-id', snapshot)).toBe(false);
+    expect(adapter.write(JOB_PREFERENCES_RECORD_ID, { title: 'x', content: JSON.stringify({ schema: 'ruxt.session/1' }) })).toBe(false);
+    expect(adapter.write(JOB_PREFERENCES_RECORD_ID, { title: 'x', content: 'not json' })).toBe(false);
+  });
+  it('never replaces unreadable stored data, and reports a refused write', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(jobKey, '{broken');
+    const adapter = createJobPreferencesAdapter(() => storage);
+    expect(adapter.write(JOB_PREFERENCES_RECORD_ID, jobPreferencesSnapshot({ target_roles: ['x'] }))).toBe(false);
+    expect(storage.getItem(jobKey)).toBe('{broken');
+    storage.setItem(jobKey, JSON.stringify({ target_roles: ['a'] }));
+    storage.blocked = true;
+    expect(adapter.write(JOB_PREFERENCES_RECORD_ID, jobPreferencesSnapshot({ target_roles: ['b'] }))).toBe(false);
+    expect(JSON.parse(storage.getItem(jobKey) as string).target_roles).toEqual(['a']);
+  });
+  it('cannot hold a second copy, so keep-both has nowhere to put one', () => {
+    expect(createJobPreferencesAdapter(() => new MemoryStorage()).createCopy(jobPreferencesSnapshot({}), 'copy')).toBeNull();
+  });
+  it('owns only its storage key', () => {
+    const adapter = createJobPreferencesAdapter(() => new MemoryStorage());
+    expect(adapter.ownsStorageKey(jobKey)).toBe(true);
+    expect(adapter.ownsStorageKey('ruxt:job-automation:selection:v1')).toBe(false);
+  });
+});

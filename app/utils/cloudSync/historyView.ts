@@ -89,6 +89,17 @@ function profilePreview(parsed: Record<string, unknown>): string {
    return parts.join(' — ');
 }
 
+function jobPreferencesPreview(fields: Record<string, unknown>): string {
+   const preferences = fields.preferences;
+   if (typeof preferences !== 'object' || preferences === null) return '';
+   const value = preferences as Record<string, unknown>;
+   const list = (entry: unknown) => (Array.isArray(entry) ? entry.filter((item): item is string => typeof item === 'string') : []);
+   const parts = [list(value.target_roles).join(', '), list(value.locations).join(', ')].filter((part) => part.length > 0);
+   const answers = typeof value.answers === 'object' && value.answers !== null ? Object.keys(value.answers).length : 0;
+   if (answers > 0) parts.push(`${answers} standing ${answers === 1 ? 'answer' : 'answers'}`);
+   return parts.join(' · ');
+}
+
 export function snapshotPreview(kind: SyncKind, snapshot: SyncSnapshot, maxChars: number = PREVIEW_MAX_CHARS): string {
    const parsed = parseContent(snapshot.content);
    let preview = '';
@@ -97,6 +108,8 @@ export function snapshotPreview(kind: SyncKind, snapshot: SyncSnapshot, maxChars
          preview = firstLines(stringField(parsed.markdown) ?? '', PREVIEW_LINES);
       } else if (kind === 'template') {
          preview = firstLines(stringField(parsed.markdownSkeleton) ?? '', PREVIEW_LINES);
+      } else if (kind === 'jobPreferences') {
+         preview = jobPreferencesPreview(parsed);
       } else {
          preview = profilePreview(parsed);
       }

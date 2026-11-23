@@ -68,8 +68,9 @@ describe("cloud sync request budget (measured)", () => {
       expect(requests).toBeLessThanOrEqual(2);
    });
 
-   it("twenty records edited rapidly: one batched request", async () => {
+   it("twenty records edited rapidly (only the 10 selected): one batched request", async () => {
       const { clock, server, devices: [a], mark } = await setup(1, { linked: 10 });
+      await a!.leader!.setMode("session", "selected");
       const before = mark();
       for (let index = 0; index < 20; index += 1) { a!.editSession(`s${index}`, `rapid edit ${index}`); await clock.advance(200); }
       await clock.advance(60_000);
@@ -77,6 +78,25 @@ describe("cloud sync request budget (measured)", () => {
       results["20 records edited rapidly (10 selected)"] = { httpRequests: sent.length, mutations: sent.reduce((sum, r) => sum + r.mutations, 0) };
       expect(sent).toHaveLength(1);
       expect(sent[0]!.mutations).toBe(10);
+   });
+
+   it("twenty records edited rapidly (automatic sync, all new): still one batched request", async () => {
+      const { clock, server, devices: [a], mark } = await setup(1, { linked: 0 });
+      const before = mark();
+      for (let index = 0; index < 20; index += 1) { a!.editSession(`s${index}`, `rapid edit ${index}`); await clock.advance(200); }
+      await clock.advance(60_000);
+      const sent = server.requests.slice(before);
+      results["20 new records edited rapidly (automatic)"] = { httpRequests: sent.length, mutations: sent.reduce((sum, r) => sum + r.mutations, 0) };
+      expect(sent).toHaveLength(1);
+      expect(sent[0]!.mutations).toBe(20);
+   });
+
+   it("a device with nothing to do makes no request, however long it idles, with automatic sync on", async () => {
+      const { clock, server, mark } = await setup(1, { linked: 0 });
+      const before = mark();
+      await clock.advance(6 * HOUR);
+      results["idle 6h, automatic, no records"] = { httpRequests: server.requests.length - before };
+      expect(server.requests.length - before).toBe(0);
    });
 
    it("five tabs under one account cost the same as one tab", async () => {

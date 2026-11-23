@@ -4,7 +4,7 @@ import type { RecordKey, SyncRecordView } from "~/utils/cloudSync/contracts";
 import type { ConsentCategory } from "~/utils/cloudSync/consentView";
 import { summarizeMetrics } from "~/utils/cloudSync/state";
 import { relativeTime } from "~/utils/cloudSync/statusLabel";
-import { formatBytes } from "~/utils/cloudSync/recordsView";
+import { formatBytes, quotaByKind } from "~/utils/cloudSync/recordsView";
 
 type Tab = "overview" | "records" | "conflicts" | "history" | "consent";
 const tabs: Array<{ id: Tab; label: string }> = [
@@ -118,6 +118,8 @@ async function restoreRecovery(entry: Parameters<typeof sync.restoreRecovery>[0]
 }
 
 // Overview numbers (this device)
+const kindQuotas = computed(() => (view.value ? quotaByKind(view.value) : []));
+const overLimitCount = computed(() => view.value?.records.filter(record => record.status === "over-limit").length ?? 0);
 const lastHour = computed(() => view.value ? summarizeMetrics({ metrics: view.value.metrics } as any, now.value - 3_600_000, now.value) : null);
 const lastDay = computed(() => view.value ? summarizeMetrics({ metrics: view.value.metrics } as any, now.value - 86_400_000, now.value) : null);
 const pushText = computed(() => ({
@@ -131,8 +133,10 @@ const pushText = computed(() => ({
             <p class="eyebrow">Your data</p>
             <h1>Cloud sync</h1>
             <p>
-                Everything you create stays in this browser first. Choose which sessions, templates and profiles
-                also live in your account, so they follow you to other devices. Nothing uploads until you select it.
+                Everything you create stays in this browser first. Once you turn on cloud sync for a kind of record and
+                confirm the retention notice, its records sync by themselves between your devices: new and changed
+                ones upload, and ones from your other devices appear here. Syncing never deletes anything. Prefer to
+                choose record by record? Switch a kind to "Only records I select" under Consent and privacy.
             </p>
         </header>
 
@@ -159,16 +163,24 @@ const pushText = computed(() => ({
                     <div><dt>Connection</dt><dd>{{ pushText }}</dd></div>
                     <div><dt>Waiting to upload</dt><dd>{{ view.pendingCount }}</dd></div>
                     <div><dt>Conflicts</dt><dd>{{ view.conflictCount }}</dd></div>
-                    <div><dt>Cloud copies</dt><dd>{{ view.quota ? `${view.quota.used} of ${view.quota.limit}` : "Unknown until the first sync" }}</dd></div>
-                    <div><dt>Selected on this device</dt><dd>{{ view.records.filter(record => record.linked).length }}</dd></div>
+                    <div v-if="!kindQuotas.length"><dt>Cloud copies</dt><dd>{{ view.quota ? `${view.quota.used} of ${view.quota.limit}` : "Unknown until the first sync" }}</dd></div>
+                    <div v-for="entry in kindQuotas" :key="entry.kind">
+                        <dt>Cloud copies: {{ entry.label }}</dt><dd>{{ entry.used }} of {{ entry.limit }}</dd>
+                    </div>
+                    <div><dt>Syncing on this device</dt><dd>{{ view.records.filter(record => record.linked).length }}</dd></div>
+                    <div v-if="overLimitCount"><dt>Not synced: over limit</dt><dd>{{ overLimitCount }}</dd></div>
                 </dl>
+                <p v-if="overLimitCount" class="notice error" role="status">
+                    {{ overLimitCount }} {{ overLimitCount === 1 ? "record is" : "records are" }} not synced because the cloud copy limit for {{ overLimitCount === 1 ? "its kind" : "their kinds" }} is reached.
+                    Nothing was dropped: {{ overLimitCount === 1 ? "it stays" : "they stay" }} on this device. Remove a cloud copy you no longer need on the Records tab to make room.
+                </p>
                 <p v-if="view.lastError" class="notice error" role="status">Last problem: {{ view.lastError.message }}</p>
                 <p v-if="view.retentionConfigured === false" class="notice">Cloud saving is not configured on this service yet; nothing can be uploaded.</p>
                 <div class="actions">
                     <button type="button" class="primary" :disabled="sync.busy.value || view.status === 'syncing'" @click="sync.syncNow()">
                         <AppIcon name="lucide:refresh-cw" /> Sync now
                     </button>
-                    <button type="button" @click="tab = 'records'">Choose what to sync</button>
+                    <button type="button" @click="tab = 'records'">See what is syncing</button>
                 </div>
                 <h3>Network use on this device</h3>
                 <dl v-if="lastHour && lastDay" class="facts small">
@@ -214,8 +226,8 @@ const pushText = computed(() => ({
             </section>
 
             <CloudSyncConsent
-                v-else-if="tab === 'consent'" :consent="consent" :saving="consentSaving" :error="consentError"
-                @acknowledge="acknowledge" @set-consent="setConsent"
+                v-else-if="tab === 'consent'" :consent="consent" :saving="consentSaving" :error="consentError" :kinds="view.kinds"
+                @acknowledge="acknowledge" @set-consent="setConsent" @set-mode="sync.setMode"
             />
         </template>
     </div>

@@ -1,6 +1,6 @@
-import type { ConsentViewDto } from "./types";
+import type { ConsentCategoryName, ConsentViewDto } from "./types";
 
-export type ConsentCategory = "cloudSessions" | "cloudTemplates" | "cloudProfiles";
+export type ConsentCategory = ConsentCategoryName;
 
 export const CONSENT_COPY: Record<ConsentCategory, { title: string; body: string; detail: string }> = {
    cloudSessions: {
@@ -18,7 +18,18 @@ export const CONSENT_COPY: Record<ConsentCategory, { title: string; body: string
       body: "Sync your profiles to the cloud so your details follow you to another device.",
       detail: "Profiles are stored as cloud copies and kept for the configured retention period.",
    },
+   cloudJobPreferences: {
+      title: "Job search preferences",
+      body: "Sync your job search preferences and standing answers (target roles, locations, salary, work authorization) so they are the same on every device.",
+      detail: "Stored as one cloud copy and kept for the same period as profiles. Nothing is sent to job services by syncing it.",
+   },
 };
+
+/** What turning a feature on does, once it is on: records sync by themselves unless the account picks otherwise. */
+export const MODE_COPY = {
+   auto: { label: "Sync everything automatically", detail: "New and changed records upload on their own, and records from your other devices appear here. Nothing is ever deleted." },
+   selected: { label: "Only records I select", detail: "Nothing syncs unless you choose it on the Records tab. Records already syncing keep syncing." },
+} as const;
 
 /** Retention notice state: unconfigured while any value is missing, acknowledged once the shown notice version is confirmed. */
 export function retentionState(consent: ConsentViewDto): "unconfigured" | "needs-acknowledgement" | "acknowledged" {
