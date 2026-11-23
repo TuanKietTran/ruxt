@@ -5,9 +5,9 @@ import { createSyncCoordinator } from "~/utils/cloudSync/coordinator";
 import { ownerFingerprint } from "~/utils/cloudSync/hash";
 import { isEditorDirty } from "~/utils/cloudSync/localChanges";
 import { createPushChannel } from "~/utils/cloudSync/push";
-import { createRecordAdapters } from "~/utils/cloudSync/records";
+import { createRecordAdapters } from "~/utils/cloudSync/kinds";
 import { createSyncStateStore } from "~/utils/cloudSync/state";
-import { SyncHttpError, type CloudHistoryDto, type SyncKind, type SyncRequestDto, type SyncResponseDto, type SyncSnapshot } from "~/utils/cloudSync/types";
+import { SyncHttpError, type CloudHistoryDto, type SyncKind, type SyncMode, type SyncRequestDto, type SyncResponseDto, type SyncSnapshot } from "~/utils/cloudSync/types";
 
 /**
  * One sync engine per signed-in account in this tab. It only runs when the authenticated feature is
@@ -122,6 +122,7 @@ export function useCloudSync() {
       busy: readonly(busy),
       error: readonly(lastActionError),
       syncNow: () => run(active => active.syncNow()),
+      setMode: (kind: SyncKind, mode: SyncMode) => run(active => active.setMode(kind, mode)),
       upload: (keys: RecordKey[]) => run(active => active.upload(keys)),
       download: (keys: RecordKey[]) => run(active => active.download(keys)),
       unlink: (keys: RecordKey[]) => run(active => active.unlink(keys)),

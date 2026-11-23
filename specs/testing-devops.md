@@ -17,7 +17,7 @@ pnpm dev
 
 Open http://localhost:3000. /api/health returns status: ok. Sessions and profiles persist in browser storage; local.db and .data contain server state.
 
-The core dependency uses vendor/tuankiettran-ruxt-core-0.4.0.tgz; shared/editor are exact registry pins. GitHub Packages mode uses NODE_AUTH_TOKEN through .npmrc. Editing the sibling core repository does not update installed artifacts automatically.
+The core dependency uses vendor/tuankiettran-ruxt-core-0.5.0.tgz; shared/editor are exact registry pins. GitHub Packages mode uses NODE_AUTH_TOKEN through .npmrc. Editing the sibling core repository does not update installed artifacts automatically.
 
 ## Optional tools
 

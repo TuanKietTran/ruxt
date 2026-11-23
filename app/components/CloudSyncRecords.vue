@@ -1,7 +1,8 @@
 <script setup lang='ts'>
 import { computed, ref, watch } from 'vue';
 import type { EngineView, RecordKey, SyncRecordView } from '~/utils/cloudSync/contracts';
-import { SYNC_KINDS, type SyncKind } from '~/utils/cloudSync/types';
+import { SYNC_KIND_REGISTRY, SYNC_KINDS } from '~/utils/cloudSync/kinds';
+import type { SyncKind } from '~/utils/cloudSync/types';
 import { filterRecords, formatBytes, selectableActions, sortRecords, statusText, uploadPreview, type RecordFilter } from '~/utils/cloudSync/recordsView';
 
 /**
@@ -51,7 +52,8 @@ watch(() => props.view.records, (records) => {
 });
 
 function kindLabel(kind: SyncKind): string {
-    return kind.charAt(0).toUpperCase() + kind.slice(1);
+    const label = SYNC_KIND_REGISTRY[kind].plural;
+    return label.charAt(0).toUpperCase() + label.slice(1);
 }
 function selectLabel(record: SyncRecordView): string {
     return 'Select ' + record.title;
@@ -137,8 +139,8 @@ function openHistory(record: SyncRecordView): void {
             </div>
         </div>
 
-        <p v-if='view.records.length === 0' class='empty'>No records yet. Records you choose to sync will appear here.</p>
-        <p v-else-if='cloudCopyCount === 0' class='note'>No cloud copies yet. Upload a record to create its first cloud copy.</p>
+        <p v-if='view.records.length === 0' class='empty'>No records yet. Records you create here, or sync from another device, will appear here.</p>
+        <p v-else-if='cloudCopyCount === 0' class='note'>No cloud copies yet. Records of kinds set to sync automatically upload by themselves; otherwise select a record and upload it.</p>
         <p v-else-if='filtered.length === 0' class='empty'>No records match these filters.</p>
 
         <div v-if='selected.length > 0' class='toolbar' aria-label='Selection actions'>
@@ -158,7 +160,8 @@ function openHistory(record: SyncRecordView): void {
                 <div><dt>Size</dt><dd>{{ formatBytes(preview.bytes) }}</dd></div>
                 <div><dt>Cloud copies after upload</dt><dd>{{ quotaLabel }}</dd></div>
             </dl>
-            <p v-if='preview.overQuota' class='warning' role='alert'>Over quota: this upload would use {{ preview.quotaUsedAfter }} of {{ preview.quotaLimit }} cloud copies.</p>
+            <p v-for='entry in preview.overKinds' :key='entry.kind' class='warning' role='alert'>Over the limit for {{ entry.label }}: this upload would use {{ entry.usedAfter }} of {{ entry.limit }} cloud copies.</p>
+            <p v-if='preview.overQuota && preview.overKinds.length === 0' class='warning' role='alert'>Over quota: this upload would use {{ preview.quotaUsedAfter }} of {{ preview.quotaLimit }} cloud copies.</p>
             <p v-if='preview.blockedKinds.length > 0' class='warning' role='alert'>Consent is not granted for: {{ blockedKindsLabel }}. Grant it on the <a href='#consent'>Consent tab</a> first.</p>
             <div class='panel-actions'>
                 <button type='button' :disabled='busy || preview.overQuota || preview.blockedKinds.length > 0 || preview.count === 0' @click='confirmUpload'>Confirm upload</button>
@@ -253,7 +256,7 @@ function openHistory(record: SyncRecordView): void {
 .empty, .note { color: var(--fg-subtext0); }
 .record-message { display: block; color: var(--fg-subtext0); font-size: 12px; }
 .badge { display: inline-block; padding: 2px 8px; border: 1px solid var(--border, rgba(128, 128, 128, 0.4)); border-radius: 999px; white-space: nowrap; }
-.badge-conflict, .badge-error, .badge-blocked { color: var(--danger, #b91c1c); border-color: var(--danger, #b91c1c); font-weight: 600; }
+.badge-conflict, .badge-error, .badge-blocked, .badge-over-limit { color: var(--danger, #b91c1c); border-color: var(--danger, #b91c1c); font-weight: 600; }
 .badge-synced { color: var(--success, #15803d); border-color: var(--success, #15803d); }
 .records-table { width: 100%; border-collapse: collapse; }
 .records-table th, .records-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border, rgba(128, 128, 128, 0.25)); vertical-align: top; }

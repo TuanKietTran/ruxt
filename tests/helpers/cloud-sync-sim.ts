@@ -13,7 +13,7 @@ import type { CloudCopySyncRepository } from "@ruxt/core/repos/cloud-copy.repo";
 import { CloudSyncEngine, type EngineClock } from "../../app/utils/cloudSync/engine";
 import { createMemoryBlobStore } from "../../app/utils/cloudSync/blobs";
 import { ownerFingerprint } from "../../app/utils/cloudSync/hash";
-import { createRecordAdapters } from "../../app/utils/cloudSync/records";
+import { createRecordAdapters } from "../../app/utils/cloudSync/kinds";
 import { createSyncStateStore } from "../../app/utils/cloudSync/state";
 import { createSyncCoordinator, type LockManagerLike, type BroadcastChannelLike } from "../../app/utils/cloudSync/coordinator";
 import { createPushChannel, type WebSocketLike } from "../../app/utils/cloudSync/push";
@@ -89,7 +89,7 @@ class MemoryRepo implements CloudCopySyncRepository {
    }
    async get(ownerId: string, kind: CloudCopyKind, id: string) { return structuredClone(this.states.get(ownerId)?.copies.find(c => c.kind === kind && c.clientItemId === id) ?? null); }
    async list(ownerId: string) { return structuredClone(this.states.get(ownerId)?.copies ?? []); }
-   async quota(ownerId: string) { return cloudCopyQuota(await this.list(ownerId)); }
+   async quota(ownerId: string, limits?: Partial<Record<CloudCopyKind, unknown>> | null) { return cloudCopyQuota(await this.list(ownerId), limits); }
    async load(ownerId: string) { return structuredClone(this.states.get(ownerId) ?? emptyCloudCopyState()); }
    async syncHead(ownerId: string) {
       const state = this.states.get(ownerId);
@@ -97,11 +97,22 @@ class MemoryRepo implements CloudCopySyncRepository {
    }
 }
 
-const grantedConsent = (granted = true): ConsentViewDto => ({
-   policyVersion: "2026-09-20", retentionConfiguration: null, retentionConfigurationMissing: [],
-   retentionAcknowledgement: { acknowledgedVersion: "sim", acknowledgedAt: "2026-11-01T00:00:00.000Z" },
-   cloudSessions: { granted, changedAt: null }, cloudTemplates: { granted, changedAt: null }, cloudProfiles: { granted, changedAt: null },
-});
+/** A deployment whose retention is configured and whose notice the account acknowledged, as in production. */
+const SIM_RETENTION = {
+   noticeVersion: "sim", sessionCurrentCopyRetentionDays: 30, templateRetentionDays: 30, profileRetentionDays: 30,
+   checkpointRetentionDays: 7, retentionExtensionDays: 30,
+};
+export const grantedConsent = (granted = true, options: { acknowledged?: boolean; only?: CloudCopyKind[] } = {}): ConsentViewDto => {
+   const acknowledged = options.acknowledged ?? true;
+   const on = (kind: CloudCopyKind) => (options.only ? options.only.includes(kind) : granted);
+   return {
+      policyVersion: "2026-09-20", retentionConfiguration: SIM_RETENTION, retentionConfigurationMissing: [],
+      retentionAcknowledgement: { acknowledgedVersion: acknowledged ? "sim" : null, acknowledgedAt: acknowledged ? "2026-11-01T00:00:00.000Z" : null },
+      cloudSessions: { granted: on("session"), changedAt: null }, cloudTemplates: { granted: on("template"), changedAt: null },
+      cloudProfiles: { granted: on("profile"), changedAt: null }, cloudJobPreferences: { granted: on("jobPreferences"), changedAt: null },
+   };
+};
+const CATEGORY = { session: "cloudSessions", template: "cloudTemplates", profile: "cloudProfiles", jobPreferences: "cloudJobPreferences" } as const;
 
 interface HubSocket { owner: string; device: string; socket: FakeSocket }
 
@@ -111,6 +122,8 @@ export class SimServer {
    consent = new Map<string, ConsentViewDto>();
    pushEnabled = true;
    down = false;
+   /** Per-kind caps the simulated deployment configures; absent kinds use core's defaults. */
+   limits: Partial<Record<CloudCopyKind, number>> | undefined;
    /** When set, every sync answers with this error before touching any data (e.g. the server's OWNER_MISMATCH). */
    refuse: SyncHttpError | null = null;
    requests: Array<{ owner: string; device: string; mutations: number; changes: number; at: number; status: number }> = [];
@@ -130,12 +143,14 @@ export class SimServer {
       const consent = this.consent.get(ownerId) ?? grantedConsent();
       const handler = createSyncCloudCopiesHandler(this.repo, {
          ownerId: () => ownerId,
-         canWrite: (_owner, kind) => consent[({ session: "cloudSessions", template: "cloudTemplates", profile: "cloudProfiles" } as const)[kind]].granted,
+         canWrite: (_owner, kind) => consent[CATEGORY[kind]]?.granted === true,
       }, {
          now: () => new Date(this.clock.now()).toISOString(),
          retainCheckpoints: (checkpoints, lastWriteAt) => selectRetainedCloudCheckpoints(checkpoints, lastWriteAt, 7),
+         limits: () => this.limits,
       });
-      const result = await handler.execute(body as any);
+      // Like the route: a request that asks for consent also gets the quota, even when nothing changed.
+      const result = await handler.execute({ ...(body as any), wantQuota: body.wantConsent === true });
       if (!result.success) { record.status = 400; throw new SyncHttpError(400, result.error); }
       record.changes = result.data.changes.length;
       if (result.data.changed) this.notify(ownerId, result.data.cursor, body.deviceId);

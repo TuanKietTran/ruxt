@@ -338,6 +338,7 @@ const SCHEMAS: Record<SyncKind, string> = {
    session: 'ruxt.session/1',
    template: 'ruxt.template/1',
    profile: 'ruxt.profile/1',
+   jobPreferences: 'ruxt.job-preferences/1',
 };
 
 export function buildSnapshot(kind: SyncKind, title: string, fields: Record<string, unknown>): SyncSnapshot {
@@ -352,6 +353,8 @@ export function buildSnapshot(kind: SyncKind, title: string, fields: Record<stri
          capabilities: fields.capabilities,
          tags: fields.tags,
       });
+   } else if (kind === 'jobPreferences') {
+      content = JSON.stringify({ schema: SCHEMAS.jobPreferences, preferences: fields.preferences });
    } else {
       content = JSON.stringify({ schema: SCHEMAS.profile, profile: fields.profile });
    }
@@ -375,6 +378,7 @@ export function parseSnapshotFields(kind: SyncKind, snapshot: SyncSnapshot): Rec
          tags: parsed.tags,
       };
    }
+   if (kind === 'jobPreferences') return { preferences: parsed.preferences };
    return { profile: parsed.profile };
 }
 
@@ -382,12 +386,14 @@ const TEXT_FIELDS: Record<SyncKind, string[]> = {
    session: ['markdown', 'css'],
    template: ['markdownSkeleton', 'css'],
    profile: [],
+   jobPreferences: [],
 };
 
 const JSON_FIELDS: Record<SyncKind, string[]> = {
    session: [],
    template: ['capabilities', 'tags'],
    profile: ['profile'],
+   jobPreferences: ['preferences'],
 };
 
 function textField(fields: Record<string, unknown> | null, field: string): string {

@@ -1,7 +1,8 @@
 import { CvTemplate, normalizeCvProfile, type CvTemplateProps } from "@ruxt/shared/cv";
+import { JOB_PREFERENCES_KEY, normalizeJobPreferences } from "../jobSnapshot";
 import type { LocalRecord, RecordAdapter } from "./contracts";
 import { emitLocalChange } from "./localChanges";
-import type { SyncKind, SyncSnapshot } from "./types";
+import type { SyncSnapshot } from "./types";
 import { CV_SESSION_BACKUP_PREFIX } from "../cvSessionBackup";
 import { LOCAL_CV_TEMPLATES_KEY } from "../localCvTemplates";
 import { LOCAL_PROFILES_KEY, defaultProfileLabel, newLocalProfileId, profileLabel } from "../localProfiles";
@@ -15,7 +16,7 @@ import { LOCAL_PROFILES_KEY, defaultProfileLabel, newLocalProfileId, profileLabe
  * throwing, leaving the previous value intact.
  */
 
-type StorageGetter = () => Storage | undefined;
+export type StorageGetter = () => Storage | undefined;
 const PLACEHOLDER_TITLE = "Untitled CV";
 
 const defaultStorage: StorageGetter = () => {
@@ -196,15 +197,35 @@ export function createTemplateAdapter(storage: StorageGetter = defaultStorage): 
 // Local profiles
 // ------------------------------------------------------------------------------------------------
 
+/**
+ * Give every stored profile a stable id. Profiles saved by early versions have none, which made them invisible
+ * to sync. Existing ids and every other field are kept exactly (nothing is normalized or dropped), the ids are
+ * written back once so they stay the same on every later read, and nothing is changed when the write is refused:
+ * an id that was not persisted would differ on the next read, so such entries stay ineligible instead.
+ */
+export function upgradeStoredProfileIds(entries: readonly unknown[], newId: () => string = newLocalProfileId): { entries: unknown[]; upgraded: boolean } {
+   let upgraded = false;
+   const next = entries.map(entry => {
+      if (!isObject(entry) || (typeof entry.id === "string" && entry.id)) return entry;
+      upgraded = true;
+      return { ...entry, id: newId() };
+   });
+   return { entries: upgraded ? next : [...entries], upgraded };
+}
+
 export function createProfileAdapter(storage: StorageGetter = defaultStorage): RecordAdapter {
    const readAll = (): { ok: boolean; entries: unknown[] } => {
       const read = readJson(storage, LOCAL_PROFILES_KEY);
       if (!read.ok) return { ok: false, entries: [] };
       if (read.value === null) return { ok: true, entries: [] };
-      return Array.isArray(read.value) ? { ok: true, entries: read.value } : { ok: false, entries: [] };
+      if (!Array.isArray(read.value)) return { ok: false, entries: [] };
+      const { entries, upgraded } = upgradeStoredProfileIds(read.value);
+      if (!upgraded) return { ok: true, entries };
+      // Read and write back in one synchronous step so two tabs cannot hand out different ids to one profile.
+      return writeJson(storage, LOCAL_PROFILES_KEY, entries) ? { ok: true, entries } : { ok: true, entries: read.value };
    };
    const toRecord = (entry: unknown): LocalRecord | null => {
-      // Legacy records without an id get one when the profile page upgrades them; until then they are not eligible.
+      // A record without an id (the id upgrade could not be saved) is not eligible until it has one.
       if (!isObject(entry) || typeof entry.id !== "string" || !entry.id) return null;
       try {
          const profile = normalizeCvProfile(entry);
@@ -248,10 +269,51 @@ export function createProfileAdapter(storage: StorageGetter = defaultStorage): R
    };
 }
 
-export function createRecordAdapters(storage: StorageGetter = defaultStorage): Record<SyncKind, RecordAdapter> {
+// ------------------------------------------------------------------------------------------------
+// Job automation preferences (one record, fixed identity)
+// ------------------------------------------------------------------------------------------------
+
+export const JOB_PREFERENCES_RECORD_ID = "job-preferences";
+const JOB_PREFERENCES_TITLE = "Job preferences";
+
+/** Canonical JSON of normalized preferences: fixed key order, and standing answers sorted, so equal data hashes equally. */
+export function jobPreferencesSnapshot(raw: unknown): SyncSnapshot {
+   const preferences = normalizeJobPreferences(raw);
+   const answers = Object.fromEntries(Object.entries(preferences.answers).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+   return { title: JOB_PREFERENCES_TITLE, content: JSON.stringify({ schema: "ruxt.job-preferences/1", preferences: { ...preferences, answers } }) };
+}
+
+/**
+ * The job-automation search preferences and standing answers (target roles, locations, salary, work
+ * authorization, ...). The stored object keeps the format the Jobs page reads; an extra `savedAt` records when
+ * it was last written. Which CVs the person last selected to send is a per-device convenience that refers to
+ * local record ids, so it is deliberately not part of this record.
+ */
+export function createJobPreferencesAdapter(storage: StorageGetter = defaultStorage): RecordAdapter {
+   const toRecord = (): LocalRecord | null => {
+      const read = readJson(storage, JOB_PREFERENCES_KEY);
+      if (!read.ok || !isObject(read.value)) return null;
+      const snapshot = jobPreferencesSnapshot(read.value);
+      return { kind: "jobPreferences", id: JOB_PREFERENCES_RECORD_ID, title: snapshot.title, updatedAt: iso(read.value.savedAt), snapshot };
+   };
    return {
-      session: createSessionAdapter(storage),
-      template: createTemplateAdapter(storage),
-      profile: createProfileAdapter(storage),
+      kind: "jobPreferences",
+      list: () => { const record = toRecord(); return record ? [record] : []; },
+      get: id => (id === JOB_PREFERENCES_RECORD_ID ? toRecord() : null),
+      write(id, snapshot) {
+         if (id !== JOB_PREFERENCES_RECORD_ID) return false;
+         const fields = parseContent(snapshot, "ruxt.job-preferences/1");
+         if (!fields || !isObject(fields.preferences)) return false;
+         // Unreadable existing data is still user data: never replace it.
+         const read = readJson(storage, JOB_PREFERENCES_KEY);
+         if (!read.ok || (read.value !== null && !isObject(read.value))) return false;
+         if (!writeJson(storage, JOB_PREFERENCES_KEY, { ...normalizeJobPreferences(fields.preferences), savedAt: Date.now() })) return false;
+         emitLocalChange({ kind: "jobPreferences", id, origin: "cloud" });
+         return true;
+      },
+      // One record per account: there is no second place to keep a copy, so the engine saves recovery instead.
+      createCopy: () => null,
+      clearConflict: () => {},
+      ownsStorageKey: key => key === JOB_PREFERENCES_KEY,
    };
 }

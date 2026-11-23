@@ -41,10 +41,13 @@ export default defineEventHandler(async (event) => {
    }, {
       retainCheckpoints: checkpointRetention(retention),
       lifecycle: () => retention,
+      limits: () => cloudCopyLimits(event),
    });
 
    const result = await handler.execute({
       mutations: body.mutations, since: body.since, after: body.after, limit: body.limit, maxBytes: body.maxBytes,
+      // A device that asks for consent (first exchange, Sync now) also needs the current caps to plan its uploads.
+      wantQuota: body.wantQuota === true || body.wantConsent === true,
    });
    recordMetric("cqrs", "command SyncCloudCopies", { durationMs: performance.now() - startedAt, ok: result.success });
    if (!result.success) {

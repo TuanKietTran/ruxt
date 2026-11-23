@@ -6,12 +6,12 @@ import type { CloudCopySyncRepository } from "@ruxt/core/repos/cloud-copy.repo";
 
 const retain = (checkpoints: readonly any[], lastWriteAt: string) => selectRetainedCloudCheckpoints(checkpoints, lastWriteAt, 7);
 
-export function syncAs(repo: CloudCopySyncRepository, ownerId: string, options: { now?: () => string; canWrite?: (kind: CloudCopyKind) => boolean } = {}) {
+export function syncAs(repo: CloudCopySyncRepository, ownerId: string, options: { now?: () => string; canWrite?: (kind: CloudCopyKind) => boolean; limits?: Partial<Record<CloudCopyKind, number>> } = {}) {
    let serial = 0;
    const handler = createSyncCloudCopiesHandler(repo, {
       ownerId: () => ownerId,
       canWrite: (_owner, kind) => options.canWrite?.(kind) ?? true,
-   }, { now: options.now, retainCheckpoints: retain, createId: () => `${ownerId}-copy-${++serial}-${Math.random().toString(36).slice(2, 8)}` });
+   }, { now: options.now, retainCheckpoints: retain, limits: options.limits ? () => options.limits : undefined, createId: () => `${ownerId}-copy-${++serial}-${Math.random().toString(36).slice(2, 8)}` });
    return async (input: SyncCloudCopiesInput): Promise<SyncCloudCopiesResult> => {
       const result = await handler.execute(input);
       if (!result.success) throw new Error(result.error);
@@ -26,7 +26,7 @@ export const removeOp = (clientItemId: string, mutationId: string, expectedRevis
 
 /**
  * Behaviour every durable cloud-copy adapter must show with the real core handler on top: atomic
- * owner commits, owner isolation, the delta feed, checkpoints and the shared quota under concurrency.
+ * owner commits, owner isolation, the delta feed, checkpoints and the per-kind quota under concurrency.
  */
 export function cloudCopyRepositoryContract(name: string, makeRepo: () => Promise<CloudCopySyncRepository> | CloudCopySyncRepository) {
    describe(`${name} cloud-copy repository contract`, () => {
@@ -72,17 +72,22 @@ export function cloudCopyRepositoryContract(name: string, makeRepo: () => Promis
          expect((await repo.quota("owner-a")).used).toBe(1);
       });
 
-      it("admits exactly one new identity at 9/10 under concurrent writers", async () => {
+      it("admits exactly one new identity one below a kind's cap under concurrent writers, and leaves other kinds free", async () => {
          const repo = await makeRepo();
-         const seed = syncAs(repo, "owner-q");
+         const limits = { session: 10 };
+         const seed = syncAs(repo, "owner-q", { limits });
          await seed({ mutations: Array.from({ length: 9 }, (_, index) => saveOp(`seed-${index}`, `seed-m${index}`)) });
-         const writers = Array.from({ length: 4 }, (_, index) => syncAs(repo, "owner-q")({ mutations: [saveOp(`race-${index}`, `race-m${index}`)] }));
+         const writers = Array.from({ length: 4 }, (_, index) => syncAs(repo, "owner-q", { limits })({ mutations: [saveOp(`race-${index}`, `race-m${index}`)] }));
          const results = await Promise.all(writers);
          const statuses = results.map(result => result.acks[0]!.status === "rejected" ? (result.acks[0] as any).code : result.acks[0]!.status);
          expect(statuses.filter(status => status === "applied")).toHaveLength(1);
          expect(statuses.filter(status => status === "CLOUD_COPY_LIMIT")).toHaveLength(3);
-         expect((await repo.quota("owner-q")).used).toBe(10);
+         expect(await repo.quota("owner-q", limits)).toMatchObject({ used: 10, kinds: { session: { limit: 10, used: 10, remaining: 0 } } });
          expect((await repo.load("owner-q")).changeSeq).toBe(10);
+         // A full session kind never uses up room for another kind.
+         const other = await syncAs(repo, "owner-q", { limits })({ mutations: [saveOp("p1", "pm1", 0, "{}", "profile")] });
+         expect(other.acks[0]).toMatchObject({ status: "applied" });
+         expect(other.quota).toMatchObject({ byKind: { session: 10, profile: 1 }, kinds: { profile: { remaining: 19 } } });
       });
 
       it("serializes concurrent edits of one identity by head revision", async () => {

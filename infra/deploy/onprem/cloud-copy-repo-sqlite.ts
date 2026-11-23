@@ -50,7 +50,7 @@ export class SqliteCloudCopyRepo implements CloudCopySyncRepository {
       return (await this.load(ownerId)).copies;
    }
 
-   async quota(ownerId: string) {
-      return cloudCopyQuota(this.client().prepare(QUOTA_SQL).all(ownerId) as Array<{ kind: CloudCopyKind }>);
+   async quota(ownerId: string, limits?: Partial<Record<CloudCopyKind, unknown>> | null) {
+      return cloudCopyQuota(this.client().prepare(QUOTA_SQL).all(ownerId) as Array<{ kind: CloudCopyKind }>, limits);
    }
 }

@@ -191,18 +191,30 @@ describe.skipIf(!BASE)('cloud-data API e2e', () => {
     expect(pull.json.changes[0]).toMatchObject({ deleted: true, kind: 'session', clientItemId: sessionId });
   });
 
-  it('quota allows exactly 10 session copies per owner', async () => {
+  it('quota is per kind: twenty sessions fit, the twenty-first is refused, and profiles still have room', async () => {
     const cookieC = await makeUser(BASE as string, 'c');
     const acked = await call(BASE as string, '/api/cloud-data/retention-acknowledgement', withCookie(cookieC, { method: 'POST' }));
     expect(acked.status).toBe(200);
-    const granted = await setConsent(BASE as string, cookieC, 'cloudSessions', true);
-    expect(granted.status).toBeLessThan(300);
-    const mutations = Array.from({ length: 11 }, (_, i) => saveMutation(randomUUID(), 'm-quota-' + i, 0, 'Quota ' + i, 'quota-v1'));
-    const res = await syncCall(BASE as string, cookieC, { deviceId: DEVICE_A, since: null, mutations });
-    expect(res.status).toBe(200);
-    expect(res.json.acks).toHaveLength(11);
-    expect(res.json.acks.filter((a: any) => a.status === 'applied')).toHaveLength(10);
-    expect(res.json.acks.filter((a: any) => a.status === 'rejected' && a.code === 'CLOUD_COPY_LIMIT')).toHaveLength(1);
+    for (const category of ['cloudSessions', 'cloudProfiles']) expect((await setConsent(BASE as string, cookieC, category, true)).status).toBeLessThan(300);
+    const first = await syncCall(BASE as string, cookieC, { deviceId: DEVICE_A, since: null, mutations: Array.from({ length: 20 }, (_, i) => saveMutation(randomUUID(), 'm-quota-' + i, 0, 'Quota ' + i, 'quota-v1')) });
+    expect(first.status).toBe(200);
+    expect(first.json.acks.filter((a: any) => a.status === 'applied')).toHaveLength(20);
+    expect(first.json.quota).toMatchObject({ byKind: { session: 20 }, kinds: { session: { limit: 20, used: 20, remaining: 0 } } });
+    // The wire format stays additive: the totals and the per-kind used counts older clients read are still there.
+    expect(first.json.quota).toMatchObject({ used: 20, limit: expect.any(Number), remaining: expect.any(Number) });
+    const profileId = randomUUID();
+    const second = await syncCall(BASE as string, cookieC, { deviceId: DEVICE_A, since: first.json.cursor, mutations: [
+      saveMutation(randomUUID(), 'm-quota-over', 0, 'Over', 'quota-v1'),
+      { mutationId: 'm-profile-1', operation: 'save', kind: 'profile', clientItemId: profileId, expectedRevision: 0, snapshot: { title: 'Profile', content: JSON.stringify({ schema: 'ruxt.profile/1', profile: {} }) } },
+    ] });
+    expect(second.json.acks[0]).toMatchObject({ status: 'rejected', code: 'CLOUD_COPY_LIMIT' });
+    expect(second.json.acks[0].message).toContain('session copies (20)');
+    expect(second.json.acks[1]).toMatchObject({ status: 'applied', kind: 'profile' });
+    expect(second.json.quota.kinds.profile).toMatchObject({ used: 1, limit: 20 });
+    // A device that asks for consent gets the quota even when nothing changed.
+    const noop = await syncCall(BASE as string, cookieC, { deviceId: DEVICE_A, since: second.json.cursor, mutations: [], wantConsent: true });
+    expect(noop.json.changes).toHaveLength(0);
+    expect(noop.json.quota.kinds.session).toMatchObject({ used: 20, limit: 20 });
   });
 
   it('revoking consent blocks new saves but export still works', async () => {

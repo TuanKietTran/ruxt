@@ -7,6 +7,7 @@ import {
     STANDING_ANSWER_KEYS, type JobPreferences,
 } from "~/utils/jobSnapshot";
 import { cvLabel, sendResultMessage, splitReason } from "~/utils/jobsView";
+import { onLocalChange } from "~/utils/cloudSync/localChanges";
 import { STATE_LABELS, type Application, type Job, type JobEvent, type JobSource, type PlatformAccount } from "~/composables/useJobAutomation";
 
 definePageMeta({ layout: false, path: "/jobs/:section?/:id?", editorContext: "jobs" });
@@ -82,16 +83,22 @@ watch(section, load);
 // Live progress: refresh the visible section when workflow events arrive (debounced).
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 let unsubscribe = () => {};
+let stopCloudWrites = () => {};
 onMounted(() => {
     load();
     readLocal();
+    // Preferences brought by cloud sync replace the form only while it holds no unsaved edits.
+    stopCloudWrites = onLocalChange((change) => {
+        if (change.kind !== "jobPreferences" || change.origin !== "cloud") return;
+        if (formPreferencesJson() === loadedPreferencesJson) readLocal();
+    });
     unsubscribe = subscribe((event) => {
         if (section.value === "history") events.value = [event, ...events.value].slice(0, 1000);
         clearTimeout(refreshTimer);
         refreshTimer = setTimeout(() => { if (section.value !== "history" && !detailId.value) load(); }, 800);
     });
 });
-onBeforeUnmount(() => { unsubscribe(); clearTimeout(refreshTimer); });
+onBeforeUnmount(() => { unsubscribe(); stopCloudWrites(); clearTimeout(refreshTimer); });
 
 // ---------------------------------------------------------------- queue groupings
 const byState = (states: string[]) => applications.value.filter(a => states.includes(a.state));
@@ -161,6 +168,11 @@ const prefsUnsent = ref(false);
 const selection = reactive<{ profileId: string; cvIds: string[] }>({ profileId: "", cvIds: [] });
 const preferences = ref<JobPreferences>(emptyJobPreferences());
 const prefsText = reactive({ locations: "", target_roles: "", excluded_keywords: "" });
+/** The preferences as stored when last read or saved, to tell whether the form holds unsaved edits. */
+let loadedPreferencesJson = "";
+const formPreferencesJson = () => JSON.stringify(normalizeJobPreferences({
+    ...preferences.value, locations: splitList(prefsText.locations), target_roles: splitList(prefsText.target_roles), excluded_keywords: splitList(prefsText.excluded_keywords),
+}));
 function readLocal() {
     localProfiles.value = readLocalProfiles();
     localCvs.value = localCvStore.list();
@@ -173,11 +185,13 @@ function readLocal() {
     prefsText.locations = preferences.value.locations.join(", ");
     prefsText.target_roles = preferences.value.target_roles.join(", ");
     prefsText.excluded_keywords = preferences.value.excluded_keywords.join(", ");
+    loadedPreferencesJson = formPreferencesJson();
 }
 const splitList = (s: string) => s.split(",").map(x => x.trim()).filter(Boolean);
 function savePreferences() {
     preferences.value = normalizeJobPreferences({ ...preferences.value, locations: splitList(prefsText.locations), target_roles: splitList(prefsText.target_roles), excluded_keywords: splitList(prefsText.excluded_keywords) });
-    try { localStorage.setItem(JOB_PREFERENCES_KEY, JSON.stringify(preferences.value)); prefsUnsent.value = true; toast.push("Preferences saved in this browser.", { tone: "success" }); } catch { toast.push("This browser refused to save preferences.", { tone: "error" }); }
+    // `savedAt` records when this device last wrote them (cloud sync uses it); the Jobs page ignores it.
+    try { localStorage.setItem(JOB_PREFERENCES_KEY, JSON.stringify({ ...preferences.value, savedAt: Date.now() })); loadedPreferencesJson = formPreferencesJson(); prefsUnsent.value = true; toast.push("Preferences saved in this browser.", { tone: "success" }); } catch { toast.push("This browser refused to save preferences.", { tone: "error" }); }
 }
 const toggleMode = (mode: "onsite" | "hybrid" | "remote") => {
     const modes = new Set(preferences.value.work_modes);

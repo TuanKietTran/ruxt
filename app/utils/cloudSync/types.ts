@@ -1,13 +1,13 @@
 /** Application-owned DTOs of the cloud-data sync API (browser code never imports private core). */
 
-export type SyncKind = "session" | "template" | "profile";
-export const SYNC_KINDS: readonly SyncKind[] = ["session", "template", "profile"];
-export const CONSENT_CATEGORY: Record<SyncKind, "cloudSessions" | "cloudTemplates" | "cloudProfiles"> = {
-   session: "cloudSessions",
-   template: "cloudTemplates",
-   profile: "cloudProfiles",
-};
-export const CLOUD_COPY_LIMIT = 10;
+/** Kinds of record that can sync. The registry in kinds.ts is the single place each kind is defined. */
+export type SyncKind = "session" | "template" | "profile" | "jobPreferences";
+export type ConsentCategoryName = "cloudSessions" | "cloudTemplates" | "cloudProfiles" | "cloudJobPreferences";
+/**
+ * How a consented kind syncs on this device: `auto` links, uploads and downloads every record without a click;
+ * `selected` only syncs records the user chose. Changing it never deletes anything.
+ */
+export type SyncMode = "auto" | "selected";
 
 export interface SyncSnapshot {
    title: string;
@@ -51,9 +51,17 @@ export interface ConsentViewDto {
    cloudSessions: ConsentCategoryDto;
    cloudTemplates: ConsentCategoryDto;
    cloudProfiles: ConsentCategoryDto;
+   /** Absent on servers that predate the kind; treated as not granted. */
+   cloudJobPreferences?: ConsentCategoryDto;
 }
 
-export interface QuotaDto { limit: number; used: number; remaining: number; byKind: Record<SyncKind, number> }
+export interface KindQuotaDto { limit: number; used: number; remaining: number }
+
+/**
+ * `limit`, `used`, `remaining` are account totals and `byKind` the used count per kind (the 0.4.0 shape). `kinds`
+ * adds each kind's own cap; servers that predate per-kind caps omit it and share `limit` across all kinds.
+ */
+export interface QuotaDto { limit: number; used: number; remaining: number; byKind: Partial<Record<SyncKind, number>>; kinds?: Partial<Record<SyncKind, KindQuotaDto>> }
 
 export interface SyncPolicyDto {
    protocol: number;

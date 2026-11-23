@@ -1,4 +1,5 @@
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { CLOUD_DATA_CATEGORIES, type CloudDataCategory } from "@ruxt/core/domain/cloud-data/consent";
 
 export const subscriptions = sqliteTable("subscriptions", {
    id: text("id").primaryKey(),
@@ -47,7 +48,7 @@ export const iamSubjects = sqliteTable("iam_subjects", {
 
 export const cloudConsentStates = sqliteTable("cloud_consent_states", {
    ownerId: text("owner_id").notNull(),
-   category: text("category", { enum: ["cloudSessions", "cloudTemplates", "cloudProfiles"] }).notNull(),
+   category: text("category", { enum: CLOUD_DATA_CATEGORIES as unknown as [CloudDataCategory, ...CloudDataCategory[]] }).notNull(),
    granted: integer("granted", { mode: "boolean" }).notNull(),
    policyVersion: text("policy_version").notNull(),
    changedAt: text("changed_at").notNull(),
@@ -63,7 +64,7 @@ export const cloudConsentEvents = sqliteTable("cloud_consent_events", {
    id: text("id").primaryKey(),
    ownerId: text("owner_id").notNull(),
    actorUserId: text("actor_user_id").notNull(),
-   category: text("category", { enum: ["cloudSessions", "cloudTemplates", "cloudProfiles"] }).notNull(),
+   category: text("category", { enum: CLOUD_DATA_CATEGORIES as unknown as [CloudDataCategory, ...CloudDataCategory[]] }).notNull(),
    granted: integer("granted", { mode: "boolean" }).notNull(),
    policyVersion: text("policy_version").notNull(),
    changedAt: text("changed_at").notNull(),

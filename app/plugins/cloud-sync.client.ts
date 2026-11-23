@@ -1,6 +1,6 @@
 import { onLocalChange } from "~/utils/cloudSync/localChanges";
-import { createRecordAdapters } from "~/utils/cloudSync/records";
-import { SYNC_KINDS } from "~/utils/cloudSync/types";
+import { createRecordAdapters } from "~/utils/cloudSync/kinds";
+import { SYNC_KINDS } from "~/utils/cloudSync/kinds";
 import { currentCloudSyncEngine, startCloudSync, stopCloudSync } from "~/composables/useCloudSync";
 import type { EngineView } from "~/utils/cloudSync/contracts";
 

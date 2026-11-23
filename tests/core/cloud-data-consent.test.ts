@@ -74,6 +74,7 @@ describe("cloud data consent", () => {
             cloudSessions: { granted: false, changedAt: null },
             cloudTemplates: { granted: false, changedAt: null },
             cloudProfiles: { granted: false, changedAt: null },
+            cloudJobPreferences: { granted: false, changedAt: null },
          },
       });
       expect(repo.events).toHaveLength(0);

@@ -2,13 +2,15 @@ import { existsSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 import { clerkTestSecret, createClerkTestUser, deleteClerkTestUser, signInPage, type ClerkTestUser } from "../helpers/clerk-e2e";
-import { readLocalCv, seedLocalCv } from "../helpers/local-cv";
+import { readLocalCv, readLocalProfilesRaw, seedLocalCv, seedLocalProfiles } from "../helpers/local-cv";
 
 /**
  * Two devices (two separate browser profiles) of one real Clerk account, a real server and a real cloud-copy
- * store: upload a session from one, download it on the other, make both change the same line, and resolve the
- * resulting conflict in the UI piece by piece. Needs cloud retention configured on the server
- * (NUXT_CLOUD_RETENTION_*, see tests/e2e/README.md) and the dev-server Clerk setup of tests/helpers/clerk-e2e.ts.
+ * store. With consent granted, records sync by themselves in both directions: a second browser with empty
+ * storage shows every record after one sync with no clicks, a different local record is never overwritten,
+ * and each kind has its own cap. Also: both devices change the same line and resolve the conflict piece by
+ * piece. Needs cloud retention configured on the server (NUXT_CLOUD_RETENTION_*, see tests/e2e/README.md), the
+ * dev-server Clerk setup of tests/helpers/clerk-e2e.ts and, for the quota case, NUXT_CLOUD_COPY_LIMITS_SESSION=2.
  */
 const base = process.env.SMOKE_BASE_URL?.replace(/\/$/, "");
 if (base && !["localhost", "127.0.0.1", "[::1]"].includes(new URL(base).hostname)) throw new Error("Sync UI tests create Clerk users and need a local server");
@@ -18,9 +20,11 @@ const ui = base && secret && existsSync(executablePath) ? describe : describe.sk
 
 let browser: Browser;
 let user: ClerkTestUser | null = null;
+const created: ClerkTestUser[] = [];
+const newUser = async (label: string) => { user = await createClerkTestUser(secret!, label); created.push(user); return user; };
 vi.setConfig({ testTimeout: 240_000, hookTimeout: 30_000 });
 beforeAll(async () => { if (ui === describe) browser = await chromium.launch({ executablePath, headless: true }); });
-afterAll(async () => { await browser?.close(); if (user) await deleteClerkTestUser(secret!, user); });
+afterAll(async () => { await browser?.close(); for (const entry of created) await deleteClerkTestUser(secret!, entry); });
 
 const baseMarkdown = "# Name\n\nSummary one\n\n## Skills\n\n- A\n- B";
 const css = ".r { color: #123456; }";
@@ -31,9 +35,10 @@ async function ready(page: Page) {
    await page.waitForFunction(() => Boolean((window as unknown as { Clerk?: { loaded?: boolean } }).Clerk?.loaded));
 }
 
-async function device(label: string, seed: boolean): Promise<{ context: BrowserContext; page: Page }> {
+async function device(label: string, seed: boolean | ((context: BrowserContext) => Promise<void>)): Promise<{ context: BrowserContext; page: Page }> {
    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-   if (seed) await seedLocalCv(context, { id: ID, markdown: baseMarkdown, css, title: "Sync CV" });
+   if (seed === true) await seedLocalCv(context, { id: ID, markdown: baseMarkdown, css, title: "Sync CV" });
+   else if (seed) await seed(context);
    const page = await context.newPage();
    page.setDefaultTimeout(30_000);
    page.on("pageerror", error => { throw new Error(`${label}: ${error.message}`); });
@@ -65,28 +70,38 @@ async function editLastLine(page: Page, suffix: string) {
    await page.getByText("Saved locally").first().waitFor();
 }
 
-ui("cloud sync across two devices, in the UI", () => {
-   it("uploads from one device, downloads on another, and resolves a real conflict piece by piece", async () => {
-      user = await createClerkTestUser(secret!, "syncui");
-      const a = await device("device A", true);
-      const consentReady = await a.context.request.post(`${base}/api/cloud-data/retention-acknowledgement`);
-      if (consentReady.status() !== 200) return; // cloud retention is not configured on this server
-      expect((await a.context.request.put(`${base}/api/cloud-data/consent`, { data: { category: "cloudSessions", granted: true } })).status()).toBe(200);
+/** Acknowledge the retention notice and grant consent for the categories; false when retention is not configured. */
+async function consent(context: BrowserContext, categories: string[] = ["cloudSessions"]): Promise<boolean> {
+   const acknowledged = await context.request.post(`${base}/api/cloud-data/retention-acknowledgement`);
+   if (acknowledged.status() !== 200) return false;
+   for (const category of categories) {
+      expect((await context.request.put(`${base}/api/cloud-data/consent`, { data: { category, granted: true } })).status()).toBe(200);
+   }
+   return true;
+}
 
-      // Device A selects the session and uploads it.
+/** Cloud copies of the signed-in account as `kind:id`, from the export. */
+async function cloudCopies(context: BrowserContext): Promise<string[]> {
+   const response = await context.request.get(`${base}/api/cloud-data/export`);
+   const body = await response.json() as { copies: Array<{ kind: string; clientItemId: string }> };
+   return body.copies.map(copy => `${copy.kind}:${copy.clientItemId}`).sort();
+}
+
+const legacyProfile = (fullName: string) => ({ identity: { fullName, headline: `${fullName}, engineer`, summary: "", location: "" } });
+
+ui("cloud sync across two devices, in the UI", () => {
+   it("uploads on its own from one device, arrives on another without a click, and resolves a real conflict piece by piece", async () => {
+      await newUser("syncui");
+      const a = await device("device A", true);
+      if (!await consent(a.context)) return; // cloud retention is not configured on this server
+
+      // Device A: opening the app uploads the session by itself; nobody selects or confirms anything.
       await openRecords(a.page);
-      await checkbox(a.page).check();
-      await a.page.getByRole("button", { name: /^Upload \(1\)/ }).click();
-      await a.page.getByRole("button", { name: "Confirm upload" }).click();
       await a.page.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("Synced", { exact: true }).waitFor();
 
-      // Device B sees it only in the cloud and downloads it; nothing is uploaded from B, nothing local is replaced.
+      // Device B signs in with empty storage; the record simply arrives, and nothing local is replaced.
       const b = await device("device B", false);
       await openRecords(b.page);
-      await b.page.locator(".records-table tbody tr", { hasText: "Sync CV" }).waitFor();
-      await checkbox(b.page).check();
-      await b.page.getByRole("button", { name: /^Download \(1\)/ }).click();
-      await b.page.getByRole("button", { name: "Confirm download" }).click();
       await b.page.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("Synced", { exact: true }).waitFor();
       expect((await readLocalCv(b.page, ID))?.markdown).toBe(baseMarkdown);
 
@@ -143,5 +158,91 @@ ui("cloud sync across two devices, in the UI", () => {
       expect((await readLocalCv(b.page, ID))?.markdown).toBe(merged);
       await a.context.close();
       await b.context.close();
+   });
+
+   it("second device with empty storage signs in and sees every record after one sync, with no clicks", async () => {
+      await newUser("syncauto");
+      const a = await device("device A", async context => {
+         await seedLocalCv(context, { id: ID, markdown: baseMarkdown, css, title: "Sync CV" });
+         // A profile that already has an id, and two saved by early versions that have none.
+         await seedLocalProfiles(context, [
+            { ...legacyProfile("Ada Lovelace"), id: "profile-ada", createdAt: 10, updatedAt: 20, label: "Ada" },
+            legacyProfile("Grace Hopper"),
+            legacyProfile("Alan Turing"),
+         ]);
+      });
+      if (!await consent(a.context, ["cloudSessions", "cloudProfiles"])) return;
+      await openRecords(a.page);
+      await a.page.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("Synced", { exact: true }).waitFor();
+
+      // Every local profile now has a stable id (none changed, none lost) and all of them are in the cloud.
+      const stored = await readLocalProfilesRaw(a.page);
+      expect(stored).toHaveLength(3);
+      expect(stored.every(entry => typeof entry.id === "string" && entry.id)).toBe(true);
+      expect(stored.find(entry => entry.id === "profile-ada")).toMatchObject({ createdAt: 10, updatedAt: 20, label: "Ada" });
+      await expect.poll(() => cloudCopies(a.context), { timeout: 60_000, intervals: [1_000] })
+         .toEqual([`profile:${stored[0]!.id}`, `profile:${stored[1]!.id}`, `profile:${stored[2]!.id}`, `session:${ID}`].sort());
+
+      // A brand-new browser, same account: the first page it shows already lists the session, with no Download
+      // or Upload anywhere; the profiles page lists the profiles.
+      const b = await device("device B", false);
+      await b.page.getByRole("link", { name: /Sync CV/ }).first().waitFor({ timeout: 60_000 });
+      expect((await readLocalCv(b.page, ID))?.markdown).toBe(baseMarkdown);
+      await b.page.goto(`${base}/p`);
+      await ready(b.page);
+      for (const name of ["Ada", "Grace Hopper", "Alan Turing"]) await b.page.getByText(name, { exact: false }).first().waitFor({ timeout: 60_000 });
+      expect((await readLocalProfilesRaw(b.page)).map(entry => entry.id).sort()).toEqual(stored.map(entry => entry.id).sort());
+      // Nothing waits for a click: no banner offers a download.
+      expect(await b.page.getByTestId("cloud-sync-banner").count()).toBe(0);
+      await a.context.close();
+      await b.context.close();
+   });
+
+   it("never overwrites a different local record on download: both versions are kept for the Conflicts tab", async () => {
+      await newUser("syncsafe");
+      const a = await device("device A", true);
+      if (!await consent(a.context)) return;
+      await openRecords(a.page);
+      await a.page.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("Synced", { exact: true }).waitFor();
+
+      const different = "# Mine\n\nWritten on the other browser before it ever synced";
+      const b = await device("device B", async context => { await seedLocalCv(context, { id: ID, markdown: different, css, title: "Sync CV" }); });
+      await openRecords(b.page);
+      await b.page.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("Conflict", { exact: true }).waitFor({ timeout: 60_000 });
+      expect((await readLocalCv(b.page, ID))?.markdown).toBe(different);
+      expect(JSON.stringify(await (await b.context.request.get(`${base}/api/cloud-data/copies/session/${ID}`)).json())).toContain("# Name");
+      await b.page.getByRole("button", { name: /^Conflicts/ }).click();
+      await b.page.getByRole("button", { name: /Review/ }).waitFor();
+      await a.context.close();
+      await b.context.close();
+   });
+
+   it("gives each kind its own cap, shows what does not fit as over limit, and drops nothing", async () => {
+      await newUser("syncquota");
+      const a = await device("device A", async context => {
+         for (const id of ["q1", "q2", "q3"]) await seedLocalCv(context, { id, markdown: `# ${id}`, css, title: `Quota ${id}` });
+         await seedLocalProfiles(context, [{ ...legacyProfile("Quota Profile"), id: "profile-q", createdAt: 1, updatedAt: 2 }]);
+      });
+      if (!await consent(a.context, ["cloudSessions", "cloudProfiles"])) return;
+      await a.page.goto(`${base}/settings/cloud-data`);
+      await ready(a.page);
+      await a.page.getByText(/Cloud copies: CV sessions/).waitFor({ timeout: 60_000 });
+      const sessionsFact = await a.page.locator(".facts div", { hasText: "Cloud copies: CV sessions" }).innerText();
+      if (!/of 2\b/.test(sessionsFact)) return; // the server was not started with NUXT_CLOUD_COPY_LIMITS_SESSION=2
+
+      await expect.poll(() => cloudCopies(a.context), { timeout: 60_000, intervals: [1_000] }).toHaveLength(3); // two sessions and the profile
+      await a.page.getByRole("button", { name: "Records" }).click();
+      const overLimit = a.page.locator(".records-table tbody tr").getByText("Not synced: over limit", { exact: true });
+      await overLimit.first().waitFor({ timeout: 60_000 });
+      expect(await overLimit.count()).toBe(1); // three local sessions, two fit under the cap of two
+      expect(await a.page.locator(".records-table tbody tr", { hasText: "Quota Profile" }).getByText("Synced", { exact: true }).count()).toBe(1);
+      for (const id of ["q1", "q2", "q3"]) expect((await readLocalCv(a.page, id))?.markdown).toBe(`# ${id}`); // nothing dropped
+
+      // The header chip and the session list both say so, with the reason, and the empty state is never silent.
+      await a.page.getByText(/1 item could not sync \(over limit\)/).first().waitFor();
+      await a.page.goto(`${base}/`);
+      await ready(a.page);
+      await a.page.getByTestId("cloud-sync-banner").getByText(/1 item could not sync \(over limit\)/).waitFor({ timeout: 30_000 });
+      await a.context.close();
    });
 });

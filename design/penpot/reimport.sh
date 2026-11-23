@@ -7,11 +7,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PENPOT_FILE="${PENPOT_FILE:-$SCRIPT_DIR/ruxt-design-system.penpot}"
 PROJECT_NAME="${PENPOT_PROJECT_NAME:-Ruxt}"
-CREDS_FILE="${PENPOT_CREDS_FILE:-/Users/handlerone/Downloads/ruxt-lab/tmp/penpot/.credentials}"
-IDS_FILE="${PENPOT_IDS_FILE:-/Users/handlerone/Downloads/penpot-client-lab/notes/ruxt-ds-ids.txt}"
+CREDS_FILE="${PENPOT_CREDS_FILE:-}"
+IDS_FILE="${PENPOT_IDS_FILE:-}"
 BASE_URL="${PENPOT_URL:-http://localhost:9001}"
 
 [ -f "$PENPOT_FILE" ] || { echo "ERROR: export not found: $PENPOT_FILE" >&2; exit 1; }
+[ -n "$CREDS_FILE" ] || { echo "ERROR: set PENPOT_CREDS_FILE to the credentials file" >&2; exit 1; }
 [ -f "$CREDS_FILE" ] || { echo "ERROR: credentials file not found: $CREDS_FILE" >&2; exit 1; }
 
 PENPOT_FILE="$PENPOT_FILE" PROJECT_NAME="$PROJECT_NAME" CREDS_FILE="$CREDS_FILE" \
@@ -53,8 +54,8 @@ if st != 200 or not any(c.name == 'auth-token' for c in cj):
 print('login OK')
 
 ids = {}
-ids_path = pathlib.Path(os.environ['IDS_FILE'])
-if ids_path.is_file():
+ids_path = pathlib.Path(os.environ['IDS_FILE']) if os.environ.get('IDS_FILE') else None
+if ids_path and ids_path.is_file():
     for line in ids_path.read_text().splitlines():
         if '=' in line:
             k, v = line.split('=', 1)

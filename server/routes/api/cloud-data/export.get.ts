@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
       exportedAt: new Date().toISOString(),
       consent,
       preferences,
-      quota: cloudCopyQuota(copies),
+      quota: cloudCopyQuota(copies, cloudCopyLimits(event)),
       copies: copies.map(copy => ({
          kind: copy.kind, clientItemId: copy.clientItemId, revision: copy.headRevision, updatedAt: copy.updatedAt,
          snapshot: copy.snapshot,

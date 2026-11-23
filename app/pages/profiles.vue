@@ -5,6 +5,7 @@ import { mapProfileApplyResults, profileApplyErrorMessage, type ProfileApplyResp
 import { composeCvMarkdown, normalizeCvProfile, toCvTemplateSkeleton } from "@ruxt/shared/cv";
 import { localCvStore } from "~/utils/localCvStore";
 import { type LocalProfile, newLocalProfileId, orderLocalProfiles, readLocalProfiles, saveLocalProfile, writeLocalProfiles } from "~/utils/localProfiles";
+import { onLocalChange, registerOpenEditor } from "~/utils/cloudSync/localChanges";
 import { parseTechnologies } from "~/utils/technologies";
 import { downloadBlob, safeFilename } from "~/utils/exportCvImage";
 import {
@@ -191,13 +192,43 @@ const scrollToSection = (id: ProfileSectionId) => {
     document.querySelector(`[data-profile-section="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 };
 
+// What cloud sync is doing for profiles; with it the page never reads as silently empty while profiles wait in the cloud.
+const profileSync = useCloudSyncBanner(["profile"]);
+// The engine writes downloaded profiles into this browser without a storage event in this tab. Refresh the list
+// (never the open form: that is only replaced once nothing in it is unsaved, see the editor probe below).
+let cloudWriteTimer: ReturnType<typeof setTimeout> | undefined;
+let stopCloudWrites: (() => void) | undefined;
+let stopEditorProbe: (() => void) | undefined;
+const hasUnsavedProfileEdits = () => unsavedKeys.size > 0;
+watch(editingId, (id) => {
+    stopEditorProbe?.();
+    stopEditorProbe = id ? registerOpenEditor("profile", id, hasUnsavedProfileEdits) : undefined;
+}, { immediate: true });
 onMounted(() => {
     readProfiles(true);
     loadPreferences();
     setupSectionObserver();
     window.addEventListener("beforeunload", warnUnsaved);
+    stopCloudWrites = onLocalChange((change) => {
+        if (change.kind !== "profile" || change.origin !== "cloud") return;
+        clearTimeout(cloudWriteTimer);
+        cloudWriteTimer = setTimeout(() => {
+            readProfiles();
+            // The open form shows the profile as it was; with nothing unsaved in it, show what the cloud brought, so
+            // the next edit starts from the current content and cannot overwrite the other device's change.
+            const current = editingId.value ? profiles.value.find(item => item.id === editingId.value) : undefined;
+            if (!current || hasUnsavedProfileEdits() || current.updatedAt === lastSavedAt.value) return;
+            resetFieldState();
+            const { id: _id, createdAt: _createdAt, updatedAt, ...profileValue } = structuredClone(toRaw(current));
+            draft.value = profileValue;
+            lastSavedAt.value = updatedAt;
+        }, 120);
+    });
 });
 onBeforeUnmount(() => {
+    stopCloudWrites?.();
+    stopEditorProbe?.();
+    clearTimeout(cloudWriteTimer);
     sectionObserver?.disconnect();
     window.removeEventListener("beforeunload", warnUnsaved);
     editorChrome.clear();
@@ -555,6 +586,7 @@ watchEffect(() => {
         <template #sidebar>
             <nav class="profiles-list" aria-label="Local profiles">
                 <header class="profiles-list__header"><span>Profiles</span></header>
+                <ClientOnly><CloudSyncBanner v-if="profileSync.banner.value" :banner="profileSync.banner.value" :busy="profileSync.busy.value" @download="profileSync.download" /></ClientOnly>
                 <button class="profiles-new" type="button" @click="startCreate">＋ New profile</button>
                 <div class="profiles-transfer">
                     <button type="button" @click="openTransfer('import')">Import</button>
@@ -574,7 +606,8 @@ watchEffect(() => {
             <main class="profiles-page">
             <section class="profile-form">
                 <div v-if="editingId === null" class="profile-placeholder" role="status">
-                    <p>{{ profiles.length ? "Select a profile or create a new one." : "No local profiles yet. Create a new profile or import one to get started." }}</p>
+                    <p>{{ profiles.length ? "Select a profile or create a new one." : profileSync.banner.value ? "No profiles on this device yet." : "No local profiles yet. Create a new profile or import one to get started." }}</p>
+                    <ClientOnly><CloudSyncBanner v-if="profileSync.banner.value" :banner="profileSync.banner.value" :busy="profileSync.busy.value" @download="profileSync.download" /></ClientOnly>
                     <div><button type="button" class="profile-save" @click="startCreate">＋ New profile</button><button type="button" @click="openTransfer('import')">Import</button></div>
                 </div>
                 <div v-else :key="formKey" class="profile-sheet">

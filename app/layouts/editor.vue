@@ -9,6 +9,7 @@ import { reuseFor } from "~/utils/fetchCache";
 import { readLocalCvTemplates, exportLocalCvTemplate } from "~/utils/localCvTemplates";
 import { downloadBlob, safeFilename } from "~/utils/exportCvImage";
 import { cvSessionLabel } from "~/utils/cv-session-label";
+import { onLocalChange, type LocalChange } from "~/utils/cloudSync/localChanges";
 
 const LIST_REUSE_MS = 60_000;
 
@@ -104,6 +105,9 @@ const sessions = computed(() => {
     return documents;
 });
 const recoverLocalSessions = () => sessionActions.reloadDocuments();
+// What cloud sync is doing for each list; with it the lists never read as silently empty while records wait in the cloud.
+const sessionSync = useCloudSyncBanner(["session"]);
+const templateSync = useCloudSyncBanner(["template"]);
 const accountFetch = useAccountFetch();
 const { data: templateIndex, refresh: reloadCvTemplates, status: templateStatus } = useAsyncData("editor-template-list", async () => {
     const account = await accountFetch<{ templates: CvTemplate[] }>("/api/cv-templates");
@@ -643,15 +647,38 @@ watch(previewContent, (element) => {
     previewObserver.observe(element, { childList: true, subtree: true });
 }, { flush: "post", immediate: true });
 
+/** Add browser-only template copies to the catalog, replacing an older version of the same template. */
+const mergeLocalTemplates = () => {
+    const index = templateIndex.value;
+    if (!index) return;
+    const local = readLocalCvTemplates();
+    const kept = index.templates.filter(template => template.builtIn || !local.some(entry => entry.id === template.id && entry.version !== template.version));
+    const missing = local.filter(entry => !kept.some(template => template.id === entry.id && template.version === entry.version));
+    if (missing.length || kept.length !== index.templates.length) templateIndex.value = { templates: [...kept, ...missing] };
+};
+
+// The sync engine writes downloaded records into this browser without a storage event in this tab; refresh the
+// lists once per burst so a download appears at once instead of after a reload.
+const pendingCloudKinds = new Set<string>();
+let cloudWriteTimer: ReturnType<typeof setTimeout> | undefined;
+let stopCloudWrites: (() => void) | undefined;
+const showCloudWrites = (change: LocalChange) => {
+    if (change.origin !== "cloud") return;
+    pendingCloudKinds.add(change.kind);
+    clearTimeout(cloudWriteTimer);
+    cloudWriteTimer = setTimeout(() => {
+        if (pendingCloudKinds.has("session")) sessionActions.reloadDocuments();
+        if (pendingCloudKinds.has("template")) mergeLocalTemplates();
+        pendingCloudKinds.clear();
+    }, 120);
+};
+
 onMounted(() => {
     // Browser-only template copies join the catalog after hydration; no account can read them remotely.
-    watch(templateIndex, (index) => {
-        if (!index) return;
-        const missing = readLocalCvTemplates().filter(local => !index.templates.some(template => template.id === local.id && template.version === local.version));
-        if (missing.length) templateIndex.value = { templates: [...index.templates, ...missing] };
-    }, { immediate: true });
+    watch(templateIndex, mergeLocalTemplates, { immediate: true });
     localTemplatesReady.value = true;
     void recoverLocalSessions();
+    stopCloudWrites = onLocalChange(showCloudWrites);
     window.addEventListener("storage", recoverLocalSessions);
     window.addEventListener("click", closeDocumentMenu);
     window.addEventListener("blur", closeDocumentMenu);
@@ -684,6 +711,8 @@ const closeDocumentMenu = () => { contextMenu.value = null; sessionMenuTrigger.v
 
 onBeforeUnmount(() => {
     compactMedia?.removeEventListener("change", syncCompact);
+    stopCloudWrites?.();
+    clearTimeout(cloudWriteTimer);
     window.removeEventListener("storage", recoverLocalSessions);
     window.removeEventListener("click", closeDocumentMenu);
     window.removeEventListener("blur", closeDocumentMenu);
@@ -889,7 +918,8 @@ const handleImportCommitted = async (documentId: string) => {
                     <div v-if="sessionsLoading" class="document-tree__skeleton" role="status" aria-label="Loading sessions">
                         <span v-for="n in 3" :key="n" />
                     </div>
-                    <p v-else-if="!sessions.length" class="document-tree__empty" role="status">No sessions yet</p>
+                    <ClientOnly><CloudSyncBanner v-if="sessionSync.banner.value" :banner="sessionSync.banner.value" :busy="sessionSync.busy.value" @download="sessionSync.download" /></ClientOnly>
+                    <p v-if="!sessionsLoading && !sessions.length && !sessionSync.banner.value" class="document-tree__empty" role="status">No sessions yet</p>
                     <div v-for="document in sessions" :key="document.id" class="document-tree__row">
                         <NuxtLink
                             class="document-tree__item"
@@ -924,7 +954,8 @@ const handleImportCommitted = async (documentId: string) => {
                     <div v-if="templatesLoading" class="document-tree__skeleton" role="status" aria-label="Loading templates">
                         <span v-for="n in 3" :key="n" />
                     </div>
-                    <p v-else-if="!cvTemplates.length" class="document-tree__empty" role="status">No templates available</p>
+                    <ClientOnly><CloudSyncBanner v-if="templateSync.banner.value" :banner="templateSync.banner.value" :busy="templateSync.busy.value" @download="templateSync.download" /></ClientOnly>
+                    <p v-if="!templatesLoading && !cvTemplates.length && !templateSync.banner.value" class="document-tree__empty" role="status">No templates available</p>
                     <button
                         v-for="cvTemplate in cvTemplates"
                         :key="`${cvTemplate.id}:${cvTemplate.version}`"

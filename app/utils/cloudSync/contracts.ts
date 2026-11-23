@@ -2,7 +2,8 @@
  * Interfaces shared by the cloud-sync modules. Each module (records, state, push, coordinator, merge,
  * engine, UI) implements or consumes exactly these shapes; change them here first.
  */
-import type { QuotaDto, ConsentViewDto, SyncKind, SyncSnapshot, CloudHistoryDto } from "./types";
+import type { QuotaDto, ConsentViewDto, SyncKind, SyncMode, SyncSnapshot, CloudHistoryDto } from "./types";
+import { isSyncKind } from "./kinds";
 
 // ---------------------------------------------------------------------------------------------
 // Records: browser-local data the user can choose to synchronize (app/utils/cloudSync/records.ts)
@@ -47,7 +48,7 @@ export const recordKey = (kind: SyncKind, id: string): RecordKey => `${kind}:${i
 export const parseRecordKey = (key: string): { kind: SyncKind; id: string } | null => {
    const index = key.indexOf(":");
    const kind = key.slice(0, index);
-   return index > 0 && (kind === "session" || kind === "template" || kind === "profile") ? { kind, id: key.slice(index + 1) } : null;
+   return index > 0 && isSyncKind(kind) ? { kind, id: key.slice(index + 1) } : null;
 };
 
 export type LinkState = "synced" | "pending" | "conflict" | "error" | "blocked" | "cloud-removed";
@@ -149,6 +150,15 @@ export interface SyncState {
    quota: QuotaDto | null;
    consent: ConsentViewDto | null;
    retentionConfigured: boolean | null;
+   /** When `quota` was last refreshed by a response; a blocked upload is retried only after a newer quota. */
+   quotaAt: string | null;
+   /** Per-kind sync mode on this device; absent means automatic. */
+   modes: Partial<Record<SyncKind, SyncMode>>;
+   /**
+    * Records the user explicitly stopped syncing (unlink, remove from cloud). Automatic sync never links,
+    * uploads or downloads them again until the user selects them; time of the choice.
+    */
+   optOut: Record<RecordKey, string>;
    /** UTC hour key "YYYY-MM-DDTHH" -> counters; the newest 48 are kept. */
    metrics: Record<string, HourMetrics>;
 }
@@ -224,7 +234,7 @@ export interface TextMergeResult {
 
 export type RecordStatus =
    | "local-only" | "cloud-only" | "synced" | "modified" | "behind" | "pending"
-   | "conflict" | "error" | "blocked" | "cloud-removed" | "local-missing";
+   | "conflict" | "error" | "blocked" | "over-limit" | "cloud-removed" | "local-missing";
 
 export interface SyncRecordView {
    key: RecordKey;
@@ -240,9 +250,20 @@ export interface SyncRecordView {
    bytes?: number;
    checkpointCount?: number;
    message?: string;
+   /** The user stopped syncing this record on this device; automatic sync leaves it alone. */
+   optedOut?: boolean;
 }
 
 export type EngineStatus = "disabled" | "idle" | "syncing" | "offline" | "error" | "signed-out" | "unavailable";
+
+/** What automatic sync does for one kind on this device. */
+export interface KindSyncView {
+   mode: SyncMode;
+   /** Consent granted for the kind (server truth). */
+   consented: boolean;
+   /** Consent granted, retention notice acknowledged and mode automatic: the kind syncs with no clicks. */
+   automatic: boolean;
+}
 
 export interface EngineView {
    status: EngineStatus;
@@ -258,12 +279,15 @@ export interface EngineView {
    records: SyncRecordView[];
    recovery: RecoveryEntry[];
    metrics: Record<string, HourMetrics>;
+   kinds: Record<SyncKind, KindSyncView>;
 }
 
 export type ConflictChoice = "local" | "cloud" | "both";
 
 export interface EngineActions {
    syncNow(): Promise<void>;
+   /** Choose automatic sync or "only records I select" for a kind. Never deletes anything. */
+   setMode(kind: SyncKind, mode: SyncMode): Promise<void>;
    /** Select records for upload (creates cloud copies on the next exchange). */
    upload(keys: RecordKey[]): Promise<void>;
    /** Bring cloud-only records to this device (or link identical local ones). */
