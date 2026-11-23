@@ -13,5 +13,6 @@ export function useCloudSyncBanner(kinds: readonly SyncKind[]) {
    const sync = useCloudSync();
    const banner = computed(() => (authenticated.value && user.value ? bannerFor(sync.view.value, kinds) : null));
    const download = async (keys: RecordKey[]) => { await sync.download(keys); };
-   return { banner, busy: sync.busy, download };
+   const syncNow = async () => { await sync.syncNow(); };
+   return { banner, busy: sync.busy, download, syncNow };
 }

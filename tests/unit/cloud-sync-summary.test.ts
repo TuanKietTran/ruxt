@@ -5,15 +5,9 @@ import { SYNC_KIND_REGISTRY, SYNC_KINDS } from "../../app/utils/cloudSync/kinds"
 import { bannerFor, chipSummary, summarizeSync } from "../../app/utils/cloudSync/syncSummary";
 import { describeSyncStatus } from "../../app/utils/cloudSync/statusLabel";
 import type { SyncKind } from "../../app/utils/cloudSync/types";
+import { makeView, row } from "../helpers/cloud-sync-view";
 
-const row = (kind: SyncKind, id: string, status: SyncRecordView["status"], extra: Partial<SyncRecordView> = {}): SyncRecordView =>
-   ({ key: `${kind}:${id}` as SyncRecordView["key"], kind, id, title: id, status, linked: false, ...extra });
-const view = (records: SyncRecordView[], overrides: Partial<EngineView> = {}, auto: SyncKind[] = ["session", "template", "profile", "jobPreferences"]): EngineView => ({
-   status: "idle", leader: true, push: "connected", lastSyncAt: "2026-11-23T10:00:00.000Z", lastError: null, pendingCount: 0, conflictCount: 0,
-   quota: null, consent: null, retentionConfigured: true, records, recovery: [], metrics: {},
-   kinds: Object.fromEntries(SYNC_KINDS.map(kind => [kind, { mode: auto.includes(kind) ? "auto" : "selected", consented: true, automatic: auto.includes(kind) }])) as EngineView["kinds"],
-   ...overrides,
-});
+const view = (records: SyncRecordView[], overrides: Partial<EngineView> = {}, auto: SyncKind[] = ["session", "template", "profile", "jobPreferences"]): EngineView => makeView(records, overrides, auto);
 
 describe("the client registry agrees with core's", () => {
    it("lists the same kinds with the same consent categories, schema tags and default caps", () => {
@@ -30,14 +24,15 @@ describe("the client registry agrees with core's", () => {
 });
 
 describe("summarizeSync", () => {
-   it("sorts records into incoming, waiting, over-limit, failed and conflicts", () => {
+   it("sorts records into incoming, not-on-this-device, over-limit, failed and conflicts", () => {
       const summary = summarizeSync(view([
          row("session", "a", "cloud-only"), row("profile", "b", "cloud-only"), row("session", "c", "over-limit"),
          row("session", "d", "blocked", { message: "Turn on cloud saving" }), row("session", "e", "conflict"), row("session", "f", "synced"),
          row("session", "g", "cloud-only", { optedOut: true }),
       ], {}, ["session"]));
       expect(summary.incoming.map(r => r.id)).toEqual(["a"]);
-      expect(summary.waiting.map(r => r.id)).toEqual(["b"]);
+      expect(summary.syncing.map(r => r.id)).toEqual(["a"]);
+      expect(summary.notOnDevice.map(r => r.id)).toEqual(["b", "g"]);
       expect(summary.downloadable.map(r => r.id)).toEqual(["b"]);
       expect(summary.overLimit.map(r => r.id)).toEqual(["c"]);
       expect(summary.failed.map(r => r.id)).toEqual(["d"]);
@@ -67,8 +62,17 @@ describe("bannerFor", () => {
       const waiting = bannerFor(view([row("session", "a", "cloud-only"), row("session", "b", "cloud-only")], {}, []), ["session"]);
       expect(waiting?.text).toBe("2 items in your cloud are not on this device.");
       expect(waiting?.download).toEqual({ label: "Download (2)", keys: ["session:a", "session:b"] });
-      const idleAuto = bannerFor(view([row("session", "a", "cloud-only")], {}, ["session"]), ["session"]);
-      expect(idleAuto?.download?.keys).toEqual(["session:a"]);
+   });
+   it("never offers Download for copies an automatic kind is bringing down; it says they are on their way, or why they wait", () => {
+      const coming = bannerFor(view([row("session", "a", "cloud-only")], {}, ["session"]), ["session"]);
+      expect(coming).toMatchObject({ tone: "busy", text: "Downloading 1 item from your cloud" });
+      expect(coming?.download).toBeUndefined();
+      const stuck = bannerFor(view([row("session", "a", "cloud-only")], { leader: false, leaderTab: "silent" }, ["session"]), ["session"]);
+      expect(stuck).toMatchObject({ tone: "warning", syncNow: true });
+      expect(stuck?.text).toMatch(/^Waiting for sync: 1 item is not in sync yet\. The tab that syncs stopped answering/);
+      const offline = bannerFor(view([row("session", "a", "cloud-only")], { status: "offline" }, ["session"]), ["session"]);
+      expect(offline?.text).toContain("offline");
+      expect(offline?.syncNow).toBeUndefined();
    });
    it("explains instead of offering Download when the kind has no consent", () => {
       const v = view([row("profile", "p", "cloud-only")], {}, []);
@@ -109,6 +113,6 @@ describe("the header chip", () => {
       expect(label).toMatchObject({ tone: "danger", label: "Sync failed", detail: "Internal server error" });
    });
    it("counts across kinds", () => {
-      expect(chipSummary(view([row("session", "a", "over-limit"), row("profile", "b", "over-limit"), row("template", "c", "cloud-only")]))).toMatchObject({ overLimit: 2, incoming: 1 });
+      expect(chipSummary(view([row("session", "a", "over-limit"), row("profile", "b", "over-limit"), row("template", "c", "cloud-only")]))).toMatchObject({ overLimit: 2, incoming: 1, syncing: 1, waiting: 0 });
    });
 });

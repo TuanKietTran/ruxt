@@ -35,6 +35,21 @@ async function ready(page: Page) {
    await page.waitForFunction(() => Boolean((window as unknown as { Clerk?: { loaded?: boolean } }).Clerk?.loaded));
 }
 
+/**
+ * A tab that holds the sync leader lock and never answers or syncs, like a tab of an older release or one that
+ * stopped running. Every request for the lock (including a takeover) is parked with it.
+ */
+const SILENT_LEADER = `(() => {
+   const original = navigator.locks.request.bind(navigator.locks);
+   navigator.locks.request = function (name, ...rest) {
+      if (typeof name === "string" && name.startsWith("ruxt-cloud-sync-leader:")) {
+         const options = typeof rest[0] === "object" && rest[0] ? rest[0] : {};
+         return original(name, { mode: "exclusive", ...(options.steal ? { steal: true } : {}) }, () => new Promise(() => {}));
+      }
+      return original(name, ...rest);
+   };
+})();`;
+
 async function device(label: string, seed: boolean | ((context: BrowserContext) => Promise<void>)): Promise<{ context: BrowserContext; page: Page }> {
    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
    if (seed === true) await seedLocalCv(context, { id: ID, markdown: baseMarkdown, css, title: "Sync CV" });
@@ -42,6 +57,7 @@ async function device(label: string, seed: boolean | ((context: BrowserContext) 
    const page = await context.newPage();
    page.setDefaultTimeout(30_000);
    page.on("pageerror", error => { throw new Error(`${label}: ${error.message}`); });
+   if (label.includes("silent")) await page.addInitScript(SILENT_LEADER);
    await page.goto(`${base}/`);
    await ready(page);
    await signInPage(secret!, page, user!);
@@ -97,12 +113,12 @@ ui("cloud sync across two devices, in the UI", () => {
 
       // Device A: opening the app uploads the session by itself; nobody selects or confirms anything.
       await openRecords(a.page);
-      await a.page.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("Synced", { exact: true }).waitFor();
+      await a.page.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("In your cloud", { exact: true }).waitFor();
 
       // Device B signs in with empty storage; the record simply arrives, and nothing local is replaced.
       const b = await device("device B", false);
       await openRecords(b.page);
-      await b.page.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("Synced", { exact: true }).waitFor();
+      await b.page.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("In your cloud", { exact: true }).waitFor();
       expect((await readLocalCv(b.page, ID))?.markdown).toBe(baseMarkdown);
 
       // B edits the last line and goes offline; A edits the same line and uploads while B is away.
@@ -138,7 +154,7 @@ ui("cloud sync across two devices, in the UI", () => {
       // The review closes and the conflict list is empty again; the record is no longer waiting on anything.
       await b.page.getByText(/^No conflicts\./).waitFor({ timeout: 30_000 });
       await b.page.getByRole("button", { name: "Records" }).click();
-      await b.page.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("Synced", { exact: true }).waitFor({ timeout: 60_000 });
+      await b.page.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("In your cloud", { exact: true }).waitFor({ timeout: 60_000 });
       const merged = (await readLocalCv(b.page, ID))?.markdown as string;
       expect(merged).toContain("- B (from A)");
       expect(merged).toContain("- B (from B)");
@@ -173,7 +189,7 @@ ui("cloud sync across two devices, in the UI", () => {
       });
       if (!await consent(a.context, ["cloudSessions", "cloudProfiles"])) return;
       await openRecords(a.page);
-      await a.page.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("Synced", { exact: true }).waitFor();
+      await a.page.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("In your cloud", { exact: true }).waitFor();
 
       // Every local profile now has a stable id (none changed, none lost) and all of them are in the cloud.
       const stored = await readLocalProfilesRaw(a.page);
@@ -203,7 +219,7 @@ ui("cloud sync across two devices, in the UI", () => {
       const a = await device("device A", true);
       if (!await consent(a.context)) return;
       await openRecords(a.page);
-      await a.page.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("Synced", { exact: true }).waitFor();
+      await a.page.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("In your cloud", { exact: true }).waitFor();
 
       const different = "# Mine\n\nWritten on the other browser before it ever synced";
       const b = await device("device B", async context => { await seedLocalCv(context, { id: ID, markdown: different, css, title: "Sync CV" }); });
@@ -235,7 +251,7 @@ ui("cloud sync across two devices, in the UI", () => {
       const overLimit = a.page.locator(".records-table tbody tr").getByText("Not synced: over limit", { exact: true });
       await overLimit.first().waitFor({ timeout: 60_000 });
       expect(await overLimit.count()).toBe(1); // three local sessions, two fit under the cap of two
-      expect(await a.page.locator(".records-table tbody tr", { hasText: "Quota Profile" }).getByText("Synced", { exact: true }).count()).toBe(1);
+      expect(await a.page.locator(".records-table tbody tr", { hasText: "Quota Profile" }).getByText("In your cloud", { exact: true }).count()).toBe(1);
       for (const id of ["q1", "q2", "q3"]) expect((await readLocalCv(a.page, id))?.markdown).toBe(`# ${id}`); // nothing dropped
 
       // The header chip and the session list both say so, with the reason, and the empty state is never silent.
@@ -243,6 +259,44 @@ ui("cloud sync across two devices, in the UI", () => {
       await a.page.goto(`${base}/`);
       await ready(a.page);
       await a.page.getByTestId("cloud-sync-banner").getByText(/1 item could not sync \(over limit\)/).waitFor({ timeout: 30_000 });
+      await a.context.close();
+   });
+
+   it("a second tab beside a leader that does not answer takes over: the records leave 'On this device only' by themselves and sync", async () => {
+      await newUser("syncstale");
+      // Tab A signs in first and holds the leader lock without ever syncing (an older bundle, or a stopped tab).
+      const a = await device("silent tab A", true);
+      if (!await consent(a.context)) return;
+      await a.page.goto(`${base}/settings/cloud-data`);
+      await ready(a.page);
+      await a.page.getByRole("button", { name: "Records" }).click();
+      const rowA = a.page.locator(".records-table tbody tr", { hasText: "Sync CV" });
+      await rowA.waitFor();
+      // Alone, it never syncs, but it never claims the record is final either.
+      await a.page.waitForTimeout(8_000);
+      expect(await cloudCopies(a.context)).toEqual([]);
+      expect(await rowA.innerText()).not.toContain("On this device only");
+      expect(await a.page.getByTestId("records-sync-state").innerText()).not.toMatch(/Synced/);
+
+      // Tab B of the same browser profile: it asks who leads, hears nothing, takes the leadership and syncs.
+      const pageB = await a.context.newPage();
+      pageB.setDefaultTimeout(30_000);
+      pageB.on("pageerror", error => { throw new Error(`tab B: ${error.message}`); });
+      await pageB.goto(`${base}/settings/cloud-data`);
+      await ready(pageB);
+      await expect.poll(() => cloudCopies(a.context), { timeout: 60_000, intervals: [1_000] }).toEqual([`session:${ID}`]);
+      await pageB.getByRole("button", { name: "Records" }).click();
+      await pageB.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("In your cloud", { exact: true }).waitFor({ timeout: 30_000 });
+      await pageB.getByRole("button", { name: "Overview" }).click();
+      const connection = await pageB.locator(".facts div", { hasText: "Connection" }).innerText();
+      expect(connection).toMatch(/Live updates on|Live updates unavailable|Connecting|Reconnecting/);
+      expect(await pageB.locator(".facts div", { hasText: "Last synced" }).innerText()).not.toContain("Not yet");
+
+      // Tab A, now a follower, reflects the same state and says another tab is syncing.
+      await a.page.getByRole("button", { name: "Records" }).click();
+      await rowA.getByText("In your cloud", { exact: true }).waitFor({ timeout: 30_000 });
+      await a.page.getByRole("button", { name: "Overview" }).click();
+      await a.page.locator(".facts div", { hasText: "Connection" }).getByText(/Another tab is syncing|older version|not answering/).waitFor();
       await a.context.close();
    });
 });

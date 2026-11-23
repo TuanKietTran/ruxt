@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { EngineView } from '../../app/utils/cloudSync/contracts';
 import { describeSyncStatus, relativeTime } from '../../app/utils/cloudSync/statusLabel';
 import { SYNC_KINDS } from '../../app/utils/cloudSync/kinds';
+import { CONSENT } from '../helpers/cloud-sync-view';
 
 const NOW = Date.parse('2026-11-20T12:00:00.000Z');
 const minutesAgo = (min: number) => new Date(NOW - min * 60_000).toISOString();
@@ -23,6 +24,8 @@ const baseView = (overrides: Partial<EngineView> = {}): EngineView => ({
    kinds: Object.fromEntries(SYNC_KINDS.map(kind => [kind, { mode: 'auto', consented: false, automatic: false }])) as EngineView['kinds'],
    ...overrides,
 });
+
+const automaticKinds = (): EngineView['kinds'] => Object.fromEntries(SYNC_KINDS.map(kind => [kind, { mode: 'auto', consented: true, automatic: true }])) as EngineView['kinds'];
 
 const linkedRecord = {
    key: 'session:abc',
@@ -108,18 +111,27 @@ describe('describeSyncStatus syncing and pending', () => {
       expect(describeSyncStatus(baseView({ status: 'syncing', pendingCount: 2 }), NOW)?.label).toBe('Syncing');
    });
 
-   it('counts pending changes, singular and plural', () => {
-      expect(describeSyncStatus(baseView({ pendingCount: 1 }), NOW)).toEqual({
-         tone: 'busy', icon: 'lucide:cloud-upload', label: '1 pending', detail: '',
+   it('says "Syncing" with the queue size while uploads wait for the next exchange', () => {
+      const queued = (count: number) => baseView({
+         records: Array.from({ length: count }, (_, index) => ({ ...linkedRecord, key: `session:q${index}`, id: `q${index}`, status: 'modified' })) as EngineView['records'],
+         consent: CONSENT, kinds: automaticKinds(),
       });
-      expect(describeSyncStatus(baseView({ pendingCount: 5 }), NOW)?.label).toBe('5 pending');
+      expect(describeSyncStatus(queued(1), NOW)).toEqual({ tone: 'busy', icon: 'lucide:cloud-upload', label: 'Syncing', detail: '1 item queued' });
+      expect(describeSyncStatus(queued(5), NOW)?.detail).toBe('5 items queued');
+   });
+
+   it('says why records wait instead of showing a resting label', () => {
+      const stuck = baseView({ records: [{ ...unlinkedRecord }], consent: CONSENT, kinds: automaticKinds(), activity: 'idle' });
+      expect(describeSyncStatus(stuck, NOW)).toMatchObject({ tone: 'warning', label: 'Waiting for sync', detail: expect.stringContaining('Sync now') });
+      const elsewhere = baseView({ records: [{ ...unlinkedRecord }], consent: CONSENT, kinds: automaticKinds(), leader: false, leaderTab: 'other' });
+      expect(describeSyncStatus(elsewhere, NOW)).toMatchObject({ tone: 'busy', label: 'Syncing in another tab' });
    });
 });
 
-describe('describeSyncStatus synced and unlinked', () => {
-   it('reports synced as ok with the last sync time', () => {
+describe('describeSyncStatus in your cloud and unlinked', () => {
+   it('reports "In your cloud" as ok with the last sync time', () => {
       expect(describeSyncStatus(baseView({ records: [linkedRecord] }), NOW)).toEqual({
-         tone: 'ok', icon: 'lucide:cloud', label: 'Synced', detail: 'Last synced 2 min ago',
+         tone: 'ok', icon: 'lucide:cloud', label: 'In your cloud', detail: 'Last synced 2 min ago',
       });
    });
 
@@ -128,8 +140,8 @@ describe('describeSyncStatus synced and unlinked', () => {
       expect(describeSyncStatus(view, NOW)?.detail).toBe('Last synced never');
    });
 
-   it('reports nothing selected when no record is linked', () => {
-      expect(describeSyncStatus(baseView({ records: [unlinkedRecord] }), NOW)).toEqual({
+   it('reports nothing selected when no record is linked and sync is not automatic', () => {
+      expect(describeSyncStatus(baseView({ records: [unlinkedRecord], consent: CONSENT }), NOW)).toEqual({
          tone: 'neutral', icon: 'lucide:cloud', label: 'Cloud sync', detail: 'Nothing selected for sync',
       });
    });

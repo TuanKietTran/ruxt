@@ -15,7 +15,7 @@ import { createMemoryBlobStore } from "../../app/utils/cloudSync/blobs";
 import { ownerFingerprint } from "../../app/utils/cloudSync/hash";
 import { createRecordAdapters } from "../../app/utils/cloudSync/kinds";
 import { createSyncStateStore } from "../../app/utils/cloudSync/state";
-import { createSyncCoordinator, type LockManagerLike, type BroadcastChannelLike } from "../../app/utils/cloudSync/coordinator";
+import { createSyncCoordinator, leaderLockName, type LockManagerLike, type BroadcastChannelLike } from "../../app/utils/cloudSync/coordinator";
 import { createPushChannel, type WebSocketLike } from "../../app/utils/cloudSync/push";
 import { SyncHttpError, type SyncRequestDto, type SyncResponseDto, type ConsentViewDto } from "../../app/utils/cloudSync/types";
 
@@ -228,12 +228,17 @@ export class MemoryStorage implements Storage {
    clear() { this.data.clear(); }
 }
 
-/** Exclusive locks shared by the tabs of one simulated browser, granted FIFO. */
+/**
+ * Exclusive locks shared by the tabs of one simulated browser, granted FIFO. `steal` revokes the current holder
+ * (its request rejects with an AbortError, as in browsers) and grants at once.
+ */
 class SimLocks implements LockManagerLike {
    private queues = new Map<string, Array<() => void>>();
-   private held = new Set<string>();
-   async request<T>(name: string, options: { signal?: AbortSignal }, callback: (lock: unknown) => Promise<T> | T): Promise<T> {
-      if (this.held.has(name)) {
+   private holders = new Map<string, { revoke(): void }>();
+   async request<T>(name: string, options: { signal?: AbortSignal; steal?: boolean }, callback: (lock: unknown) => Promise<T> | T): Promise<T> {
+      if (options.steal) {
+         this.holders.get(name)?.revoke();
+      } else if (this.holders.has(name)) {
          await new Promise<void>((resolve, reject) => {
             const queue = this.queues.get(name) ?? [];
             const entry = () => resolve();
@@ -245,10 +250,16 @@ class SimLocks implements LockManagerLike {
             });
          });
       }
-      this.held.add(name);
-      try { return await callback({}); } finally {
-         const next = this.queues.get(name)?.shift();
-         if (next) next(); else this.held.delete(name);
+      let revoke!: (error: unknown) => void;
+      const revoked = new Promise<never>((_, reject) => { revoke = reject; });
+      revoked.catch(() => undefined);
+      const me = { revoke: () => revoke(new DOMException("The lock was stolen", "AbortError")) };
+      this.holders.set(name, me);
+      try { return await Promise.race([Promise.resolve(callback({})), revoked]); } finally {
+         if (this.holders.get(name) === me) {
+            const next = this.queues.get(name)?.shift();
+            if (next) next(); else this.holders.delete(name);
+         }
       }
    }
 }
@@ -290,7 +301,20 @@ export class SimDevice {
    online = true;
    constructor(readonly server: SimServer, readonly ownerId: string, readonly name: string) {}
 
-   async openTab(): Promise<SimTab> {
+   /**
+    * A tab of an older bundle (or one that stopped answering) holding the leader lock: it never replies to
+    * anything and never syncs. Returns a function that lets the lock go (the tab closing).
+    */
+   async holdLeadership(): Promise<() => void> {
+      const owner = await ownerFingerprint(this.ownerId);
+      let release!: () => void;
+      const held = new Promise<void>(resolve => { release = resolve; });
+      void this.locks.request(leaderLockName(owner), { mode: "exclusive" }, () => held).catch(() => undefined);
+      await flush();
+      return release;
+   }
+
+   async openTab(options: { generation?: number } = {}): Promise<SimTab> {
       const owner = await ownerFingerprint(this.ownerId);
       const clock = this.server.clock;
       const storage = () => this.storage;
@@ -318,6 +342,7 @@ export class SimDevice {
          clock,
          online: () => this.online,
          random: () => 0.5,
+         ...(options.generation !== undefined ? { generation: options.generation } : {}),
       });
       engine.start();
       const tab = { engine, close: () => { engine.stop(); this.tabs.splice(this.tabs.indexOf(tab), 1); } };

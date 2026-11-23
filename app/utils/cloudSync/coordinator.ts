@@ -1,7 +1,7 @@
 import type { SyncCoordinator } from './contracts';
 
 export interface LockManagerLike {
-   request<T>(name: string, options: { mode?: 'exclusive' | 'shared'; ifAvailable?: boolean; signal?: AbortSignal }, callback: (lock: unknown) => Promise<T> | T): Promise<T>;
+   request<T>(name: string, options: { mode?: 'exclusive' | 'shared'; ifAvailable?: boolean; signal?: AbortSignal; steal?: boolean }, callback: (lock: unknown) => Promise<T> | T): Promise<T>;
 }
 
 export interface BroadcastChannelLike {
@@ -22,6 +22,9 @@ function defaultCreateChannel(): ((name: string) => BroadcastChannelLike) | null
    return (name: string) => new ctor(name);
 }
 
+/** Name of the exclusive Web Lock the leader tab of `owner` holds. */
+export const leaderLockName = (owner: string): string => `ruxt-cloud-sync-leader:${owner}`;
+
 /**
  * Cross-tab coordination: only one tab per owner holds leadership (timers and the push
  * socket) and only one sync request per owner is in flight across tabs.
@@ -34,12 +37,15 @@ export function createSyncCoordinator(owner: string, deps?: {
 }): SyncCoordinator {
    const locks = deps?.locks !== undefined ? deps.locks : defaultLocks();
    const createChannel = deps?.createChannel !== undefined ? deps.createChannel : defaultCreateChannel();
-   const leaderName = `ruxt-cloud-sync-leader:${owner}`;
+   const leaderName = leaderLockName(owner);
    const netName = `ruxt-cloud-sync-net:${owner}`;
    const channelName = `ruxt-cloud-sync:${owner}`;
    let leader = false;
    let disposed = false;
-   let releaseLeader: (() => void) | null = null;
+   let stealing = false;
+   // Every lock request of this tab that may hold leadership (the first one, and a takeover), by its release.
+   const releases = new Set<() => void>();
+   let holding = 0;
    const abort = new AbortController();
    const leadershipListeners = new Set<(value: boolean) => void>();
    const messageListeners = new Set<(message: { type: string; [key: string]: unknown }) => void>();
@@ -63,24 +69,50 @@ export function createSyncCoordinator(owner: string, deps?: {
 
    if (channel) channel.addEventListener('message', onChannelMessage);
 
-   if (locks) {
-      // Held until dispose: the callback only resolves once releaseLeader runs.
-      const held = new Promise<void>((resolve) => { releaseLeader = resolve; });
+   /**
+    * Ask for the leader lock: queued behind the current leader, or (steal) taking it from a leader that is gone
+    * quiet. A request that held the lock and then rejected was stolen from; the tab then queues again so it can
+    * lead once the thief closes.
+    */
+   function requestLeadership(steal: boolean): void {
+      if (!locks || disposed) return;
+      let release: () => void = () => undefined;
+      const held = new Promise<void>((resolve) => { release = resolve; });
+      releases.add(release);
+      let holds = false;
+      const drop = (): void => {
+         releases.delete(release);
+         if (steal) stealing = false;
+         if (!holds) return;
+         holds = false;
+         holding -= 1;
+         if (holding === 0) setLeader(false);
+      };
       try {
-         const request = locks.request(leaderName, { mode: 'exclusive', signal: abort.signal }, async () => {
+         const options = steal ? { mode: 'exclusive' as const, steal: true } : { mode: 'exclusive' as const, signal: abort.signal };
+         // Held until dispose: the callback only resolves once its release runs.
+         const request = locks.request(leaderName, options, async () => {
             if (disposed) return;
+            holds = true;
+            holding += 1;
             setLeader(true);
             await held;
-            setLeader(false);
+            drop();
          });
-         // An abort on dispose rejects the pending request; the tab simply stays non-leader.
-         request.catch(() => undefined);
+         request.then(drop, () => {
+            // Aborted while waiting (dispose), or the lock was stolen from this tab.
+            const wasHolding = holds;
+            drop();
+            if (wasHolding && !disposed) requestLeadership(false);
+         });
       } catch {
          // Lock request failed synchronously; the tab stays non-leader.
+         releases.delete(release);
       }
-   } else {
-      leader = true;
    }
+
+   if (locks) requestLeadership(false);
+   else leader = true;
 
    async function withNetworkLock<T>(task: () => Promise<T>): Promise<T> {
       if (locks) return locks.request(netName, { mode: 'exclusive' }, () => task());
@@ -90,12 +122,18 @@ export function createSyncCoordinator(owner: string, deps?: {
       return result;
    }
 
+   function takeOver(): void {
+      if (!locks || leader || stealing || disposed) return;
+      stealing = true;
+      requestLeadership(true);
+   }
+
    function dispose(): void {
       if (disposed) return;
       disposed = true;
       leader = false;
       abort.abort();
-      if (releaseLeader) releaseLeader();
+      for (const release of [...releases]) release();
       if (channel) channel.close();
       leadershipListeners.clear();
       messageListeners.clear();
@@ -108,6 +146,7 @@ export function createSyncCoordinator(owner: string, deps?: {
          return () => { leadershipListeners.delete(listener); };
       },
       withNetworkLock,
+      takeOver,
       broadcast(message: { type: string; [key: string]: unknown }): void {
          if (disposed || !channel) return;
          channel.postMessage(message);

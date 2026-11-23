@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { EngineView, SyncRecordView } from '../../app/utils/cloudSync/contracts';
 import type { ConsentViewDto, QuotaDto } from '../../app/utils/cloudSync/types';
-import { filterRecords, formatBytes, quotaByKind, selectableActions, sortRecords, statusText, uploadPreview } from '../../app/utils/cloudSync/recordsView';
+import { filterRecords, formatBytes, quotaByKind, selectableActions, sortRecords, uploadPreview } from '../../app/utils/cloudSync/recordsView';
+import { presentRecord } from '../../app/utils/cloudSync/syncPresentation';
+import { CONSENT } from '../helpers/cloud-sync-view';
 import { SYNC_KINDS } from '../../app/utils/cloudSync/kinds';
 
 function record(overrides: Partial<SyncRecordView>): SyncRecordView {
@@ -72,36 +74,55 @@ function makeKindQuota(used: Partial<Record<'session' | 'template' | 'profile', 
 }
 
 describe('filterRecords', () => {
+    const viewOf = (records: SyncRecordView[], automatic = false): EngineView => ({
+        ...makeView(records, null, CONSENT),
+        kinds: Object.fromEntries(SYNC_KINDS.map((kind) => [kind, { mode: automatic ? 'auto' : 'selected', consented: true, automatic }])) as EngineView['kinds'],
+    });
+    const keys = (view: EngineView, filter: Parameters<typeof filterRecords>[2]) => filterRecords(view, view.records, filter).map((r) => r.key);
+
     it('filters by kind', () => {
-        const records = [
+        const view = viewOf([
             record({ key: 'session:a', kind: 'session' }),
             record({ key: 'template:b', kind: 'template', id: 'b' }),
             record({ key: 'profile:c', kind: 'profile', id: 'c' }),
-        ];
-        expect(filterRecords(records, { kind: 'template', status: 'all' }).map((r) => r.key)).toEqual(['template:b']);
-        expect(filterRecords(records, { kind: 'all', status: 'all' })).toHaveLength(3);
+        ]);
+        expect(keys(view, { kind: 'template', status: 'all' })).toEqual(['template:b']);
+        expect(keys(view, { kind: 'all', status: 'all' })).toHaveLength(3);
     });
 
-    it('filters by exact status', () => {
-        const records = [
+    it('filters by what each record shows, where sync is not responsible for the records', () => {
+        const view = viewOf([
             record({ key: 'session:a', status: 'local-only' }),
             record({ key: 'session:b', id: 'b', status: 'cloud-only' }),
             record({ key: 'session:c', id: 'c', status: 'synced' }),
-        ];
-        expect(filterRecords(records, { kind: 'all', status: 'local-only' }).map((r) => r.key)).toEqual(['session:a']);
-        expect(filterRecords(records, { kind: 'all', status: 'cloud-only' }).map((r) => r.key)).toEqual(['session:b']);
-        expect(filterRecords(records, { kind: 'all', status: 'synced' }).map((r) => r.key)).toEqual(['session:c']);
+        ]);
+        expect(keys(view, { kind: 'all', status: 'device' })).toEqual(['session:a']);
+        expect(keys(view, { kind: 'all', status: 'cloud-only' })).toEqual(['session:b']);
+        expect(keys(view, { kind: 'all', status: 'cloud' })).toEqual(['session:c']);
     });
 
-    it('treats attention as modified, behind, pending, conflict, error, blocked, cloud-removed and local-missing', () => {
-        const attention = ['modified', 'behind', 'pending', 'conflict', 'error', 'blocked', 'cloud-removed', 'local-missing'] as const;
-        const records = [
+    it('on an automatic kind the passing states are "syncing", not device-only or cloud-only', () => {
+        const view = viewOf([
+            record({ key: 'session:a', status: 'local-only', linked: false }),
+            record({ key: 'session:b', id: 'b', status: 'cloud-only', linked: false }),
+            record({ key: 'session:c', id: 'c', status: 'synced' }),
+        ], true);
+        expect(keys(view, { kind: 'all', status: 'device' })).toEqual([]);
+        expect(keys(view, { kind: 'all', status: 'cloud-only' })).toEqual([]);
+        expect(keys(view, { kind: 'all', status: 'syncing' })).toEqual(['session:a', 'session:b']);
+    });
+
+    it('treats attention as the exceptions: conflict, error, blocked, over limit, removed from cloud and deleted here', () => {
+        const attention = ['conflict', 'error', 'blocked', 'over-limit', 'cloud-removed', 'local-missing'] as const;
+        const moving = ['modified', 'behind', 'pending'] as const;
+        const view = viewOf([
             ...attention.map((status, i) => record({ key: 'session:' + status, id: String(i), status })),
+            ...moving.map((status, i) => record({ key: 'session:' + status, id: 'm' + i, status })),
             record({ key: 'session:synced', id: 's', status: 'synced' }),
-            record({ key: 'session:local', id: 'l', status: 'local-only' }),
-            record({ key: 'session:cloud', id: 'c', status: 'cloud-only' }),
-        ];
-        expect(filterRecords(records, { kind: 'all', status: 'attention' }).map((r) => r.status).sort()).toEqual([...attention].sort());
+        ]);
+        expect(filterRecords(view, view.records, { kind: 'all', status: 'attention' }).map((r) => r.status).sort()).toEqual([...attention].sort());
+        expect(filterRecords(view, view.records, { kind: 'all', status: 'syncing' }).map((r) => r.status).sort()).toEqual([...moving].sort());
+        expect(presentRecord(view, view.records[0]!).phase).toBe('attention');
     });
 });
 
@@ -207,26 +228,6 @@ describe('uploadPreview', () => {
         expect(partial.blockedKinds).toEqual(['session']);
         const none = uploadPreview(makeView(records, makeQuota(0, 10), null), ['session:a', 'template:b']);
         expect(none.blockedKinds).toEqual(['session', 'template']);
-    });
-});
-
-describe('statusText', () => {
-    it('has a short human text for every status', () => {
-        const cases = [
-            ['local-only', 'Only on this device'],
-            ['cloud-only', 'Only in the cloud'],
-            ['synced', 'Synced'],
-            ['modified', 'Changed here'],
-            ['behind', 'Cloud is newer'],
-            ['pending', 'Uploading'],
-            ['conflict', 'Conflict'],
-            ['error', 'Error'],
-            ['blocked', 'Blocked'],
-            ['over-limit', 'Not synced: over limit'],
-            ['cloud-removed', 'Removed from cloud'],
-            ['local-missing', 'Deleted on this device'],
-        ] as const;
-        for (const [status, text] of cases) expect(statusText(status)).toBe(text);
     });
 });
 

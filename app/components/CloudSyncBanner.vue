@@ -4,7 +4,7 @@ import type { BannerModel } from '~/utils/cloudSync/syncSummary';
 
 /** One line saying what cloud sync is doing for a list, with a Download action when records wait in the cloud. */
 defineProps<{ banner: BannerModel; busy?: boolean }>();
-const emit = defineEmits<{ download: [keys: RecordKey[]] }>();
+const emit = defineEmits<{ download: [keys: RecordKey[]]; 'sync-now': [] }>();
 </script>
 
 <template>
@@ -14,6 +14,7 @@ const emit = defineEmits<{ download: [keys: RecordKey[]] }>();
         <AppIcon v-else name='lucide:cloud' :size='14' class='cloud-banner__icon' />
         <span class='cloud-banner__text'>{{ banner.text }}</span>
         <button v-if='banner.download' type='button' class='cloud-banner__action' :disabled='busy' @click='emit("download", banner.download.keys)'>{{ banner.download.label }}</button>
+        <button v-if='banner.syncNow' type='button' class='cloud-banner__action' :disabled='busy' @click='emit("sync-now")'>Sync now</button>
         <NuxtLink v-if='banner.href' :to='banner.href' class='cloud-banner__link'>Details</NuxtLink>
     </div>
 </template>

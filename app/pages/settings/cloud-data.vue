@@ -3,8 +3,10 @@ import type { CloudHistoryDto, ConsentViewDto, SyncSnapshot } from "~/utils/clou
 import type { RecordKey, SyncRecordView } from "~/utils/cloudSync/contracts";
 import type { ConsentCategory } from "~/utils/cloudSync/consentView";
 import { summarizeMetrics } from "~/utils/cloudSync/state";
-import { relativeTime } from "~/utils/cloudSync/statusLabel";
-import { formatBytes, quotaByKind } from "~/utils/cloudSync/recordsView";
+import { describeSyncStatus, relativeTime } from "~/utils/cloudSync/statusLabel";
+import { formatBytes } from "~/utils/cloudSync/recordsView";
+import { connectionText, leaderTabOf, quotaFacts } from "~/utils/cloudSync/syncPresentation";
+import { summarizeSync } from "~/utils/cloudSync/syncSummary";
 
 type Tab = "overview" | "records" | "conflicts" | "history" | "consent";
 const tabs: Array<{ id: Tab; label: string }> = [
@@ -118,13 +120,18 @@ async function restoreRecovery(entry: Parameters<typeof sync.restoreRecovery>[0]
 }
 
 // Overview numbers (this device)
-const kindQuotas = computed(() => (view.value ? quotaByKind(view.value) : []));
+const quota = computed(() => (view.value ? quotaFacts(view.value) : { facts: [], note: null }));
+const syncState = computed(() => (view.value ? describeSyncStatus(view.value, now.value) : null));
+const waitingToUpload = computed(() => (view.value ? Math.max(view.value.pendingCount, summarizeSync(view.value).outgoing.length) : 0));
+const lastSyncedText = computed(() => {
+    if (!view.value) return "";
+    if (view.value.lastSyncAt) return relativeTime(view.value.lastSyncAt, now.value);
+    return leaderTabOf(view.value) === "this" ? "Not yet" : "Not yet. Another tab is syncing";
+});
 const overLimitCount = computed(() => view.value?.records.filter(record => record.status === "over-limit").length ?? 0);
 const lastHour = computed(() => view.value ? summarizeMetrics({ metrics: view.value.metrics } as any, now.value - 3_600_000, now.value) : null);
 const lastDay = computed(() => view.value ? summarizeMetrics({ metrics: view.value.metrics } as any, now.value - 86_400_000, now.value) : null);
-const pushText = computed(() => ({
-    connected: "Live updates on", connecting: "Connecting", down: "Reconnecting", unavailable: "Live updates unavailable; checking periodically", idle: "Not connected",
-}[view.value?.push ?? "idle"]));
+const pushText = computed(() => (view.value ? connectionText(view.value) : ""));
 </script>
 
 <template>
@@ -158,18 +165,21 @@ const pushText = computed(() => ({
 
             <section v-else-if="tab === 'overview'" class="panel" aria-labelledby="overview-title">
                 <h2 id="overview-title">Overview</h2>
+                <p v-if="syncState" class="notice" role="status" data-testid="overview-sync-state">
+                    <strong>{{ syncState.label }}</strong><span v-if="syncState.detail">. {{ syncState.detail }}</span>
+                </p>
                 <dl class="facts">
-                    <div><dt>Last synced</dt><dd>{{ view.lastSyncAt ? relativeTime(view.lastSyncAt, now) : "Not yet" }}</dd></div>
+                    <div><dt>Last synced</dt><dd>{{ lastSyncedText }}</dd></div>
                     <div><dt>Connection</dt><dd>{{ pushText }}</dd></div>
-                    <div><dt>Waiting to upload</dt><dd>{{ view.pendingCount }}</dd></div>
+                    <div><dt>Waiting to upload</dt><dd>{{ waitingToUpload }}</dd></div>
                     <div><dt>Conflicts</dt><dd>{{ view.conflictCount }}</dd></div>
-                    <div v-if="!kindQuotas.length"><dt>Cloud copies</dt><dd>{{ view.quota ? `${view.quota.used} of ${view.quota.limit}` : "Unknown until the first sync" }}</dd></div>
-                    <div v-for="entry in kindQuotas" :key="entry.kind">
-                        <dt>Cloud copies: {{ entry.label }}</dt><dd>{{ entry.used }} of {{ entry.limit }}</dd>
+                    <div v-for="fact in quota.facts" :key="fact.label">
+                        <dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd>
                     </div>
                     <div><dt>Syncing on this device</dt><dd>{{ view.records.filter(record => record.linked).length }}</dd></div>
                     <div v-if="overLimitCount"><dt>Not synced: over limit</dt><dd>{{ overLimitCount }}</dd></div>
                 </dl>
+                <p v-if="quota.note" class="notice" role="status">{{ quota.note }}</p>
                 <p v-if="overLimitCount" class="notice error" role="status">
                     {{ overLimitCount }} {{ overLimitCount === 1 ? "record is" : "records are" }} not synced because the cloud copy limit for {{ overLimitCount === 1 ? "its kind" : "their kinds" }} is reached.
                     Nothing was dropped: {{ overLimitCount === 1 ? "it stays" : "they stay" }} on this device. Remove a cloud copy you no longer need on the Records tab to make room.
