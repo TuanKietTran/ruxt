@@ -96,12 +96,17 @@ describe("a tab behind a leader that never answers (an older bundle, or a tab th
       device.storage.setItem(key, JSON.stringify(saved));
       for (let index = 10; index < 19; index += 1) device.editSession(`s${index}`, `# Session ${index}`);
       server.requests.length = 0;
-      const tab = await device.openTab();
-      // Before the first response arrives nothing may be judged against the stale total.
-      const states: string[] = [];
-      tab.engine.subscribe(view => { for (const record of view.records) if (record.status === "over-limit") states.push(record.key); });
+      // What the device has saved when its first request goes out: nothing may have been judged against the stale total.
+      const judged: string[] = [];
+      const original = server.sync.bind(server);
+      server.sync = async (owner, body) => {
+         const raw = device.storage.getItem(key);
+         for (const link of Object.values<{ id: string; error?: { code: string } }>(raw ? JSON.parse(raw).links : {})) if (link.error?.code === "OVER_LIMIT") judged.push(link.id);
+         return original(owner, body);
+      };
+      await device.openTab();
       await clock.advance(20_000);
-      expect(states).toEqual([]);
+      expect(judged).toEqual([]);
       expect((await server.repo.list(OWNER)).length).toBe(19);
     });
 });

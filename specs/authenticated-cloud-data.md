@@ -42,9 +42,36 @@ Quota is a cap per kind: 20 sessions, 20 templates, 20 profiles and 1 job-prefer
 
 ## Client behavior
 
-After consent and the retention notice, the first catch-up of a signed-in device downloads every cloud-only copy of each consented kind and uploads local records that fit the quota, so a second browser with empty storage shows all records after sign-in with no clicks. The header "Cloud sync" chip, the Editor session list and Profiles say what sync is doing. A one-line banner appears when anything is cloud-only (with a Download action when the kind is consented), when records could not sync, or on a conflict, so an empty list is never silent. Records the user removed from the cloud or unlinked are recorded in an opt-out map, and automatic sync never relinks them. The mode is kept per device (a fresh device starts on Automatic); it is not stored on the account, which is a known limitation.
+After consent and the retention notice, the first catch-up of a signed-in device downloads every cloud-only copy of each consented kind and uploads local records that fit the quota, so a second browser with empty storage shows all records after sign-in with no clicks. Records the user removed from the cloud or unlinked are recorded in an opt-out map, and automatic sync never relinks them. The mode is kept per device (a fresh device starts on Automatic); it is not stored on the account, which is a known limitation.
 
-Per-account bookkeeping lives in localStorage (`cv-sv:cloud-sync:v1:<owner fingerprint>`) and survives sign-out; signing back in resumes without uploading anything new. One tab per browser profile leads (election through the browser's cross-tab locks); other tabs only observe. Edits are batched: 10 s of quiet, never more than 45 s of delay. The leader opens the push connection when the server offers a ticket; without push it reconciles every 45 minutes. Offline periods and repeated triggers send nothing, and a tab that is hidden or closing sends its pending edits once and only when something changed.
+### What a record shows
+
+"In your cloud" means the record is on this device and in the cloud and the two agree; it is where a record that sync is responsible for ends. "Only on this device" and "Only in your cloud" are resting labels only where sync is not responsible for the record: the kind is not consented (or its retention notice is not acknowledged), the kind is in mode "Only records I select", or the user stopped syncing that record. For a record sync is responsible for they are passing states and never shown as resting labels:
+
+| State | Meaning |
+| --- | --- |
+| In your cloud | Both places hold the same content |
+| On this device only | Sync is not responsible for it; the reason is shown (no consent, mode, stopped) |
+| Only in your cloud | Same, for a cloud copy that stays in the cloud until chosen; the banner offers Download for consented kinds |
+| Syncing | An upload or download is queued or running here |
+| Syncing in another tab | Another tab of this browser does the syncing |
+| Waiting for sync | Nothing can move it right now; the reason is shown (offline, the last sync failed and retries, the tab that syncs stopped answering or runs an older version, or nothing is scheduled) |
+| Conflict, Not synced: over limit, Error, Blocked, Removed from cloud, Deleted on this device | Exceptions; each shows its reason. Local data is never overwritten or deleted |
+
+Before the first answer from the server this browser does not know what the account consented to, so records read "Syncing" (checking cloud settings) rather than "off". The rules live in one module, `app/utils/cloudSync/syncPresentation.ts`; the Records tab, the header chip, the banners and the Overview read it, so they agree. The header chip says "In your cloud" with the last sync time, "Syncing", "Syncing in another tab", "Waiting for sync" with the reason, "Offline", "Sync failed" or a count of conflicts and records that could not sync. The Editor session list and Profiles show a one-line banner for a download in progress, for records waiting for sync (with a Sync now action and the reason), when cloud copies stay in the cloud (with Download for consented kinds), when records could not sync, or on a conflict, so an empty list is never silent. The Overview shows the same status sentence, a Connection line that names a follower tab ("Another tab is syncing") instead of "Not connected", and one "Cloud copies: <kind>  n of limit" line per kind; a quota saved by an older release (one shared total) falls back to the copies this device knows with a note that the limits follow the next sync.
+
+### Tabs
+
+Per-account bookkeeping lives in localStorage (`cv-sv:cloud-sync:v1:<owner fingerprint>`) and survives sign-out; signing back in resumes without uploading anything new. One tab per browser profile leads, elected through an exclusive Web Lock; it owns the timers and the push socket. Edits are batched: 10 s of quiet, never more than 45 s of delay. The leader opens the push connection when the server offers a ticket; without push it reconciles every 45 minutes. Offline periods and repeated triggers send nothing, and a tab that is hidden or closing sends its pending edits once and only when something changed.
+
+The other tabs are followers: they show the shared state and send no sync request of their own (an explicit Sync now excepted). A follower talks to the others over a broadcast channel, which costs no network request:
+
+- It asks who leads about a second after it starts (`who-leads`); the leader answers with its engine generation (`leader-here`).
+- No answer within five seconds, or an answer from a lower generation, means the leader is an older bundle or stopped answering: the follower takes the leadership (`navigator.locks.request` with `steal`), runs its first exchange, and the tab it took it from becomes a follower and leads again when the new leader closes. A follower never takes the lock from a leader of the same or a newer generation. Raise `ENGINE_GENERATION` whenever the leader does something an older leader must not keep doing.
+- A follower that still sees unsynced work a minute after its leader answered asks it to sync (`sync-request`); the leader exchanges only if something is owed, so an idle device stays at zero requests.
+- Until then a follower says "Syncing in another tab" (or "Waiting for sync" with the reason); it never shows a record as final while sync is still owed.
+
+An unexpected error inside an exchange (not a network error) is recorded as "Sync failed" with its cause and retried with backoff, instead of leaving the status unchanged. A quota saved by a release that shared one total is not trusted for a kind's own cap before the first answer from the server: the server decides.
 
 Conflicts keep both sides. `/settings/cloud-data` > Conflicts shows each change both sides made differently (content, styles, name, structured fields) with This device / Cloud / Both per change, shortcuts for all of them, and an Apply that stays disabled until every change has a choice; changes only one side made are always kept. Whole-record choices (keep this device, keep the cloud, keep both as separate records) remain. The version not kept is saved to recovery first. History lists the head and checkpoints with Restore as copy, Compare with this device, and Make current (confirmed).
 
@@ -83,7 +110,7 @@ Kinds are one registry (`app/utils/cloudSync/kinds.ts`, mirrored by core's `doma
 
 ## Verification
 
-Engine, merge, conflict choices, adapters and consent are unit-tested; the cloud-data API has a real-server end-to-end suite (`tests/e2e`); push hub and D1/SQLite repositories run on real workerd (`pnpm test:workerd`); a browser test drives two devices of one real Clerk account through upload, download, concurrent offline edits, conflict review, per-change merge and restore-as-copy (`tests/smoke/cloud-sync-ui.test.ts`). Skipped suites establish no coverage.
+Engine, merge, conflict choices, adapters, consent and the status model (every status against mode, consent, leader or follower, and network state, on the Records tab, chip, banner and Overview) are unit-tested; tabs are tested with a simulated browser profile whose leader lock is held by a tab that never answers, or by an older generation; the cloud-data API has a real-server end-to-end suite (`tests/e2e`); push hub and D1/SQLite repositories run on real workerd (`pnpm test:workerd`); a browser test drives two devices of one real Clerk account through upload, download, concurrent offline edits, conflict review, per-change merge and restore-as-copy, and a second tab opened beside a leader that never answers (`tests/smoke/cloud-sync-ui.test.ts`). Skipped suites establish no coverage.
 
 ## Gaps
 

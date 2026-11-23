@@ -114,7 +114,7 @@ describe("what a record shows, for every status, setup, role and network", () =>
 
       // The Overview's connection line names a follower instead of "Not connected".
       const connection = connectionText(view);
-      expect(connection).not.toBe("Not connected");
+      expect(connection).not.toMatch(/^Not connected$/);
       if (network === "online" && role !== "leader") expect(connection).toMatch(/another tab|older version|not answering/i);
 
       // The banner never offers Download for a record sync fetches by itself, and explains a wait.
@@ -167,7 +167,8 @@ describe("the same view, said the same way everywhere", () => {
 
    it("the leader says what its live channel is doing", () => {
       expect(connectionText(makeView([], { push: "connected" }))).toBe("Live updates on");
-      expect(connectionText(makeView([], { push: "idle" }))).toBe("Not connected yet");
+      expect(connectionText(makeView([], { push: "idle", lastSyncAt: null }))).toBe("Not connected yet");
+      expect(connectionText(makeView([], { push: "idle" }))).toBe("Live updates unavailable; checking periodically");
       expect(connectionText(makeView([], { push: "down" }))).toBe("Reconnecting");
       expect(connectionText(makeView([], { status: "offline", push: "idle" }))).toBe("Offline");
    });

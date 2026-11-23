@@ -110,8 +110,6 @@ export class CloudSyncEngine implements EngineActions {
    private timers: Record<"flush" | "retry" | "fallback" | "pull" | "reconnect" | "watch" | "probe", unknown> = { flush: null, retry: null, fallback: null, pull: null, reconnect: null, watch: null, probe: null };
    private readonly generation: number;
    private leaderTab: NonNullable<EngineView["leaderTab"]> = "unknown";
-   /** Generation the answering leader reported. */
-   private peerGeneration = 0;
    /** True once the quota of this session came from a response (a saved one may predate per-kind caps). */
    private quotaFresh = false;
    private listeners = new Set<(view: EngineView) => void>();
@@ -271,13 +269,13 @@ export class CloudSyncEngine implements EngineActions {
 
    private onLeaderHere(generation: number): void {
       this.cancel("probe");
-      this.peerGeneration = generation;
       if (generation < this.generation) this.takeOverLeadership("outdated");
       else { this.leaderTab = "other"; this.invalidateView(); }
    }
 
    private takeOverLeadership(why: "silent" | "outdated"): void {
-      if (this.leader || !this.started) return;
+      // A tab that stopped for another account must not take the lock to sync as the wrong one.
+      if (this.leader || !this.started || this.halted === "signed-out") return;
       this.leaderTab = why;
       this.invalidateView();
       // The lock changes hands; setLeader(true) then runs this tab's first exchange.

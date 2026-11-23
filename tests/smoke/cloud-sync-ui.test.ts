@@ -289,7 +289,7 @@ ui("cloud sync across two devices, in the UI", () => {
       await pageB.locator(".records-table tbody tr", { hasText: "Sync CV" }).getByText("In your cloud", { exact: true }).waitFor({ timeout: 30_000 });
       await pageB.getByRole("button", { name: "Overview" }).click();
       const connection = await pageB.locator(".facts div", { hasText: "Connection" }).innerText();
-      expect(connection).not.toContain("Not connected");
+      expect(connection).toMatch(/Live updates on|Live updates unavailable|Connecting|Reconnecting/);
       expect(await pageB.locator(".facts div", { hasText: "Last synced" }).innerText()).not.toContain("Not yet");
 
       // Tab A, now a follower, reflects the same state and says another tab is syncing.

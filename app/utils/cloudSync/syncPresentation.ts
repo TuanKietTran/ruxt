@@ -144,9 +144,11 @@ export function connectionText(view: EngineView): string {
    if (tab === "silent") return "The tab that syncs is not answering; this tab is taking over";
    if (tab === "outdated") return "The tab that syncs runs an older version; this tab is taking over";
    if (tab !== "this") return "Another tab is syncing";
+   // Idle after a completed sync means the server offered no live channel: it checks periodically instead.
+   const idle = view.lastSyncAt ? "Live updates unavailable; checking periodically" : "Not connected yet";
    return {
       connected: "Live updates on", connecting: "Connecting", down: "Reconnecting",
-      unavailable: "Live updates unavailable; checking periodically", idle: "Not connected yet",
+      unavailable: "Live updates unavailable; checking periodically", idle,
    }[view.push];
 }
 
